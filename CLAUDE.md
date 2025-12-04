@@ -74,3 +74,65 @@ GET  /api/medications, POST /api/medications, POST /api/medications/:id/logs
 POST /api/chat/message - AI chat with persona, can trigger meal logging
 GET  /api/insights/summary?range=7d - AI-generated weekly summary
 ```
+
+---
+
+## Project Status (Updated: 2024-12-04)
+
+### ✅ Completed Features (90%)
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Authentication (Login/Signup) | ✅ Done | Supabase Auth, email confirmation disabled |
+| Onboarding (5 steps) | ✅ Done | localStorage + Supabase user_profiles |
+| Dashboard | ✅ Done | Calories, weight, medication summary |
+| Meals CRUD | ✅ Done | Supabase meals, meal_items tables |
+| Medications CRUD | ✅ Done | Medication logs tracking |
+| Weight Tracking | ✅ Done | Chart, weekly stats |
+| AI Chat Coach | ✅ Done | OpenAI gpt-4o-mini, 3 personas |
+| Protected Routes | ✅ Done | ProtectedRoute component |
+
+### ⚠️ Incomplete / TODO
+
+| Item | File | Issue |
+|------|------|-------|
+| **QuickActions buttons** | `src/components/dashboard/QuickActions.tsx` | Only `console.log()` stubs, no actual navigation |
+| **Settings save** | `src/pages/Settings.tsx` | Profile/notification changes don't save to DB |
+| **Reports data** | `src/pages/Reports.tsx` | Hardcoded mock data, needs dynamic generation |
+| **AI Summary** | `src/pages/MyPage.tsx:124-170` | `setTimeout` simulation, not real API call |
+| **Hardcoded constants** | `Dashboard.tsx`, `MyPage.tsx` | `FALLBACK_TARGET_CALORIES=1800`, `GOAL_WEIGHT=68`, `START_WEIGHT=78` should use profile data |
+
+### 🔴 Security Issue
+
+```typescript
+// src/hooks/useChat.ts - OpenAI API key exposed in browser!
+const openai = new OpenAI({
+  apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+  dangerouslyAllowBrowser: true,  // ⚠️ DANGEROUS for production
+});
+```
+**Solution**: Move to Supabase Edge Function or backend API
+
+### Priority Tasks
+
+1. **HIGH**: Replace hardcoded constants with user profile data
+2. **HIGH**: Connect QuickActions buttons to actual pages/modals
+3. **MEDIUM**: Implement Settings save functionality
+4. **MEDIUM**: Generate Reports dynamically from DB
+5. **LOW**: Connect MyPage AI summary to real API
+6. **LOW**: Move OpenAI calls to backend
+
+### Supabase Configuration
+
+- **Project URL**: `https://fsdvksqflxfgirhvgybn.supabase.co`
+- **Email Confirmation**: Disabled (for MVP)
+- **Tables**: users, user_profiles, meals, meal_items, medications, medication_logs, progress_logs, chat_messages
+
+### Key Files Reference
+
+- **Router**: `src/App.tsx`
+- **Auth Context**: `src/contexts/AuthContext.tsx`
+- **Supabase Client**: `src/lib/supabase.ts`
+- **Type Definitions**: `src/types/domain.ts`
+- **Validation Schemas**: `src/lib/validations/onboarding.ts`
+- **Hooks**: `src/hooks/` (useMeals, useProfile, useProgress, useMedications, useChat)
