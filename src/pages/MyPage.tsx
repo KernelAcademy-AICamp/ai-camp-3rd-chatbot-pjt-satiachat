@@ -4,24 +4,32 @@ import { Button } from "@/components/ui/button";
 import { WeightChart } from "@/components/progress/WeightChart";
 import { WeightLogForm } from "@/components/progress/WeightLogForm";
 import { useLatestProgress, useWeeklyStats } from "@/hooks/useProgress";
+import { useProfile } from "@/hooks/useProfile";
 
-// Temporary constants until connected to user profile
-const GOAL_WEIGHT = 68;
-const START_WEIGHT = 78;
+// Fallback constants if profile data is not available
+const FALLBACK_GOAL_WEIGHT = 68;
+const FALLBACK_START_WEIGHT = 78;
 
 export default function MyPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [showWeightForm, setShowWeightForm] = useState(false);
 
+  // Get user profile data
+  const { data: profile } = useProfile();
+
   const { data: latestProgress, isLoading: isLoadingLatest } = useLatestProgress();
-  const { startWeight, endWeight, weightChange, logs, isLoading: isLoadingWeekly } = useWeeklyStats();
+  const { startWeight: weeklyStartWeight, endWeight, weightChange, logs, isLoading: isLoadingWeekly } = useWeeklyStats();
+
+  // Extract profile data with fallbacks
+  const goalWeight = profile?.goal_weight_kg || FALLBACK_GOAL_WEIGHT;
+  const profileStartWeight = profile?.current_weight_kg || FALLBACK_START_WEIGHT;
 
   // Use latest weight or fallback
-  const currentWeight = latestProgress?.weight_kg || endWeight || START_WEIGHT;
-  const weightFromStart = START_WEIGHT - currentWeight;
-  const remainingWeight = currentWeight - GOAL_WEIGHT;
-  const progressPercent = Math.round(((START_WEIGHT - currentWeight) / (START_WEIGHT - GOAL_WEIGHT)) * 100);
+  const currentWeight = latestProgress?.weight_kg || endWeight || profileStartWeight;
+  const weightFromStart = profileStartWeight - currentWeight;
+  const remainingWeight = currentWeight - goalWeight;
+  const progressPercent = Math.round(((profileStartWeight - currentWeight) / (profileStartWeight - goalWeight)) * 100);
 
   const generateSummary = () => {
     setIsGenerating(true);
@@ -82,11 +90,11 @@ export default function MyPage() {
         <div className="grid grid-cols-3 gap-4">
           <div className="text-center">
             <p className="text-xs text-muted-foreground mb-1">Start</p>
-            <p className="font-semibold text-foreground">{START_WEIGHT} kg</p>
+            <p className="font-semibold text-foreground">{profileStartWeight} kg</p>
           </div>
           <div className="text-center">
             <p className="text-xs text-muted-foreground mb-1">Goal</p>
-            <p className="font-semibold text-foreground">{GOAL_WEIGHT} kg</p>
+            <p className="font-semibold text-foreground">{goalWeight} kg</p>
           </div>
           <div className="text-center">
             <p className="text-xs text-muted-foreground mb-1">Remaining</p>
@@ -113,7 +121,7 @@ export default function MyPage() {
       {/* Weight Chart */}
       <div className="bg-card rounded-2xl border border-border p-6 mb-6 animate-slide-up" style={{ animationDelay: "0.1s" }}>
         <h3 className="font-semibold text-foreground mb-4">Weight Trend (Last 7 Days)</h3>
-        <WeightChart targetWeight={GOAL_WEIGHT} />
+        <WeightChart targetWeight={goalWeight} />
       </div>
 
       {/* AI Summary */}

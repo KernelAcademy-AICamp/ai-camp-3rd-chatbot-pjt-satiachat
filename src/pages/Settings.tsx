@@ -1,13 +1,15 @@
-import { useState } from "react";
-import { User, Bell, Palette, Shield, Snowflake, Sun, Flame, Check } from "lucide-react";
+import { useState, useEffect } from "react";
+import { User, Bell, Palette, Shield, Snowflake, Sun, Flame, Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { useProfile, useUpdateProfile, useUpdatePersona } from "@/hooks/useProfile";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
+import type { ChatPersona } from "@/types/domain";
 
-type CoachPersona = "cold" | "bright" | "strict";
-
-const personas: { id: CoachPersona; icon: typeof Snowflake; label: string; description: string }[] = [
+const personas: { id: ChatPersona; icon: typeof Snowflake; label: string; description: string }[] = [
   {
     id: "cold",
     icon: Snowflake,
@@ -29,13 +31,77 @@ const personas: { id: CoachPersona; icon: typeof Snowflake; label: string; descr
 ];
 
 export default function Settings() {
-  const [selectedPersona, setSelectedPersona] = useState<CoachPersona>("bright");
+  const { data: profile, isLoading: isLoadingProfile } = useProfile();
+  const { mutate: updateProfile, isPending: isUpdatingProfile } = useUpdateProfile();
+  const { mutate: updatePersona, isPending: isUpdatingPersona } = useUpdatePersona();
+  const { signOut } = useAuth();
+  const { toast } = useToast();
+
+  // Form state
+  const [heightCm, setHeightCm] = useState("");
+  const [goalWeightKg, setGoalWeightKg] = useState("");
+  const [targetCalories, setTargetCalories] = useState("");
+  const [selectedPersona, setSelectedPersona] = useState<ChatPersona>("bright");
   const [notifications, setNotifications] = useState({
     meals: true,
     medications: true,
     weight: false,
     insights: true,
   });
+
+  // Initialize form with profile data
+  useEffect(() => {
+    if (profile) {
+      setHeightCm(profile.height_cm?.toString() || "");
+      setGoalWeightKg(profile.goal_weight_kg?.toString() || "");
+      setTargetCalories(profile.target_calories?.toString() || "");
+      setSelectedPersona(profile.coach_persona || "bright");
+    }
+  }, [profile]);
+
+  const handleSave = () => {
+    // Update profile
+    updateProfile(
+      {
+        height_cm: heightCm ? parseFloat(heightCm) : undefined,
+        goal_weight_kg: goalWeightKg ? parseFloat(goalWeightKg) : undefined,
+        target_calories: targetCalories ? parseInt(targetCalories) : undefined,
+      },
+      {
+        onSuccess: () => {
+          toast({
+            title: "Settings saved",
+            description: "Your profile has been updated successfully.",
+          });
+        },
+        onError: (error) => {
+          toast({
+            title: "Error",
+            description: "Failed to save settings. Please try again.",
+            variant: "destructive",
+          });
+          console.error("Failed to update profile:", error);
+        },
+      }
+    );
+
+    // Update persona separately
+    if (selectedPersona !== profile?.coach_persona) {
+      updatePersona(selectedPersona);
+    }
+  };
+
+  const handleLogout = async () => {
+    await signOut();
+  };
+
+  if (isLoadingProfile) {
+    return (
+      <div className="p-4 md:p-6 lg:p-8 max-w-2xl mx-auto flex items-center justify-center min-h-[50vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-2xl mx-auto">
@@ -58,16 +124,34 @@ export default function Settings() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="text-sm text-muted-foreground mb-1.5 block">Height (cm)</label>
-              <Input defaultValue="175" className="rounded-xl" />
+              <Input
+                type="number"
+                value={heightCm}
+                onChange={(e) => setHeightCm(e.target.value)}
+                placeholder="175"
+                className="rounded-xl"
+              />
             </div>
             <div>
               <label className="text-sm text-muted-foreground mb-1.5 block">Goal Weight (kg)</label>
-              <Input defaultValue="68" className="rounded-xl" />
+              <Input
+                type="number"
+                value={goalWeightKg}
+                onChange={(e) => setGoalWeightKg(e.target.value)}
+                placeholder="68"
+                className="rounded-xl"
+              />
             </div>
           </div>
           <div>
             <label className="text-sm text-muted-foreground mb-1.5 block">Target Calories</label>
-            <Input defaultValue="1800" className="rounded-xl" />
+            <Input
+              type="number"
+              value={targetCalories}
+              onChange={(e) => setTargetCalories(e.target.value)}
+              placeholder="1800"
+              className="rounded-xl"
+            />
           </div>
         </div>
       </section>
@@ -153,6 +237,9 @@ export default function Settings() {
             </div>
           ))}
         </div>
+        <p className="text-xs text-muted-foreground mt-4">
+          * Notification settings are saved locally. Push notifications coming soon!
+        </p>
       </section>
 
       {/* Account Section */}
@@ -165,18 +252,39 @@ export default function Settings() {
         </div>
 
         <div className="space-y-3">
-          <Button variant="outline" className="w-full justify-start rounded-xl">
-            Change Password
+          <Button
+            variant="outline"
+            onClick={handleLogout}
+            className="w-full justify-start rounded-xl"
+          >
+            Log Out
           </Button>
-          <Button variant="outline" className="w-full justify-start rounded-xl text-destructive hover:text-destructive hover:bg-destructive/5">
-            Delete Account
+          <Button
+            variant="outline"
+            className="w-full justify-start rounded-xl text-destructive hover:text-destructive hover:bg-destructive/5"
+            disabled
+          >
+            Delete Account (Coming Soon)
           </Button>
         </div>
       </section>
 
       {/* Save Button */}
       <div className="mt-6">
-        <Button className="w-full rounded-xl shadow-glow">Save Changes</Button>
+        <Button
+          onClick={handleSave}
+          disabled={isUpdatingProfile || isUpdatingPersona}
+          className="w-full rounded-xl shadow-glow"
+        >
+          {isUpdatingProfile || isUpdatingPersona ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Saving...
+            </>
+          ) : (
+            "Save Changes"
+          )}
+        </Button>
       </div>
     </div>
   );

@@ -79,7 +79,7 @@ GET  /api/insights/summary?range=7d - AI-generated weekly summary
 
 ## Project Status (Updated: 2024-12-04)
 
-### ✅ Completed Features (90%)
+### ✅ Completed Features (95%)
 
 | Feature | Status | Notes |
 |---------|--------|-------|
@@ -91,16 +91,17 @@ GET  /api/insights/summary?range=7d - AI-generated weekly summary
 | Weight Tracking | ✅ Done | Chart, weekly stats |
 | AI Chat Coach | ✅ Done | OpenAI gpt-4o-mini, 3 personas |
 | Protected Routes | ✅ Done | ProtectedRoute component |
+| QuickActions | ✅ Done | Meal/Weight forms, Medication navigation |
+| Settings Save | ✅ Done | Profile updates saved to Supabase |
+| Reports | ✅ Done | Dynamic weekly reports from DB |
+| Profile Data | ✅ Done | Dashboard/MyPage use user profile data |
 
-### ⚠️ Incomplete / TODO
+### ⚠️ Remaining TODO (Low Priority)
 
 | Item | File | Issue |
 |------|------|-------|
-| **QuickActions buttons** | `src/components/dashboard/QuickActions.tsx` | Only `console.log()` stubs, no actual navigation |
-| **Settings save** | `src/pages/Settings.tsx` | Profile/notification changes don't save to DB |
-| **Reports data** | `src/pages/Reports.tsx` | Hardcoded mock data, needs dynamic generation |
-| **AI Summary** | `src/pages/MyPage.tsx:124-170` | `setTimeout` simulation, not real API call |
-| **Hardcoded constants** | `Dashboard.tsx`, `MyPage.tsx` | `FALLBACK_TARGET_CALORIES=1800`, `GOAL_WEIGHT=68`, `START_WEIGHT=78` should use profile data |
+| **AI Summary** | `src/pages/MyPage.tsx:34-41` | `setTimeout` simulation, not real API call |
+| **OpenAI Security** | `src/hooks/useChat.ts` | API key exposed in browser (move to backend) |
 
 ### 🔴 Security Issue
 
@@ -113,14 +114,10 @@ const openai = new OpenAI({
 ```
 **Solution**: Move to Supabase Edge Function or backend API
 
-### Priority Tasks
+### Remaining Tasks (Low Priority)
 
-1. **HIGH**: Replace hardcoded constants with user profile data
-2. **HIGH**: Connect QuickActions buttons to actual pages/modals
-3. **MEDIUM**: Implement Settings save functionality
-4. **MEDIUM**: Generate Reports dynamically from DB
-5. **LOW**: Connect MyPage AI summary to real API
-6. **LOW**: Move OpenAI calls to backend
+1. **LOW**: Connect MyPage AI summary to real Claude/OpenAI API
+2. **LOW**: Move OpenAI calls to backend (Supabase Edge Function)
 
 ### Supabase Configuration
 
