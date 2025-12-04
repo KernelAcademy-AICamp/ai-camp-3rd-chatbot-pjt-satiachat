@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { NavLink } from "@/components/NavLink";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   UtensilsCrossed,
@@ -11,9 +11,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -31,6 +34,31 @@ interface AppSidebarProps {
 
 export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, signOut } = useAuth();
+  const { toast } = useToast();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await signOut();
+      toast({
+        title: "로그아웃 완료",
+        description: "안전하게 로그아웃되었습니다.",
+      });
+      navigate("/login");
+    } catch (error) {
+      console.error("Logout failed:", error);
+      toast({
+        title: "로그아웃 실패",
+        description: "다시 시도해주세요.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
     <aside
@@ -76,6 +104,44 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           );
         })}
       </nav>
+
+      {/* User Info & Logout */}
+      {user && (
+        <div className="px-3 py-3 border-t border-sidebar-border">
+          <div className={cn(
+            "flex items-center gap-3 mb-2",
+            collapsed && "justify-center"
+          )}>
+            <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+              <User className="w-4 h-4 text-primary" />
+            </div>
+            {!collapsed && (
+              <div className="flex-1 min-w-0 animate-fade-in">
+                <p className="text-xs text-sidebar-foreground truncate">
+                  {user.email}
+                </p>
+              </div>
+            )}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            className={cn(
+              "w-full hover:bg-destructive/10 hover:text-destructive",
+              collapsed ? "justify-center px-2" : "justify-start"
+            )}
+          >
+            <LogOut className="w-4 h-4 flex-shrink-0" />
+            {!collapsed && (
+              <span className="ml-2 animate-fade-in">
+                {isLoggingOut ? "로그아웃 중..." : "로그아웃"}
+              </span>
+            )}
+          </Button>
+        </div>
+      )}
 
       {/* Collapse Toggle */}
       <div className="p-3 border-t border-sidebar-border">

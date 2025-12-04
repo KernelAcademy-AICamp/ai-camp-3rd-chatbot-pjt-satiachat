@@ -1,56 +1,14 @@
 import { useState } from "react";
-import { Pill, Plus, Check, Clock, AlertCircle } from "lucide-react";
+import { Pill, Plus, AlertCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-
-interface Medication {
-  id: string;
-  name: string;
-  dosage: string;
-  frequency: string;
-  time: string;
-  taken: boolean;
-}
-
-const medications: Medication[] = [
-  {
-    id: "1",
-    name: "Wegovy",
-    dosage: "0.5mg",
-    frequency: "Weekly",
-    time: "Sunday AM",
-    taken: true,
-  },
-  {
-    id: "2",
-    name: "Metformin",
-    dosage: "500mg",
-    frequency: "Daily",
-    time: "With breakfast",
-    taken: true,
-  },
-  {
-    id: "3",
-    name: "Vitamin D",
-    dosage: "2000 IU",
-    frequency: "Daily",
-    time: "Morning",
-    taken: false,
-  },
-];
+import { MedicationCard } from "@/components/medications/MedicationCard";
+import { MedicationForm } from "@/components/medications/MedicationForm";
+import { useTodayMedicationStats } from "@/hooks/useMedications";
 
 export default function Medications() {
-  const [meds, setMeds] = useState(medications);
+  const [showAddForm, setShowAddForm] = useState(false);
 
-  const toggleTaken = (id: string) => {
-    setMeds((prev) =>
-      prev.map((med) =>
-        med.id === id ? { ...med, taken: !med.taken } : med
-      )
-    );
-  };
-
-  const takenCount = meds.filter((m) => m.taken).length;
+  const { total, taken, percentage, medications, isLoading, error } = useTodayMedicationStats();
 
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-4xl mx-auto">
@@ -60,7 +18,10 @@ export default function Medications() {
           <h1 className="text-2xl md:text-3xl font-bold text-foreground">Medications</h1>
           <p className="text-muted-foreground mt-1">Manage your medication schedule</p>
         </div>
-        <Button className="gap-2 rounded-xl shadow-glow">
+        <Button
+          className="gap-2 rounded-xl shadow-glow"
+          onClick={() => setShowAddForm(true)}
+        >
           <Plus className="w-4 h-4" />
           Add Medication
         </Button>
@@ -76,76 +37,57 @@ export default function Medications() {
             <div>
               <p className="text-sm text-muted-foreground">Today's Medications</p>
               <p className="text-2xl font-bold text-foreground">
-                {takenCount} / {meds.length}
+                {isLoading ? "..." : `${taken} / ${total}`}
               </p>
             </div>
           </div>
           <div className="text-right">
             <span className="text-3xl font-bold text-warning">
-              {Math.round((takenCount / meds.length) * 100)}%
+              {isLoading ? "..." : `${percentage}%`}
             </span>
             <p className="text-xs text-muted-foreground">completed</p>
           </div>
         </div>
       </div>
 
+      {/* Loading State */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="bg-destructive/10 text-destructive rounded-xl p-4 text-center">
+          <p>약물 데이터를 불러오는데 실패했습니다.</p>
+          <p className="text-sm mt-1">Supabase 연결을 확인해주세요.</p>
+        </div>
+      )}
+
+      {/* Empty State */}
+      {!isLoading && !error && medications.length === 0 && (
+        <div className="text-center py-12 text-muted-foreground">
+          <Pill className="h-12 w-12 mx-auto mb-4 opacity-50" />
+          <p className="text-lg mb-2">등록된 약물이 없습니다</p>
+          <p className="text-sm">위의 "Add Medication" 버튼을 눌러 약물을 추가해보세요!</p>
+        </div>
+      )}
+
       {/* Medication List */}
-      <div className="space-y-3">
-        {meds.map((med, index) => (
-          <div
-            key={med.id}
-            className={cn(
-              "bg-card rounded-xl border p-4 transition-all duration-200 animate-slide-up",
-              med.taken ? "border-success/30 bg-success/5" : "border-border hover:border-primary/30"
-            )}
-            style={{ animationDelay: `${index * 0.1}s` }}
-          >
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => toggleTaken(med.id)}
-                className={cn(
-                  "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200",
-                  med.taken
-                    ? "bg-success text-success-foreground"
-                    : "bg-muted hover:bg-primary/10 text-muted-foreground hover:text-primary"
-                )}
-              >
-                {med.taken ? <Check className="w-5 h-5" /> : <Pill className="w-5 h-5" />}
-              </button>
-
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <span className={cn("font-medium", med.taken && "text-muted-foreground line-through")}>
-                    {med.name}
-                  </span>
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-                    {med.dosage}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    {med.time}
-                  </span>
-                  <span>•</span>
-                  <span>{med.frequency}</span>
-                </div>
-              </div>
-
-              {!med.taken && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => toggleTaken(med.id)}
-                  className="rounded-lg"
-                >
-                  Mark as taken
-                </Button>
-              )}
+      {!isLoading && !error && medications.length > 0 && (
+        <div className="space-y-3">
+          {medications.map((medication, index) => (
+            <div
+              key={medication.id}
+              className="animate-slide-up"
+              style={{ animationDelay: `${index * 0.05}s` }}
+            >
+              <MedicationCard medication={medication} />
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Reminder Note */}
       <div className="mt-6 flex items-start gap-3 p-4 bg-info/5 border border-info/20 rounded-xl animate-slide-up" style={{ animationDelay: "0.3s" }}>
@@ -157,6 +99,12 @@ export default function Medications() {
           </p>
         </div>
       </div>
+
+      {/* Add Medication Form */}
+      <MedicationForm
+        open={showAddForm}
+        onOpenChange={setShowAddForm}
+      />
     </div>
   );
 }

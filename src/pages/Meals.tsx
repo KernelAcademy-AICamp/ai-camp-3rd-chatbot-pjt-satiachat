@@ -1,30 +1,50 @@
 import { useState } from "react";
-import { Calendar, Plus, Search, UtensilsCrossed } from "lucide-react";
+import { Calendar, Plus, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
-
-const mealHistory = [
-  {
-    date: "Today",
-    meals: [
-      { type: "breakfast", items: "계란 2개, 토스트, 우유", calories: 420 },
-      { type: "lunch", items: "제육볶음, 공기밥, 김치", calories: 680 },
-      { type: "snack", items: "아메리카노", calories: 10 },
-    ],
-  },
-  {
-    date: "Yesterday",
-    meals: [
-      { type: "breakfast", items: "오트밀, 바나나", calories: 350 },
-      { type: "lunch", items: "비빔밥, 된장국", calories: 620 },
-      { type: "dinner", items: "닭가슴살 샐러드", calories: 380 },
-    ],
-  },
-];
+import { MealCard } from "@/components/meals/MealCard";
+import { MealForm } from "@/components/meals/MealForm";
+import { useMeals } from "@/hooks/useMeals";
+import { getToday, formatDate } from "@/lib/supabase";
+import type { MealType } from "@/types/domain";
 
 export default function Meals() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedDate, setSelectedDate] = useState(getToday());
+  const [showAddForm, setShowAddForm] = useState(false);
+
+  const { data: meals, isLoading, error } = useMeals(selectedDate);
+
+  // Filter meals by search query
+  const filteredMeals = meals?.filter(meal => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      meal.meal_type.toLowerCase().includes(query) ||
+      meal.meal_items?.some(item => item.name.toLowerCase().includes(query))
+    );
+  });
+
+  // Group meals by type for display order
+  const mealOrder: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
+  const sortedMeals = filteredMeals?.sort((a, b) => {
+    return mealOrder.indexOf(a.meal_type) - mealOrder.indexOf(b.meal_type);
+  });
+
+  // Format date for display
+  const displayDate = () => {
+    const today = getToday();
+    const yesterday = formatDate(new Date(Date.now() - 86400000));
+
+    if (selectedDate === today) return 'Today';
+    if (selectedDate === yesterday) return 'Yesterday';
+
+    return new Date(selectedDate).toLocaleDateString('ko-KR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
 
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-4xl mx-auto">
@@ -34,7 +54,10 @@ export default function Meals() {
           <h1 className="text-2xl md:text-3xl font-bold text-foreground">Meals</h1>
           <p className="text-muted-foreground mt-1">Track your daily nutrition</p>
         </div>
-        <Button className="gap-2 rounded-xl shadow-glow">
+        <Button
+          className="gap-2 rounded-xl shadow-glow"
+          onClick={() => setShowAddForm(true)}
+        >
           <Plus className="w-4 h-4" />
           Add Meal
         </Button>
@@ -51,43 +74,79 @@ export default function Meals() {
             className="pl-10 rounded-xl"
           />
         </div>
-        <Button variant="outline" className="gap-2 rounded-xl">
-          <Calendar className="w-4 h-4" />
-          <span className="hidden sm:inline">Select Date</span>
-        </Button>
+        <div className="relative">
+          <Button variant="outline" className="gap-2 rounded-xl" asChild>
+            <label>
+              <Calendar className="w-4 h-4" />
+              <span className="hidden sm:inline">{displayDate()}</span>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="absolute inset-0 opacity-0 cursor-pointer"
+              />
+            </label>
+          </Button>
+        </div>
       </div>
 
-      {/* Meal History */}
-      <div className="space-y-6">
-        {mealHistory.map((day, dayIndex) => (
-          <div key={day.date} className="animate-slide-up" style={{ animationDelay: `${dayIndex * 0.1}s` }}>
-            <h3 className="text-sm font-semibold text-muted-foreground mb-3">{day.date}</h3>
-            <div className="space-y-3">
-              {day.meals.map((meal, mealIndex) => (
-                <div
-                  key={`${day.date}-${meal.type}`}
-                  className="bg-card rounded-xl border border-border p-4 hover:shadow-md transition-all duration-200"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                      <UtensilsCrossed className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-foreground capitalize">{meal.type}</span>
-                        <span className="text-sm font-semibold text-foreground">
-                          {meal.calories} <span className="text-muted-foreground font-normal">kcal</span>
-                        </span>
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-0.5">{meal.items}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
+      {/* Meal List */}
+      <div className="space-y-4">
+        <h3 className="text-sm font-semibold text-muted-foreground">{displayDate()}</h3>
+
+        {isLoading && (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        )}
+
+        {error && (
+          <div className="bg-destructive/10 text-destructive rounded-xl p-4 text-center">
+            <p>식단 데이터를 불러오는데 실패했습니다.</p>
+            <p className="text-sm mt-1">Supabase 연결을 확인해주세요.</p>
+          </div>
+        )}
+
+        {!isLoading && !error && sortedMeals && sortedMeals.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground">
+            <p className="text-lg mb-2">기록된 식단이 없습니다</p>
+            <p className="text-sm">위의 "Add Meal" 버튼을 눌러 식단을 기록해보세요!</p>
+          </div>
+        )}
+
+        {!isLoading && !error && sortedMeals && sortedMeals.length > 0 && (
+          <div className="space-y-3">
+            {sortedMeals.map((meal, index) => (
+              <div
+                key={meal.id}
+                className="animate-slide-up"
+                style={{ animationDelay: `${index * 0.05}s` }}
+              >
+                <MealCard meal={meal} />
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Daily Summary */}
+        {sortedMeals && sortedMeals.length > 0 && (
+          <div className="mt-6 pt-4 border-t">
+            <div className="flex justify-between items-center">
+              <span className="text-muted-foreground">Total Calories</span>
+              <span className="text-xl font-bold text-primary">
+                {sortedMeals.reduce((sum, meal) => sum + (meal.total_calories || 0), 0)} kcal
+              </span>
             </div>
           </div>
-        ))}
+        )}
       </div>
+
+      {/* Add Meal Form */}
+      <MealForm
+        open={showAddForm}
+        onOpenChange={setShowAddForm}
+        defaultDate={selectedDate}
+      />
     </div>
   );
 }

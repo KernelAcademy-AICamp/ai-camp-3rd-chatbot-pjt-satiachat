@@ -1,48 +1,60 @@
 import { useState } from "react";
-import { TrendingDown, Target, Award, Sparkles, Loader2 } from "lucide-react";
+import { TrendingDown, Plus, Sparkles, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { WeightChart } from "@/components/progress/WeightChart";
+import { WeightLogForm } from "@/components/progress/WeightLogForm";
+import { useLatestProgress, useWeeklyStats } from "@/hooks/useProgress";
 
-const stats = {
-  currentWeight: 72.5,
-  goalWeight: 68,
-  startWeight: 78,
-  progress: 55,
-};
-
-const weeklyData = [
-  { day: "Mon", calories: 1650, weight: 73.2 },
-  { day: "Tue", calories: 1780, weight: 72.9 },
-  { day: "Wed", calories: 1520, weight: 72.8 },
-  { day: "Thu", calories: 1890, weight: 72.6 },
-  { day: "Fri", calories: 1700, weight: 72.5 },
-  { day: "Sat", calories: 2100, weight: 72.7 },
-  { day: "Sun", calories: 1600, weight: 72.5 },
-];
+// Temporary constants until connected to user profile
+const GOAL_WEIGHT = 68;
+const START_WEIGHT = 78;
 
 export default function MyPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [showWeightForm, setShowWeightForm] = useState(false);
+
+  const { data: latestProgress, isLoading: isLoadingLatest } = useLatestProgress();
+  const { startWeight, endWeight, weightChange, logs, isLoading: isLoadingWeekly } = useWeeklyStats();
+
+  // Use latest weight or fallback
+  const currentWeight = latestProgress?.weight_kg || endWeight || START_WEIGHT;
+  const weightFromStart = START_WEIGHT - currentWeight;
+  const remainingWeight = currentWeight - GOAL_WEIGHT;
+  const progressPercent = Math.round(((START_WEIGHT - currentWeight) / (START_WEIGHT - GOAL_WEIGHT)) * 100);
 
   const generateSummary = () => {
     setIsGenerating(true);
-    // Simulate AI response
+    // Simulate AI response (will be connected to Claude API in Phase 5)
     setTimeout(() => {
-      setAiSummary(
-        "지난 7일 동안 평균 섭취 칼로리는 목표의 88%였습니다. 평일에는 목표를 잘 지키고 있지만, 주말에 칼로리 초과가 반복되고 있어요. 특히 토요일에 2,100 kcal를 섭취하셨네요.\n\n**추천 사항:**\n• 다음 주 주말 저녁은 탄수화물을 줄여보세요\n• 체중은 꾸준히 감소 중이에요 - 잘하고 계십니다! 💪\n• 단백질 섭취를 조금 더 늘리면 포만감이 오래 갈 거예요"
-      );
+      if (logs.length === 0) {
+        setAiSummary(
+          "아직 기록된 체중 데이터가 없습니다.\n\n체중을 기록하시면 AI가 맞춤형 분석과 조언을 제공해드릴게요. 오른쪽 상단의 '체중 기록' 버튼을 눌러 시작해보세요!"
+        );
+      } else {
+        setAiSummary(
+          `지난 7일 동안 ${logs.length}회 체중을 기록하셨습니다. ${weightChange ? (weightChange < 0 ? `${Math.abs(weightChange).toFixed(1)}kg 감량에 성공하셨어요! 🎉` : `${weightChange.toFixed(1)}kg 증가했어요.`) : ''}\n\n**추천 사항:**\n• 매일 같은 시간에 체중을 측정하면 더 정확한 추이를 볼 수 있어요\n• 현재 페이스라면 목표 달성까지 순조롭게 진행 중이에요 💪\n• 체지방률도 함께 기록하면 더 정확한 분석이 가능해요`
+        );
+      }
       setIsGenerating(false);
     }, 2000);
   };
 
-  const maxCalories = Math.max(...weeklyData.map((d) => d.calories));
-
   return (
     <div className="p-4 md:p-6 lg:p-8 max-w-4xl mx-auto">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-foreground">My Page</h1>
-        <p className="text-muted-foreground mt-1">Track your progress</p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground">My Page</h1>
+          <p className="text-muted-foreground mt-1">Track your progress</p>
+        </div>
+        <Button
+          className="gap-2 rounded-xl"
+          onClick={() => setShowWeightForm(true)}
+        >
+          <Plus className="w-4 h-4" />
+          체중 기록
+        </Button>
       </div>
 
       {/* Progress Card */}
@@ -54,11 +66,15 @@ export default function MyPage() {
           <div>
             <p className="text-sm text-muted-foreground">Current Progress</p>
             <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-foreground">{stats.currentWeight}</span>
-              <span className="text-muted-foreground">kg</span>
-              <span className="text-sm text-success font-medium ml-2">
-                -5.5 kg from start
+              <span className="text-3xl font-bold text-foreground">
+                {isLoadingLatest ? "..." : currentWeight.toFixed(1)}
               </span>
+              <span className="text-muted-foreground">kg</span>
+              {weightFromStart > 0 && (
+                <span className="text-sm text-success font-medium ml-2">
+                  -{weightFromStart.toFixed(1)} kg from start
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -66,67 +82,38 @@ export default function MyPage() {
         <div className="grid grid-cols-3 gap-4">
           <div className="text-center">
             <p className="text-xs text-muted-foreground mb-1">Start</p>
-            <p className="font-semibold text-foreground">{stats.startWeight} kg</p>
+            <p className="font-semibold text-foreground">{START_WEIGHT} kg</p>
           </div>
           <div className="text-center">
             <p className="text-xs text-muted-foreground mb-1">Goal</p>
-            <p className="font-semibold text-foreground">{stats.goalWeight} kg</p>
+            <p className="font-semibold text-foreground">{GOAL_WEIGHT} kg</p>
           </div>
           <div className="text-center">
             <p className="text-xs text-muted-foreground mb-1">Remaining</p>
-            <p className="font-semibold text-foreground">{stats.currentWeight - stats.goalWeight} kg</p>
+            <p className="font-semibold text-foreground">
+              {remainingWeight > 0 ? remainingWeight.toFixed(1) : 0} kg
+            </p>
           </div>
         </div>
 
         <div className="mt-4">
           <div className="flex justify-between text-xs text-muted-foreground mb-2">
             <span>Progress</span>
-            <span>{stats.progress}%</span>
+            <span>{Math.min(100, Math.max(0, progressPercent))}%</span>
           </div>
           <div className="h-3 bg-background rounded-full overflow-hidden">
             <div
               className="h-full bg-gradient-to-r from-primary to-primary-glow rounded-full transition-all duration-700"
-              style={{ width: `${stats.progress}%` }}
+              style={{ width: `${Math.min(100, Math.max(0, progressPercent))}%` }}
             />
           </div>
         </div>
       </div>
 
-      {/* Weekly Chart */}
+      {/* Weight Chart */}
       <div className="bg-card rounded-2xl border border-border p-6 mb-6 animate-slide-up" style={{ animationDelay: "0.1s" }}>
-        <h3 className="font-semibold text-foreground mb-4">This Week's Calories</h3>
-        
-        <div className="flex items-end justify-between gap-2 h-40">
-          {weeklyData.map((data, index) => (
-            <div key={data.day} className="flex-1 flex flex-col items-center gap-2">
-              <div className="w-full flex flex-col items-center">
-                <span className="text-xs text-muted-foreground mb-1">{data.calories}</span>
-                <div
-                  className={cn(
-                    "w-full rounded-t-lg transition-all duration-500",
-                    data.calories > 1800 ? "bg-warning" : "bg-primary"
-                  )}
-                  style={{
-                    height: `${(data.calories / maxCalories) * 100}px`,
-                    animationDelay: `${index * 0.1}s`,
-                  }}
-                />
-              </div>
-              <span className="text-xs font-medium text-muted-foreground">{data.day}</span>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex items-center justify-center gap-6 mt-4 text-xs">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded bg-primary" />
-            <span className="text-muted-foreground">Within goal</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded bg-warning" />
-            <span className="text-muted-foreground">Over goal</span>
-          </div>
-        </div>
+        <h3 className="font-semibold text-foreground mb-4">Weight Trend (Last 7 Days)</h3>
+        <WeightChart targetWeight={GOAL_WEIGHT} />
       </div>
 
       {/* AI Summary */}
@@ -176,6 +163,12 @@ export default function MyPage() {
           </div>
         )}
       </div>
+
+      {/* Weight Log Form */}
+      <WeightLogForm
+        open={showWeightForm}
+        onOpenChange={setShowWeightForm}
+      />
     </div>
   );
 }
