@@ -160,6 +160,24 @@ export interface SendChatMessageRequest {
   persona?: ChatPersona;
 }
 
+// ============ Foods (Nutrition Database) ============
+export interface Food {
+  id: number;
+  food_code: string;
+  food_name: string;
+  representative_name: string | null;
+  category: string | null;
+  calories: number | null;
+  protein: number | null;
+  fat: number | null;
+  carbs: number | null;
+  sugar: number | null;
+  fiber: number | null;
+  sodium: number | null;
+  serving_size: string | null;
+  food_weight: string | null;
+}
+
 // ============ Statistics Types ============
 export interface DailyCaloriesSummary {
   date: string;
