@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { TrendingDown, Plus, Sparkles, Loader2, Utensils, Calendar } from "lucide-react";
+import { TrendingDown, Plus, Sparkles, Loader2, Utensils, Calendar, Scale } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WeightChart } from "@/components/progress/WeightChart";
 import { CalorieChart } from "@/components/progress/CalorieChart";
@@ -55,132 +55,165 @@ export default function MyPage() {
   };
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 max-w-4xl mx-auto">
+    <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">My Page</h1>
-          <p className="text-muted-foreground mt-1">Track your progress</p>
-        </div>
-        <Button
-          className="gap-2 rounded-xl"
-          onClick={() => setShowWeightForm(true)}
-        >
-          <Plus className="w-4 h-4" />
-          체중 기록
-        </Button>
+      <div className="mb-6">
+        <h1 className="text-2xl md:text-3xl font-bold text-foreground">My Page</h1>
+        <p className="text-muted-foreground mt-1">Track your progress</p>
       </div>
 
-      {/* Progress Card */}
-      <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-2xl border border-primary/20 p-6 mb-6 animate-slide-up">
-        <div className="flex items-center gap-4 mb-6">
-          <div className="w-14 h-14 rounded-2xl bg-primary/20 flex items-center justify-center">
-            <TrendingDown className="w-7 h-7 text-primary" />
-          </div>
-          <div>
-            <p className="text-sm text-muted-foreground">Current Progress</p>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-foreground">
-                {isLoadingLatest ? "..." : currentWeight.toFixed(1)}
-              </span>
-              <span className="text-muted-foreground">kg</span>
-              {weightFromStart > 0 && (
-                <span className="text-sm text-success font-medium ml-2">
-                  -{weightFromStart.toFixed(1)} kg from start
-                </span>
-              )}
+      {/* Progress Card - Compact */}
+      <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl border border-primary/20 p-4 mb-6 animate-slide-up">
+        <div className="flex items-center justify-between gap-4">
+          {/* Left: Current Weight */}
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
+              <TrendingDown className="w-5 h-5 text-primary" />
             </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Current</p>
+              <div className="flex items-baseline gap-1">
+                <span className="text-xl font-bold text-foreground">
+                  {isLoadingLatest ? "..." : currentWeight.toFixed(1)}
+                </span>
+                <span className="text-sm text-muted-foreground">kg</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Center: Stats */}
+          <div className="hidden sm:flex items-center gap-6 text-center">
+            <div>
+              <p className="text-xs text-muted-foreground">Start</p>
+              <p className="font-semibold text-foreground">{profileStartWeight} kg</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Goal</p>
+              <p className="font-semibold text-foreground">{goalWeight} kg</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Left</p>
+              <p className="font-semibold text-foreground">
+                {remainingWeight > 0 ? remainingWeight.toFixed(1) : 0} kg
+              </p>
+            </div>
+          </div>
+
+          {/* Right: Progress */}
+          <div className="flex items-center gap-3">
+            <div className="w-24 sm:w-32">
+              <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                <span>Progress</span>
+                <span>{Math.min(100, Math.max(0, progressPercent))}%</span>
+              </div>
+              <div className="h-2 bg-background rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-primary to-primary-glow rounded-full transition-all duration-700"
+                  style={{ width: `${Math.min(100, Math.max(0, progressPercent))}%` }}
+                />
+              </div>
+            </div>
+            {weightFromStart > 0 && (
+              <span className="hidden md:block text-xs text-success font-medium whitespace-nowrap">
+                -{weightFromStart.toFixed(1)} kg
+              </span>
+            )}
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4">
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground mb-1">Start</p>
-            <p className="font-semibold text-foreground">{profileStartWeight} kg</p>
+        {/* Mobile: Stats Row */}
+        <div className="flex sm:hidden items-center justify-around mt-3 pt-3 border-t border-primary/10 text-center">
+          <div>
+            <p className="text-xs text-muted-foreground">Start</p>
+            <p className="font-semibold text-sm text-foreground">{profileStartWeight} kg</p>
           </div>
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground mb-1">Goal</p>
-            <p className="font-semibold text-foreground">{goalWeight} kg</p>
+          <div>
+            <p className="text-xs text-muted-foreground">Goal</p>
+            <p className="font-semibold text-sm text-foreground">{goalWeight} kg</p>
           </div>
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground mb-1">Remaining</p>
-            <p className="font-semibold text-foreground">
+          <div>
+            <p className="text-xs text-muted-foreground">Left</p>
+            <p className="font-semibold text-sm text-foreground">
               {remainingWeight > 0 ? remainingWeight.toFixed(1) : 0} kg
             </p>
           </div>
         </div>
-
-        <div className="mt-4">
-          <div className="flex justify-between text-xs text-muted-foreground mb-2">
-            <span>Progress</span>
-            <span>{Math.min(100, Math.max(0, progressPercent))}%</span>
-          </div>
-          <div className="h-3 bg-background rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-primary to-primary-glow rounded-full transition-all duration-700"
-              style={{ width: `${Math.min(100, Math.max(0, progressPercent))}%` }}
-            />
-          </div>
-        </div>
       </div>
 
-      {/* Weight Chart */}
-      <div className="bg-card rounded-2xl border border-border p-6 mb-6 animate-slide-up" style={{ animationDelay: "0.1s" }}>
-        <h3 className="font-semibold text-foreground mb-4">Weight Trend (Last 7 Days)</h3>
-        <WeightChart targetWeight={goalWeight} />
-      </div>
-
-      {/* Calorie Chart */}
-      <div className="bg-card rounded-2xl border border-border p-6 mb-6 animate-slide-up" style={{ animationDelay: "0.15s" }}>
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-semibold text-foreground">Calorie Intake (Last 7 Days)</h3>
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-muted-foreground">오늘:</span>
-            <span className="font-semibold text-primary">{todayCalories} kcal</span>
-            <span className="text-muted-foreground">/ {profile?.target_calories || 2000}</span>
-          </div>
-        </div>
-        <CalorieChart targetCalories={profile?.target_calories} />
-        <div className="flex items-center gap-4 mt-4 text-xs text-muted-foreground justify-center">
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded-sm bg-success" />
-            <span>목표 미달</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded-sm bg-primary" />
-            <span>적정</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded-sm bg-warning" />
-            <span>초과</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Today's Meals */}
-      <div className="bg-card rounded-2xl border border-border p-6 mb-6 animate-slide-up" style={{ animationDelay: "0.2s" }}>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
-              <Utensils className="w-5 h-5 text-primary" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-foreground">Today's Meals</h3>
-              <p className="text-xs text-muted-foreground">오늘 먹은 음식을 확인하세요</p>
-            </div>
-          </div>
-          <Link to="/meals">
-            <Button variant="outline" size="sm" className="gap-1 rounded-xl">
-              <Calendar className="w-4 h-4" />
-              전체 기록
+      {/* Charts Grid - 2 columns on desktop, stacked on mobile */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+        {/* Weight Chart */}
+        <div className="bg-card rounded-2xl border border-border p-6 animate-slide-up" style={{ animationDelay: "0.1s" }}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-foreground">Weight Trend (Last 7 Days)</h3>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 rounded-xl border-primary/30 hover:bg-primary/10 hover:border-primary/50 text-primary transition-all"
+              onClick={() => setShowWeightForm(true)}
+            >
+              <Scale className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">기록</span>
+              <Plus className="w-3 h-3" />
             </Button>
-          </Link>
+          </div>
+          <WeightChart targetWeight={goalWeight} />
         </div>
-        <TodayMealsSummary />
+
+        {/* Calorie Chart */}
+        <div className="bg-card rounded-2xl border border-border p-6 animate-slide-up" style={{ animationDelay: "0.1s" }}>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+            <h3 className="font-semibold text-foreground">Calorie Intake (Last 7 Days)</h3>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-muted-foreground">오늘:</span>
+              <span className="font-semibold text-primary">{todayCalories} kcal</span>
+              <span className="text-muted-foreground">/ {profile?.target_calories || 2000}</span>
+            </div>
+          </div>
+          <CalorieChart targetCalories={profile?.target_calories} />
+          <div className="flex items-center gap-4 mt-4 text-xs text-muted-foreground justify-center">
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded-sm bg-success" />
+              <span>목표 미달</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded-sm bg-primary" />
+              <span>적정</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 rounded-sm bg-warning" />
+              <span>초과</span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* AI Summary */}
-      <div className="bg-card rounded-2xl border border-border p-6 animate-slide-up" style={{ animationDelay: "0.25s" }}>
+      {/* Bottom Grid - Today's Meals & AI Summary */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Today's Meals */}
+        <div className="bg-card rounded-2xl border border-border p-6 animate-slide-up" style={{ animationDelay: "0.2s" }}>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
+                <Utensils className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-foreground">Today's Meals</h3>
+                <p className="text-xs text-muted-foreground">오늘 먹은 음식을 확인하세요</p>
+              </div>
+            </div>
+            <Link to="/meals">
+              <Button variant="outline" size="sm" className="gap-1 rounded-xl">
+                <Calendar className="w-4 h-4" />
+                전체 기록
+              </Button>
+            </Link>
+          </div>
+          <TodayMealsSummary />
+        </div>
+
+        {/* AI Summary */}
+        <div className="bg-card rounded-2xl border border-border p-6 animate-slide-up" style={{ animationDelay: "0.2s" }}>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-secondary to-secondary/80 flex items-center justify-center">
@@ -225,6 +258,7 @@ export default function MyPage() {
             </p>
           </div>
         )}
+        </div>
       </div>
 
       {/* Weight Log Form */}

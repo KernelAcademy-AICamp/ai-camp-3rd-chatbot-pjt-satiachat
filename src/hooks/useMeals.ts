@@ -108,6 +108,8 @@ export function useCreateMeal() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: mealKeys.list(data.date) });
       queryClient.invalidateQueries({ queryKey: mealKeys.today() });
+      // Also invalidate calorie chart data
+      queryClient.invalidateQueries({ queryKey: ['calories', 'weekly'] });
     },
   });
 }
@@ -204,6 +206,8 @@ export function useUpdateMeal() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: mealKeys.list(data.date) });
       queryClient.invalidateQueries({ queryKey: mealKeys.today() });
+      // Also invalidate calorie chart data
+      queryClient.invalidateQueries({ queryKey: ['calories', 'weekly'] });
     },
   });
 }
@@ -236,6 +240,8 @@ export function useDeleteMeal() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: mealKeys.lists() });
+      // Also invalidate calorie chart data
+      queryClient.invalidateQueries({ queryKey: ['calories', 'weekly'] });
     },
   });
 }
@@ -282,6 +288,8 @@ export function useAddMealItem() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: mealKeys.lists() });
+      // Also invalidate calorie chart data
+      queryClient.invalidateQueries({ queryKey: ['calories', 'weekly'] });
     },
   });
 }
@@ -324,6 +332,8 @@ export function useRemoveMealItem() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: mealKeys.lists() });
+      // Also invalidate calorie chart data
+      queryClient.invalidateQueries({ queryKey: ['calories', 'weekly'] });
     },
   });
 }
