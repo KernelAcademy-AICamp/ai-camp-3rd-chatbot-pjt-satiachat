@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase, getCurrentUserId, getToday } from '@/lib/supabase';
 import type { ProgressLog, CreateProgressRequest } from '@/types/domain';
+import { useProfile } from './useProfile';
 
 // Query keys
 export const progressKeys = {
@@ -225,5 +226,61 @@ export function useUpsertTodayProgress() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: progressKeys.all });
     },
+  });
+}
+
+// 최근 7일간 칼로리 데이터 조회
+export interface DailyCalorieData {
+  date: string;
+  totalCalories: number;
+  targetCalories: number;
+  mealCount: number;
+}
+
+export function useWeeklyCalories() {
+  const userId = getCurrentUserId();
+  const { data: profile } = useProfile();
+  const targetCalories = profile?.target_calories || 2000;
+
+  return useQuery({
+    queryKey: ['calories', 'weekly', userId],
+    queryFn: async (): Promise<DailyCalorieData[]> => {
+      // 최근 7일 날짜 계산
+      const dates: string[] = [];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        dates.push(date.toISOString().split('T')[0]);
+      }
+
+      // 7일간 식단 데이터 조회
+      const { data: meals, error } = await supabase
+        .from('meals')
+        .select('date, total_calories')
+        .eq('user_id', userId)
+        .gte('date', dates[0])
+        .lte('date', dates[dates.length - 1]);
+
+      if (error) throw error;
+
+      // 날짜별로 그룹화
+      const caloriesByDate: Record<string, { total: number; count: number }> = {};
+      (meals || []).forEach((meal) => {
+        if (!caloriesByDate[meal.date]) {
+          caloriesByDate[meal.date] = { total: 0, count: 0 };
+        }
+        caloriesByDate[meal.date].total += meal.total_calories || 0;
+        caloriesByDate[meal.date].count += 1;
+      });
+
+      // 결과 배열 생성 (빈 날짜도 포함)
+      return dates.map((date) => ({
+        date,
+        totalCalories: caloriesByDate[date]?.total || 0,
+        targetCalories,
+        mealCount: caloriesByDate[date]?.count || 0,
+      }));
+    },
+    staleTime: 5 * 60 * 1000, // 5분간 캐시
   });
 }

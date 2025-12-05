@@ -1,10 +1,14 @@
 import { useState } from "react";
-import { TrendingDown, Plus, Sparkles, Loader2 } from "lucide-react";
+import { TrendingDown, Plus, Sparkles, Loader2, Utensils, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { WeightChart } from "@/components/progress/WeightChart";
+import { CalorieChart } from "@/components/progress/CalorieChart";
 import { WeightLogForm } from "@/components/progress/WeightLogForm";
-import { useLatestProgress, useWeeklyStats } from "@/hooks/useProgress";
+import { TodayMealsSummary } from "@/components/meals/TodayMealsSummary";
+import { useLatestProgress, useWeeklyStats, useWeeklyCalories } from "@/hooks/useProgress";
 import { useProfile } from "@/hooks/useProfile";
+import { useTodayCalories } from "@/hooks/useMeals";
+import { Link } from "react-router-dom";
 
 // Fallback constants if profile data is not available
 const FALLBACK_GOAL_WEIGHT = 68;
@@ -20,6 +24,8 @@ export default function MyPage() {
 
   const { data: latestProgress, isLoading: isLoadingLatest } = useLatestProgress();
   const { startWeight: weeklyStartWeight, endWeight, weightChange, logs, isLoading: isLoadingWeekly } = useWeeklyStats();
+  const { totalCalories: todayCalories } = useTodayCalories();
+  const { data: weeklyCalorieData } = useWeeklyCalories();
 
   // Extract profile data with fallbacks
   const goalWeight = profile?.goal_weight_kg || FALLBACK_GOAL_WEIGHT;
@@ -124,8 +130,57 @@ export default function MyPage() {
         <WeightChart targetWeight={goalWeight} />
       </div>
 
+      {/* Calorie Chart */}
+      <div className="bg-card rounded-2xl border border-border p-6 mb-6 animate-slide-up" style={{ animationDelay: "0.15s" }}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-semibold text-foreground">Calorie Intake (Last 7 Days)</h3>
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-muted-foreground">오늘:</span>
+            <span className="font-semibold text-primary">{todayCalories} kcal</span>
+            <span className="text-muted-foreground">/ {profile?.target_calories || 2000}</span>
+          </div>
+        </div>
+        <CalorieChart targetCalories={profile?.target_calories} />
+        <div className="flex items-center gap-4 mt-4 text-xs text-muted-foreground justify-center">
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded-sm bg-success" />
+            <span>목표 미달</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded-sm bg-primary" />
+            <span>적정</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded-sm bg-warning" />
+            <span>초과</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Today's Meals */}
+      <div className="bg-card rounded-2xl border border-border p-6 mb-6 animate-slide-up" style={{ animationDelay: "0.2s" }}>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
+              <Utensils className="w-5 h-5 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-foreground">Today's Meals</h3>
+              <p className="text-xs text-muted-foreground">오늘 먹은 음식을 확인하세요</p>
+            </div>
+          </div>
+          <Link to="/meals">
+            <Button variant="outline" size="sm" className="gap-1 rounded-xl">
+              <Calendar className="w-4 h-4" />
+              전체 기록
+            </Button>
+          </Link>
+        </div>
+        <TodayMealsSummary />
+      </div>
+
       {/* AI Summary */}
-      <div className="bg-card rounded-2xl border border-border p-6 animate-slide-up" style={{ animationDelay: "0.2s" }}>
+      <div className="bg-card rounded-2xl border border-border p-6 animate-slide-up" style={{ animationDelay: "0.25s" }}>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-secondary to-secondary/80 flex items-center justify-center">
