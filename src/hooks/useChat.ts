@@ -1,38 +1,33 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase, getCurrentUserId } from '@/lib/supabase';
-import type { ChatMessage } from '@/types/domain';
+import type { ChatMessage, MealType } from '@/types/domain';
 import OpenAI from 'openai';
+import { foodLoggingTools, parseLogMealArgs, parseGetMealsArgs, parseDeleteMealArgs, parseUpdateMealArgs } from '@/lib/ai/food-tools';
 
-// OpenAI client (for development - in production, use Edge Function)
+// OpenAI client
 const openai = new OpenAI({
   apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-  dangerouslyAllowBrowser: true, // Only for development!
+  dangerouslyAllowBrowser: true,
 });
 
 export type CoachPersona = 'cold' | 'bright' | 'strict';
 
 // System prompts for each persona
 const systemPrompts: Record<CoachPersona, string> = {
-  cold: `You are a diet coach with a cool, factual personality.
-- Be concise and data-driven
-- No emojis
-- Focus on numbers and facts
-- Give practical, straightforward advice
-- Respond in Korean`,
+  cold: `당신은 데이터 중심의 차가운 식단 코치입니다.
+- 간결하고 팩트 위주로 말하세요
+- 이모지를 사용하지 마세요
+- 한국어로 응답하세요`,
 
-  bright: `You are a warm and supportive diet coach.
-- Be encouraging and positive
-- Use emojis appropriately
-- Celebrate small wins
-- Provide gentle guidance
-- Respond in Korean`,
+  bright: `당신은 따뜻하고 격려적인 식단 코치입니다.
+- 긍정적이고 격려하는 톤으로 말하세요
+- 이모지를 적절히 사용하세요 😊🍎💪
+- 한국어로 응답하세요`,
 
-  strict: `You are a strict and direct diet coach.
-- Be firm but fair
-- Focus on goals and discipline
-- Don't sugarcoat advice
-- Push for accountability
-- Respond in Korean`,
+  strict: `당신은 엄격하고 직접적인 식단 코치입니다.
+- 단호하지만 공정하게 말하세요
+- 목표와 규율에 집중하세요
+- 한국어로 응답하세요`,
 };
 
 // Query keys
@@ -41,8 +36,494 @@ const chatKeys = {
   messages: () => [...chatKeys.all, 'messages'] as const,
 };
 
+/**
+ * 오늘 날짜 반환 (YYYY-MM-DD)
+ */
+function getToday(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
+/**
+ * 현재 시간 기준으로 식사 타입 추론
+ */
+function inferMealType(): MealType {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 10) return 'breakfast';
+  if (hour >= 10 && hour < 15) return 'lunch';
+  if (hour >= 15 && hour < 21) return 'dinner';
+  return 'snack';
+}
+
+/**
+ * AI가 추정한 영양정보로 직접 식사 기록
+ * - 같은 날짜/meal_type에 기존 기록이 있으면 items만 추가
+ * - 없으면 새로운 meal 생성
+ */
+async function logMealDirectly(
+  mealType: MealType,
+  date: string,
+  foods: Array<{
+    name: string;
+    quantity: number;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  }>
+): Promise<{ success: boolean; message: string; mealId?: string }> {
+  const userId = getCurrentUserId();
+
+  // 수량 적용하여 영양정보 계산
+  const processedFoods = foods.map((f) => ({
+    name: f.name,
+    quantity: f.quantity,
+    calories: Math.round(f.calories * f.quantity),
+    protein: Math.round(f.protein * f.quantity * 10) / 10,
+    carbs: Math.round(f.carbs * f.quantity * 10) / 10,
+    fat: Math.round(f.fat * f.quantity * 10) / 10,
+  }));
+
+  const newItemsCalories = processedFoods.reduce((sum, f) => sum + f.calories, 0);
+
+  // 1. 기존 meal 조회 (같은 날짜, 같은 meal_type)
+  const { data: existingMeal, error: fetchError } = await supabase
+    .from('meals')
+    .select('id, total_calories')
+    .eq('user_id', userId)
+    .eq('date', date)
+    .eq('meal_type', mealType)
+    .maybeSingle();
+
+  if (fetchError) {
+    console.error('Existing meal fetch error:', fetchError);
+    return { success: false, message: '식사 기록 조회 중 오류가 발생했습니다.' };
+  }
+
+  let mealId: string;
+  let totalCalories: number;
+  let isNewMeal = false;
+
+  if (existingMeal) {
+    // [Case A] 기존 meal 존재 → items만 추가
+    mealId = existingMeal.id;
+    totalCalories = (existingMeal.total_calories || 0) + newItemsCalories;
+
+    // meal_items 추가
+    const mealItems = processedFoods.map((f) => ({
+      meal_id: mealId,
+      name: f.name,
+      calories: f.calories,
+      protein_g: f.protein,
+      carbs_g: f.carbs,
+      fat_g: f.fat,
+      quantity: `${f.quantity}인분`,
+    }));
+
+    const { error: itemsError } = await supabase
+      .from('meal_items')
+      .insert(mealItems);
+
+    if (itemsError) {
+      console.error('Meal items insert error:', itemsError);
+      return { success: false, message: '음식 추가 중 오류가 발생했습니다.' };
+    }
+
+    // total_calories 업데이트
+    const { error: updateError } = await supabase
+      .from('meals')
+      .update({ total_calories: totalCalories })
+      .eq('id', mealId);
+
+    if (updateError) {
+      console.error('Meal update error:', updateError);
+      // items는 이미 추가됨, 경고만 표시
+    }
+  } else {
+    // [Case B] 기존 meal 없음 → 새로 생성
+    isNewMeal = true;
+    totalCalories = newItemsCalories;
+
+    const { data: mealData, error: mealError } = await supabase
+      .from('meals')
+      .insert({
+        user_id: userId,
+        date,
+        meal_type: mealType,
+        total_calories: totalCalories,
+      })
+      .select('id')
+      .single();
+
+    if (mealError) {
+      console.error('Meal insert error:', mealError);
+      return { success: false, message: '식사 기록 중 오류가 발생했습니다.' };
+    }
+
+    mealId = mealData.id;
+
+    const mealItems = processedFoods.map((f) => ({
+      meal_id: mealId,
+      name: f.name,
+      calories: f.calories,
+      protein_g: f.protein,
+      carbs_g: f.carbs,
+      fat_g: f.fat,
+      quantity: `${f.quantity}인분`,
+    }));
+
+    const { error: itemsError } = await supabase.from('meal_items').insert(mealItems);
+
+    if (itemsError) {
+      console.error('Meal items insert error:', itemsError);
+      // 롤백: meal 삭제
+      await supabase.from('meals').delete().eq('id', mealId);
+      return { success: false, message: '음식 기록 중 오류가 발생했습니다.' };
+    }
+  }
+
+  // 성공 메시지 생성
+  const mealTypeLabels: Record<MealType, string> = {
+    breakfast: '아침',
+    lunch: '점심',
+    dinner: '저녁',
+    snack: '간식',
+  };
+
+  const foodNames = processedFoods.map((f) => f.name).join(', ');
+  const actionWord = isNewMeal ? '기록' : '추가';
+  const message = `${mealTypeLabels[mealType]} ${actionWord} 완료! ${foodNames} - 총 ${totalCalories}kcal`;
+
+  return { success: true, message, mealId };
+}
+
+/**
+ * 식단 조회 함수
+ */
+async function getMealsData(
+  date: string,
+  mealType: 'breakfast' | 'lunch' | 'dinner' | 'snack' | 'all'
+): Promise<{
+  success: boolean;
+  message: string;
+  data?: {
+    date: string;
+    meals: Array<{
+      meal_type: string;
+      total_calories: number;
+      items: Array<{
+        name: string;
+        calories: number;
+        protein_g: number;
+        carbs_g: number;
+        fat_g: number;
+      }>;
+    }>;
+    summary: {
+      total_calories: number;
+      total_protein: number;
+      total_carbs: number;
+      total_fat: number;
+    };
+  };
+}> {
+  const userId = getCurrentUserId();
+
+  let query = supabase
+    .from('meals')
+    .select(`
+      *,
+      meal_items (*)
+    `)
+    .eq('user_id', userId)
+    .eq('date', date);
+
+  if (mealType !== 'all') {
+    query = query.eq('meal_type', mealType);
+  }
+
+  const { data: meals, error } = await query.order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('Get meals error:', error);
+    return { success: false, message: '식단 조회 중 오류가 발생했습니다.' };
+  }
+
+  if (!meals || meals.length === 0) {
+    const mealTypeLabels: Record<string, string> = {
+      breakfast: '아침',
+      lunch: '점심',
+      dinner: '저녁',
+      snack: '간식',
+      all: '전체',
+    };
+    return {
+      success: true,
+      message: `${date} ${mealTypeLabels[mealType]} 식단 기록이 없습니다.`,
+      data: {
+        date,
+        meals: [],
+        summary: { total_calories: 0, total_protein: 0, total_carbs: 0, total_fat: 0 },
+      },
+    };
+  }
+
+  // 데이터 가공
+  const formattedMeals = meals.map((meal) => ({
+    meal_type: meal.meal_type,
+    total_calories: meal.total_calories || 0,
+    items: (meal.meal_items || []).map((item: any) => ({
+      name: item.name,
+      calories: item.calories || 0,
+      protein_g: item.protein_g || 0,
+      carbs_g: item.carbs_g || 0,
+      fat_g: item.fat_g || 0,
+    })),
+  }));
+
+  // 총합 계산
+  const summary = {
+    total_calories: formattedMeals.reduce((sum, m) => sum + m.total_calories, 0),
+    total_protein: formattedMeals.reduce(
+      (sum, m) => sum + m.items.reduce((s, i) => s + i.protein_g, 0),
+      0
+    ),
+    total_carbs: formattedMeals.reduce(
+      (sum, m) => sum + m.items.reduce((s, i) => s + i.carbs_g, 0),
+      0
+    ),
+    total_fat: formattedMeals.reduce(
+      (sum, m) => sum + m.items.reduce((s, i) => s + i.fat_g, 0),
+      0
+    ),
+  };
+
+  const mealTypeLabels: Record<string, string> = {
+    breakfast: '아침',
+    lunch: '점심',
+    dinner: '저녁',
+    snack: '간식',
+  };
+
+  const mealSummaries = formattedMeals
+    .map((m) => `${mealTypeLabels[m.meal_type]}: ${m.items.map((i) => i.name).join(', ')} (${m.total_calories}kcal)`)
+    .join('\n');
+
+  return {
+    success: true,
+    message: `${date} 식단 조회 완료\n${mealSummaries}\n총 ${summary.total_calories}kcal`,
+    data: {
+      date,
+      meals: formattedMeals,
+      summary,
+    },
+  };
+}
+
+/**
+ * 식단 삭제 함수
+ */
+async function deleteMealData(
+  date: string,
+  mealType: MealType,
+  foodName?: string
+): Promise<{ success: boolean; message: string }> {
+  const userId = getCurrentUserId();
+
+  const mealTypeLabels: Record<MealType, string> = {
+    breakfast: '아침',
+    lunch: '점심',
+    dinner: '저녁',
+    snack: '간식',
+  };
+
+  // 1. 해당 meal 조회
+  const { data: meal, error: fetchError } = await supabase
+    .from('meals')
+    .select(`
+      id,
+      total_calories,
+      meal_items (id, name, calories)
+    `)
+    .eq('user_id', userId)
+    .eq('date', date)
+    .eq('meal_type', mealType)
+    .maybeSingle();
+
+  if (fetchError) {
+    console.error('Delete meal fetch error:', fetchError);
+    return { success: false, message: '식단 조회 중 오류가 발생했습니다.' };
+  }
+
+  if (!meal) {
+    return {
+      success: false,
+      message: `${date} ${mealTypeLabels[mealType]} 기록이 없습니다.`,
+    };
+  }
+
+  // 2. 특정 음식만 삭제하는 경우
+  if (foodName) {
+    const items = meal.meal_items as Array<{ id: string; name: string; calories: number }>;
+    const targetItem = items.find(
+      (item) => item.name.toLowerCase().includes(foodName.toLowerCase())
+    );
+
+    if (!targetItem) {
+      return {
+        success: false,
+        message: `${mealTypeLabels[mealType]}에서 "${foodName}"을(를) 찾을 수 없습니다. 기록된 음식: ${items.map((i) => i.name).join(', ')}`,
+      };
+    }
+
+    // 해당 아이템 삭제
+    const { error: deleteError } = await supabase
+      .from('meal_items')
+      .delete()
+      .eq('id', targetItem.id);
+
+    if (deleteError) {
+      console.error('Delete item error:', deleteError);
+      return { success: false, message: '음식 삭제 중 오류가 발생했습니다.' };
+    }
+
+    // total_calories 업데이트
+    const newTotalCalories = Math.max(0, (meal.total_calories || 0) - targetItem.calories);
+    await supabase
+      .from('meals')
+      .update({ total_calories: newTotalCalories })
+      .eq('id', meal.id);
+
+    // 남은 아이템이 없으면 meal도 삭제
+    if (items.length === 1) {
+      await supabase.from('meals').delete().eq('id', meal.id);
+      return {
+        success: true,
+        message: `${mealTypeLabels[mealType]} "${targetItem.name}" 삭제 완료. (마지막 항목이어서 식단 전체 삭제됨)`,
+      };
+    }
+
+    return {
+      success: true,
+      message: `${mealTypeLabels[mealType]} "${targetItem.name}" (${targetItem.calories}kcal) 삭제 완료!`,
+    };
+  }
+
+  // 3. 끼니 전체 삭제
+  const { error: deleteError } = await supabase
+    .from('meals')
+    .delete()
+    .eq('id', meal.id);
+
+  if (deleteError) {
+    console.error('Delete meal error:', deleteError);
+    return { success: false, message: '식단 삭제 중 오류가 발생했습니다.' };
+  }
+
+  const items = meal.meal_items as Array<{ name: string }>;
+  const deletedFoods = items.map((i) => i.name).join(', ');
+
+  return {
+    success: true,
+    message: `${mealTypeLabels[mealType]} 전체 삭제 완료! (${deletedFoods})`,
+  };
+}
+
+/**
+ * 식단 수정 함수
+ */
+async function updateMealData(
+  date: string,
+  mealType: MealType,
+  oldFoodName: string,
+  newFood: {
+    name: string;
+    calories: number;
+    protein: number;
+    carbs: number;
+    fat: number;
+  }
+): Promise<{ success: boolean; message: string }> {
+  const userId = getCurrentUserId();
+
+  const mealTypeLabels: Record<MealType, string> = {
+    breakfast: '아침',
+    lunch: '점심',
+    dinner: '저녁',
+    snack: '간식',
+  };
+
+  // 1. 해당 meal 조회
+  const { data: meal, error: fetchError } = await supabase
+    .from('meals')
+    .select(`
+      id,
+      total_calories,
+      meal_items (id, name, calories)
+    `)
+    .eq('user_id', userId)
+    .eq('date', date)
+    .eq('meal_type', mealType)
+    .maybeSingle();
+
+  if (fetchError) {
+    console.error('Update meal fetch error:', fetchError);
+    return { success: false, message: '식단 조회 중 오류가 발생했습니다.' };
+  }
+
+  if (!meal) {
+    return {
+      success: false,
+      message: `${date} ${mealTypeLabels[mealType]} 기록이 없습니다.`,
+    };
+  }
+
+  // 2. 수정할 음식 찾기
+  const items = meal.meal_items as Array<{ id: string; name: string; calories: number }>;
+  const targetItem = items.find(
+    (item) => item.name.toLowerCase().includes(oldFoodName.toLowerCase())
+  );
+
+  if (!targetItem) {
+    return {
+      success: false,
+      message: `${mealTypeLabels[mealType]}에서 "${oldFoodName}"을(를) 찾을 수 없습니다. 기록된 음식: ${items.map((i) => i.name).join(', ')}`,
+    };
+  }
+
+  // 3. 음식 정보 업데이트
+  const { error: updateError } = await supabase
+    .from('meal_items')
+    .update({
+      name: newFood.name,
+      calories: newFood.calories,
+      protein_g: newFood.protein,
+      carbs_g: newFood.carbs,
+      fat_g: newFood.fat,
+    })
+    .eq('id', targetItem.id);
+
+  if (updateError) {
+    console.error('Update item error:', updateError);
+    return { success: false, message: '음식 수정 중 오류가 발생했습니다.' };
+  }
+
+  // 4. total_calories 재계산
+  const caloriesDiff = newFood.calories - targetItem.calories;
+  const newTotalCalories = Math.max(0, (meal.total_calories || 0) + caloriesDiff);
+
+  await supabase
+    .from('meals')
+    .update({ total_calories: newTotalCalories })
+    .eq('id', meal.id);
+
+  return {
+    success: true,
+    message: `${mealTypeLabels[mealType]} "${targetItem.name}" → "${newFood.name}" (${newFood.calories}kcal) 수정 완료!`,
+  };
+}
+
 // Fetch chat messages from Supabase
-export function useChatMessages() {
+export function useChatMessages(limit: number = 50) {
   const userId = getCurrentUserId();
 
   return useQuery({
@@ -52,11 +533,12 @@ export function useChatMessages() {
         .from('chat_messages')
         .select('*')
         .eq('user_id', userId)
-        .order('created_at', { ascending: true })
-        .limit(50); // Last 50 messages
+        .order('created_at', { ascending: false })
+        .limit(limit);
 
       if (error) throw error;
-      return data || [];
+      // 최신순으로 가져온 후 시간순으로 정렬하여 반환
+      return (data || []).reverse();
     },
   });
 }
@@ -87,8 +569,10 @@ export function useSendMessage() {
 
       if (userError) throw userError;
 
-      // 2. Immediately update cache to show user message
-      queryClient.invalidateQueries({ queryKey: chatKeys.messages() });
+      // 2. Immediately update cache to show user message (optimistic update)
+      queryClient.setQueryData<ChatMessage[]>(chatKeys.messages(), (old) => {
+        return old ? [...old, userMsg] : [userMsg];
+      });
 
       // 3. Get recent messages for context
       const { data: recentMessages } = await supabase
@@ -107,18 +591,132 @@ export function useSendMessage() {
         })),
       ];
 
-      // 5. Call OpenAI API (gpt-4o-mini)
+      // 5. Call OpenAI API with Function Calling
       const completion = await openai.chat.completions.create({
         model: 'gpt-4o-mini',
         messages,
-        max_tokens: 300,
+        tools: foodLoggingTools,
+        tool_choice: 'auto',
+        max_tokens: 500,
         temperature: persona === 'cold' ? 0.3 : persona === 'strict' ? 0.5 : 0.7,
       });
 
-      const assistantContent =
-        completion.choices[0]?.message?.content || '응답을 생성할 수 없습니다.';
+      const responseMessage = completion.choices[0]?.message;
+      let assistantContent = responseMessage?.content || '';
 
-      // 6. Save assistant message to Supabase
+      // 6. Handle Function Calling
+      if (responseMessage?.tool_calls && responseMessage.tool_calls.length > 0) {
+        const toolCall = responseMessage.tool_calls[0];
+
+        // 6-1. 식단 조회 (get_meals)
+        if (toolCall.function.name === 'get_meals') {
+          const args = parseGetMealsArgs(toolCall.function.arguments);
+          console.log('[ChatBot] get_meals args:', args);
+
+          const result = await getMealsData(args.date!, args.meal_type!);
+          console.log('[ChatBot] getMealsData result:', result);
+
+          assistantContent = result.message;
+        }
+
+        // 6-2. 식단 삭제 (delete_meal)
+        if (toolCall.function.name === 'delete_meal') {
+          const args = parseDeleteMealArgs(toolCall.function.arguments);
+          console.log('[ChatBot] delete_meal args:', args);
+
+          if (args) {
+            const result = await deleteMealData(args.date, args.meal_type, args.food_name);
+            console.log('[ChatBot] deleteMealData result:', result);
+
+            // 성공한 경우 UI 업데이트
+            if (result.success) {
+              queryClient.invalidateQueries({ queryKey: ['meals'] });
+              queryClient.invalidateQueries({ queryKey: ['todayCalories'] });
+            }
+
+            assistantContent = result.message;
+          }
+        }
+
+        // 6-3. 식단 수정 (update_meal)
+        if (toolCall.function.name === 'update_meal') {
+          const args = parseUpdateMealArgs(toolCall.function.arguments);
+          console.log('[ChatBot] update_meal args:', args);
+
+          if (args) {
+            const result = await updateMealData(
+              args.date,
+              args.meal_type,
+              args.old_food_name,
+              args.new_food
+            );
+            console.log('[ChatBot] updateMealData result:', result);
+
+            // 성공한 경우 UI 업데이트
+            if (result.success) {
+              queryClient.invalidateQueries({ queryKey: ['meals'] });
+              queryClient.invalidateQueries({ queryKey: ['todayCalories'] });
+            }
+
+            assistantContent = result.message;
+          }
+        }
+
+        // 6-4. 식단 기록 (log_meal)
+        if (toolCall.function.name === 'log_meal') {
+          const args = parseLogMealArgs(toolCall.function.arguments);
+          console.log('[ChatBot] log_meal args:', args);
+
+          if (args) {
+            // 날짜 검증: AI가 잘못된 날짜를 보내면 오늘 날짜로 강제
+            let validDate = getToday();
+            if (args.date) {
+              const inputDate = new Date(args.date);
+              const today = new Date();
+              const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+              // 미래 날짜이거나 1주일 이전이면 오늘로 강제
+              if (inputDate > today || inputDate < oneWeekAgo) {
+                console.warn('[ChatBot] Invalid date from AI, using today:', args.date);
+                validDate = getToday();
+              } else {
+                validDate = args.date;
+              }
+            }
+
+            // AI가 추정한 영양정보로 직접 저장 (DB 검색 없음)
+            const logResult = await logMealDirectly(
+              args.meal_type || inferMealType(),
+              validDate,
+              args.foods.map((f) => ({
+                name: f.name,
+                quantity: f.quantity || 1,
+                calories: f.calories,
+                protein: f.protein,
+                carbs: f.carbs,
+                fat: f.fat,
+              }))
+            );
+
+            console.log('[ChatBot] logResult:', logResult);
+
+            // 성공한 경우에만 meals 쿼리 무효화하여 UI 업데이트
+            if (logResult.success) {
+              queryClient.invalidateQueries({ queryKey: ['meals'] });
+              queryClient.invalidateQueries({ queryKey: ['todayCalories'] });
+            }
+
+            assistantContent = logResult.message;
+          }
+        }
+      }
+
+      // 7. Fallback if no content
+      if (!assistantContent) {
+        assistantContent = '응답을 생성할 수 없습니다.';
+      }
+
+      // 8. Save assistant message to Supabase
       const { data: assistantMsg, error: assistantError } = await supabase
         .from('chat_messages')
         .insert({
@@ -131,14 +729,19 @@ export function useSendMessage() {
 
       if (assistantError) throw assistantError;
 
+      // Immediately add assistant message to cache (optimistic update)
+      queryClient.setQueryData<ChatMessage[]>(chatKeys.messages(), (old) => {
+        return old ? [...old, assistantMsg] : [assistantMsg];
+      });
+
       return {
         userMessage: userMsg,
         assistantMessage: assistantMsg,
       };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: chatKeys.messages() });
-    },
+    // onSuccess에서 invalidateQueries 제거
+    // setQueryData로 이미 캐시를 업데이트했으므로 불필요
+    // invalidateQueries가 setQueryData와 경쟁하여 채팅이 사라지는 버그 발생
   });
 }
 

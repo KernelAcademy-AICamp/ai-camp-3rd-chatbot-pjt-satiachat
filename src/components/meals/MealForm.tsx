@@ -16,7 +16,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useCreateMeal, useUpdateMeal } from '@/hooks/useMeals';
+import { useCreateMeal, useUpdateMeal, useDeleteMeal } from '@/hooks/useMeals';
 import { getToday } from '@/lib/supabase';
 import type { MealType, MealWithItems, Food } from '@/types/domain';
 import { FoodSearch } from './FoodSearch';
@@ -56,6 +56,7 @@ export function MealForm({
 }: MealFormProps) {
   const createMeal = useCreateMeal();
   const updateMeal = useUpdateMeal();
+  const deleteMeal = useDeleteMeal();
   const { toast } = useToast();
 
   const [date, setDate] = useState(getToday());
@@ -117,7 +118,8 @@ export function MealForm({
     e.preventDefault();
     const validItems = items.filter(item => item.name.trim() !== '');
 
-    if (validItems.length === 0) {
+    // 새 식단 추가 시에는 최소 1개 필요
+    if (!editMeal && validItems.length === 0) {
       toast({
         title: '음식을 추가해주세요',
         description: '최소 1개 이상의 음식을 추가해야 합니다.',
@@ -128,12 +130,18 @@ export function MealForm({
 
     try {
       if (editMeal) {
-        await updateMeal.mutateAsync({
-          mealId: editMeal.id,
-          items: validItems,
-          mealType,
-        });
-        toast({ title: '식단 수정 완료', description: '식단이 성공적으로 수정되었습니다.' });
+        // 수정 모드에서 모든 항목을 삭제하면 식단 자체를 삭제
+        if (validItems.length === 0) {
+          await deleteMeal.mutateAsync(editMeal.id);
+          toast({ title: '식단 삭제 완료', description: '식단이 삭제되었습니다.' });
+        } else {
+          await updateMeal.mutateAsync({
+            mealId: editMeal.id,
+            items: validItems,
+            mealType,
+          });
+          toast({ title: '식단 수정 완료', description: '식단이 성공적으로 수정되었습니다.' });
+        }
       } else {
         await createMeal.mutateAsync({
           date,
@@ -156,7 +164,7 @@ export function MealForm({
   const totalProtein = items.reduce((sum, item) => sum + (item.protein_g || 0), 0);
   const totalCarbs = items.reduce((sum, item) => sum + (item.carbs_g || 0), 0);
   const totalFat = items.reduce((sum, item) => sum + (item.fat_g || 0), 0);
-  const isLoading = createMeal.isPending || updateMeal.isPending;
+  const isLoading = createMeal.isPending || updateMeal.isPending || deleteMeal.isPending;
   const validItemCount = items.filter(i => i.name.trim()).length;
 
   return (
@@ -366,7 +374,7 @@ export function MealForm({
               </Button>
               <Button
                 type="submit"
-                disabled={isLoading || validItemCount === 0}
+                disabled={isLoading || (!editMeal && validItemCount === 0)}
                 className="flex-1"
               >
                 {isLoading ? (

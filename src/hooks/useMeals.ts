@@ -45,8 +45,11 @@ export function useTodayCalories() {
   const { data: meals, isLoading, error } = useTodayMeals();
 
   const totalCalories = meals?.reduce((sum, meal) => sum + (meal.total_calories || 0), 0) || 0;
+  // 방어적 처리: 같은 meal_type이 여러 개 있을 경우 첫 번째 것 사용
   const mealsByType = meals?.reduce((acc, meal) => {
-    acc[meal.meal_type] = meal;
+    if (!acc[meal.meal_type]) {
+      acc[meal.meal_type] = meal;
+    }
     return acc;
   }, {} as Record<MealType, MealWithItems>) || {};
 

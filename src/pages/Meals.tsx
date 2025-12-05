@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Calendar, Plus, Search, Loader2 } from "lucide-react";
+import { Plus, Search, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MealCard } from "@/components/meals/MealCard";
@@ -75,18 +75,12 @@ export default function Meals() {
           />
         </div>
         <div className="relative">
-          <Button variant="outline" className="gap-2 rounded-xl" asChild>
-            <label>
-              <Calendar className="w-4 h-4" />
-              <span className="hidden sm:inline">{displayDate()}</span>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="absolute inset-0 opacity-0 cursor-pointer"
-              />
-            </label>
-          </Button>
+          <Input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            className="rounded-xl w-auto"
+          />
         </div>
       </div>
 
