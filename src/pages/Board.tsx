@@ -389,203 +389,146 @@ export default function Board() {
         "max-w-7xl mx-auto px-4 md:px-6 lg:px-8",
         viewMode === "list" ? "py-6" : "py-4"
       )}>
-        {/* List View - Table-List Hybrid */}
+        {/* List View */}
         {viewMode === "list" && (
           <>
-            {/* Compact Toolbar */}
-            <div className="flex flex-col md:flex-row gap-3 mb-4">
-              {/* Search & Sort Row */}
-              <div className="flex-1 flex items-center gap-2 bg-muted/40 dark:bg-muted/20 rounded-xl border border-border/30 px-3 h-11">
-                <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+            {/* Search & Write */}
+            <div className="flex gap-4 mb-6">
+              <div className="relative flex-1">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <Input
-                  placeholder="검색어 입력..."
+                  placeholder="검색어를 입력하세요..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="border-0 bg-transparent h-9 px-0 text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
+                  className="pl-12 h-12 rounded-2xl bg-white dark:bg-card border-border/50 shadow-sm focus:shadow-md transition-shadow text-base"
                 />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery("")}
-                    className="p-1 hover:bg-muted rounded-md transition-colors"
-                  >
-                    <X className="w-3.5 h-3.5 text-muted-foreground" />
-                  </button>
-                )}
               </div>
-
-              {/* Write Button */}
               <Button
                 onClick={handleStartWrite}
-                className="gap-2 rounded-xl h-11 px-5 shadow-sm hover:shadow-md transition-all bg-primary hover:bg-primary/90"
+                size="lg"
+                className="gap-2 rounded-2xl h-12 px-6 shadow-md hover:shadow-lg transition-all bg-primary hover:bg-primary/90"
               >
-                <Plus className="w-4 h-4" />
-                <span className="font-medium">글쓰기</span>
+                <Plus className="w-5 h-5" />
+                <span className="font-semibold">글쓰기</span>
               </Button>
             </div>
 
-            {/* Post Table-List */}
-            <div className="bg-white dark:bg-card rounded-xl border border-border/50 overflow-hidden">
-              {/* Table Header - Desktop Only */}
-              <div className="hidden md:flex items-center px-4 py-2.5 bg-muted/30 border-b border-border/30 text-xs font-medium text-muted-foreground">
-                <div className="w-14 flex-shrink-0"></div>
-                <div className="flex-1">제목</div>
-                <div className="w-20 text-center">작성자</div>
-                <div className="w-14 text-center">날짜</div>
-                <div className="w-12 text-center">조회</div>
-                <div className="w-12 text-center">추천</div>
-                <div className="w-10 text-center">댓글</div>
-              </div>
-
-              {/* Post Rows */}
+            {/* Post List */}
+            <div className="space-y-2">
               {postsLoading ? (
-                <div className="text-center py-16">
-                  <Loader2 className="w-6 h-6 animate-spin text-primary mx-auto mb-3" />
-                  <p className="text-sm text-muted-foreground">게시글을 불러오는 중...</p>
+                <div className="text-center py-20 bg-white dark:bg-card rounded-3xl border border-border/50 shadow-sm">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+                  <p className="text-muted-foreground">게시글을 불러오는 중...</p>
                 </div>
               ) : posts.length === 0 ? (
-                <div className="text-center py-16">
+                <div className="text-center py-20 bg-white dark:bg-card rounded-3xl border border-border/50 shadow-sm">
                   <div className={cn(
-                    "w-14 h-14 rounded-xl mx-auto mb-3 flex items-center justify-center",
+                    "w-20 h-20 rounded-2xl mx-auto mb-4 flex items-center justify-center",
                     currentTabConfig.iconBg
                   )}>
-                    <MessageSquare className={cn("w-7 h-7", currentTabConfig.accentColor)} />
+                    <MessageSquare className={cn("w-10 h-10", currentTabConfig.accentColor)} />
                   </div>
-                  <p className="font-medium text-foreground mb-1">아직 게시글이 없어요</p>
-                  <p className="text-sm text-muted-foreground mb-4">첫 번째 글을 작성해보세요!</p>
+                  <p className="text-xl font-semibold text-foreground mb-2">아직 게시글이 없어요</p>
+                  <p className="text-muted-foreground mb-6">첫 번째 글을 작성해보세요!</p>
                   <Button
                     onClick={handleStartWrite}
-                    size="sm"
-                    className="gap-1.5 rounded-lg bg-primary hover:bg-primary/90"
+                    className="gap-2 rounded-xl bg-primary hover:bg-primary/90"
                   >
-                    <Plus className="w-3.5 h-3.5" />
+                    <Plus className="w-4 h-4" />
                     글쓰기
                   </Button>
                 </div>
               ) : (
-                <div className="divide-y divide-border/30">
-                  {posts.map((post) => {
-                    const postIsHot = isHotPost(post);
-                    const formatViews = (n: number) => n >= 1000 ? `${(n / 1000).toFixed(1)}k` : n;
+                posts.map((post) => {
+                  const postIsHot = isHotPost(post);
+                  return (
+                    <button
+                      key={post.id}
+                      onClick={() => handleViewPost(post)}
+                      className={cn(
+                        "group w-full text-left bg-white dark:bg-card rounded-xl border border-border/50 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 overflow-hidden",
+                        post.is_pinned && "ring-1 ring-primary/30"
+                      )}
+                    >
+                      <div className="p-4">
+                        <div className="flex items-start gap-3">
+                          {/* Author Avatar */}
+                          <AvatarDisplay
+                            src={post.author?.avatar_url}
+                            name={post.author?.nickname}
+                            size="md"
+                          />
 
-                    return (
-                      <button
-                        key={post.id}
-                        onClick={() => handleViewPost(post)}
-                        className={cn(
-                          "group w-full text-left",
-                          "flex flex-col md:flex-row md:items-center gap-1 md:gap-0",
-                          "px-4 py-3",
-                          "hover:bg-muted/40 dark:hover:bg-muted/30",
-                          "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-primary/30",
-                          "transition-colors duration-150",
-                          post.is_pinned && "bg-primary/5"
-                        )}
-                      >
-                        {/* Badge Column */}
-                        <div className="w-14 flex-shrink-0 hidden md:flex">
-                          {post.is_pinned ? (
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/15 text-primary">
-                              <Star className="w-2.5 h-2.5 fill-current" />
-                              공지
-                            </span>
-                          ) : postIsHot ? (
-                            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-secondary/15 text-secondary">
-                              <Flame className="w-2.5 h-2.5" />
-                              HOT
-                            </span>
-                          ) : null}
-                        </div>
+                          <div className="flex-1 min-w-0">
+                            {/* Title with Badges */}
+                            <div className="flex items-center gap-2 mb-1">
+                              {post.is_pinned && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary">
+                                  <Star className="w-2.5 h-2.5" />
+                                  공지
+                                </span>
+                              )}
+                              {postIsHot && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-secondary/10 text-secondary">
+                                  <Flame className="w-2.5 h-2.5" />
+                                  HOT
+                                </span>
+                              )}
+                              <h3 className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors line-clamp-1">
+                                {post.title}
+                              </h3>
+                            </div>
 
-                        {/* Title - Mobile includes badge */}
-                        <div className="flex-1 min-w-0 flex items-center gap-2">
-                          {/* Mobile badges */}
-                          <div className="flex md:hidden gap-1">
-                            {post.is_pinned && (
-                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-primary/15 text-primary">
-                                <Star className="w-2.5 h-2.5 fill-current" />
-                                공지
+                            {/* Content Preview */}
+                            <p className="text-muted-foreground line-clamp-1 mb-2 text-xs">
+                              {post.content}
+                            </p>
+
+                            {/* Meta Info */}
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                              <span className="font-medium">{getAuthorName(post)}</span>
+                              <span className="flex items-center gap-0.5">
+                                <Clock className="w-3 h-3" />
+                                {format(new Date(post.created_at), "MM.dd", { locale: ko })}
                               </span>
-                            )}
-                            {postIsHot && (
-                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-secondary/15 text-secondary">
-                                <Flame className="w-2.5 h-2.5" />
-                                HOT
+                              <span className="flex items-center gap-0.5">
+                                <Eye className="w-3 h-3" />
+                                {post.views}
                               </span>
-                            )}
+                              <span className={cn(
+                                "flex items-center gap-0.5",
+                                post.likes > 10 ? "text-rose-500" : ""
+                              )}>
+                                <Heart className={cn("w-3 h-3", post.likes > 10 && "fill-current")} />
+                                {post.likes}
+                              </span>
+                              <span className="flex items-center gap-0.5">
+                                <MessageCircle className="w-3 h-3" />
+                                {post.comment_count}
+                              </span>
+                            </div>
                           </div>
-                          <h3 className="font-medium text-sm text-foreground group-hover:text-primary transition-colors line-clamp-1">
-                            {post.title}
-                          </h3>
-                          {post.comment_count > 0 && (
-                            <span className="text-xs text-primary font-medium hidden md:inline">
-                              [{post.comment_count}]
-                            </span>
-                          )}
-                        </div>
 
-                        {/* Desktop: Columnar Stats */}
-                        <div className="hidden md:flex items-center">
-                          <div className="w-20 text-center text-xs text-muted-foreground truncate">
-                            {getAuthorName(post)}
-                          </div>
-                          <div className="w-14 text-center text-xs text-muted-foreground tabular-nums">
-                            {format(new Date(post.created_at), "MM.dd", { locale: ko })}
-                          </div>
-                          <div className="w-12 text-center text-xs text-muted-foreground tabular-nums">
-                            {formatViews(post.views)}
-                          </div>
-                          <div className={cn(
-                            "w-12 text-center text-xs tabular-nums flex items-center justify-center gap-0.5",
-                            post.likes >= 20 ? "text-rose-500 font-medium" : "text-muted-foreground"
-                          )}>
-                            {post.likes >= 20 && <Heart className="w-3 h-3 fill-current" />}
-                            {post.likes}
-                          </div>
-                          <div className="w-10 text-center text-xs text-muted-foreground tabular-nums">
-                            {post.comment_count}
-                          </div>
+                          {/* Arrow */}
+                          <ChevronLeft className="w-4 h-4 text-muted-foreground rotate-180 opacity-0 group-hover:opacity-100 transition-opacity self-center" />
                         </div>
-
-                        {/* Mobile: Inline Meta */}
-                        <div className="flex md:hidden items-center gap-2 text-xs text-muted-foreground">
-                          <span className="font-medium">{getAuthorName(post)}</span>
-                          <span>·</span>
-                          <span>{format(new Date(post.created_at), "MM.dd", { locale: ko })}</span>
-                          <div className="flex items-center gap-2 ml-auto">
-                            <span className="flex items-center gap-0.5">
-                              <Eye className="w-3 h-3" />
-                              {formatViews(post.views)}
-                            </span>
-                            <span className={cn(
-                              "flex items-center gap-0.5",
-                              post.likes >= 20 && "text-rose-500"
-                            )}>
-                              <Heart className={cn("w-3 h-3", post.likes >= 20 && "fill-current")} />
-                              {post.likes}
-                            </span>
-                            <span className="flex items-center gap-0.5">
-                              <MessageCircle className="w-3 h-3" />
-                              {post.comment_count}
-                            </span>
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
+                      </div>
+                    </button>
+                  );
+                })
               )}
             </div>
 
-            {/* Compact Pagination */}
+            {/* Pagination */}
             {totalPages > 1 && (
-              <div className="mt-4 flex items-center justify-center gap-3">
+              <div className="mt-6 flex flex-col items-center gap-2">
                 <Pagination>
-                  <PaginationContent className="gap-1">
+                  <PaginationContent>
                     <PaginationItem>
                       <PaginationPrevious
                         onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                         className={cn(
-                          "cursor-pointer h-8 w-8 p-0",
+                          "cursor-pointer",
                           currentPage === 1 && "pointer-events-none opacity-50"
                         )}
                       />
@@ -602,14 +545,14 @@ export default function Board() {
                         <span key={pageNum} className="contents">
                           {idx > 0 && arr[idx - 1] !== pageNum - 1 && (
                             <PaginationItem>
-                              <PaginationEllipsis className="h-8 w-8" />
+                              <PaginationEllipsis />
                             </PaginationItem>
                           )}
                           <PaginationItem>
                             <PaginationLink
                               onClick={() => setCurrentPage(pageNum)}
                               isActive={pageNum === currentPage}
-                              className="cursor-pointer h-8 w-8 text-sm rounded-lg"
+                              className="cursor-pointer"
                             >
                               {pageNum}
                             </PaginationLink>
@@ -622,16 +565,16 @@ export default function Board() {
                       <PaginationNext
                         onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                         className={cn(
-                          "cursor-pointer h-8 w-8 p-0",
+                          "cursor-pointer",
                           currentPage === totalPages && "pointer-events-none opacity-50"
                         )}
                       />
                     </PaginationItem>
                   </PaginationContent>
                 </Pagination>
-                <span className="text-xs text-muted-foreground">
-                  총 {totalCount}개
-                </span>
+                <p className="text-xs text-muted-foreground">
+                  총 {totalCount}개의 게시글
+                </p>
               </div>
             )}
           </>
