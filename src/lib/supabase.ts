@@ -71,12 +71,15 @@ export const getCurrentUserId = (): string => {
   return cachedUserId ?? DEV_USER_ID;
 };
 
-// Helper to format date as YYYY-MM-DD
+// Helper to format date as YYYY-MM-DD (local timezone)
 export const formatDate = (date: Date = new Date()): string => {
-  return date.toISOString().split('T')[0];
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
-// Helper to get today's date as YYYY-MM-DD
+// Helper to get today's date as YYYY-MM-DD (local timezone)
 export const getToday = (): string => {
   return formatDate(new Date());
 };
