@@ -798,63 +798,285 @@ export default function Board() {
           </div>
         )}
 
-        {/* Write/Edit View */}
+        {/* Write/Edit View - Enhanced */}
         {(viewMode === "write" || viewMode === "edit") && (
-          <div className="space-y-4 animate-fade-in">
-            {/* Header */}
-            <div className="flex items-center justify-between">
-              <Button variant="ghost" onClick={handleBack} className="gap-1.5 -ml-2 hover:bg-destructive/10 hover:text-destructive rounded-lg h-8 text-sm">
-                <X className="w-4 h-4" />
-                <span>취소</span>
-              </Button>
+          <div className="animate-fade-in">
+            {/* Header with better visual hierarchy */}
+            <div className="flex items-center justify-between mb-6">
               <Button
-                onClick={handleSavePost}
-                disabled={!editTitle.trim() || !editContent.trim() || createPost.isPending || updatePost.isPending}
-                className="gap-1.5 rounded-lg px-4 bg-primary hover:bg-primary/90"
+                variant="ghost"
+                onClick={handleBack}
+                className="gap-2 -ml-3 hover:bg-muted rounded-xl h-10 px-4 text-muted-foreground hover:text-foreground transition-colors"
               >
-                {(createPost.isPending || updatePost.isPending) ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Sparkles className="w-4 h-4" />
-                )}
-                {viewMode === "edit" ? "수정 완료" : "등록하기"}
+                <ChevronLeft className="w-4 h-4" />
+                <span className="font-medium">돌아가기</span>
               </Button>
-            </div>
 
-            {/* Form */}
-            <div className="bg-white dark:bg-card rounded-xl border border-border/50 shadow-sm overflow-hidden">
-              {/* Header Bar */}
-              <div className="h-1 bg-primary" />
-
-              <div className="p-5">
-                {/* Tab Badge */}
-                <div className={cn(
-                  "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium mb-4",
-                  currentTabConfig.iconBg,
-                  currentTabConfig.accentColor
-                )}>
-                  {(() => {
-                    const Icon = currentTabConfig.icon;
-                    return <Icon className="w-3.5 h-3.5" />;
-                  })()}
-                  {currentTabConfig.label}에 글쓰기
+              <div className="flex items-center gap-3">
+                {/* Character count badge */}
+                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/50 text-xs text-muted-foreground">
+                  <span>{editContent.length}</span>
+                  <span>/</span>
+                  <span>2000자</span>
                 </div>
 
-                {/* Title Input */}
-                <Input
-                  placeholder="제목을 입력하세요"
-                  value={editTitle}
-                  onChange={(e) => setEditTitle(e.target.value)}
-                  className="mb-4 h-10 text-base font-medium rounded-lg border-0 bg-muted/30 focus:bg-white dark:focus:bg-muted transition-colors"
-                />
+                <Button
+                  onClick={handleSavePost}
+                  disabled={!editTitle.trim() || !editContent.trim() || createPost.isPending || updatePost.isPending}
+                  className={cn(
+                    "gap-2 rounded-xl px-6 h-10 font-semibold transition-all duration-300",
+                    editTitle.trim() && editContent.trim()
+                      ? "bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5"
+                      : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {(createPost.isPending || updatePost.isPending) ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-4 h-4" />
+                  )}
+                  {viewMode === "edit" ? "수정 완료" : "등록하기"}
+                </Button>
+              </div>
+            </div>
 
-                {/* Content Textarea */}
-                <Textarea
-                  placeholder="내용을 입력하세요..."
-                  value={editContent}
-                  onChange={(e) => setEditContent(e.target.value)}
-                  className="min-h-[280px] rounded-lg border-0 bg-muted/30 focus:bg-white dark:focus:bg-muted transition-colors resize-none text-sm leading-relaxed"
-                />
+            {/* Main Content - Two Column Layout on Desktop */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Editor Section - Takes 2/3 on desktop */}
+              <div className="lg:col-span-2">
+                <div className="bg-white dark:bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden">
+                  {/* Gradient Header Bar */}
+                  <div className={cn(
+                    "h-1.5 bg-gradient-to-r",
+                    activeTab === 'qna' ? "from-primary to-primary/60" :
+                    activeTab === 'free' ? "from-secondary to-secondary/60" :
+                    "from-amber-500 to-orange-400"
+                  )} />
+
+                  <div className="p-6">
+                    {/* Tab Context Header */}
+                    <div className="flex items-center gap-4 mb-6 pb-6 border-b border-border/30">
+                      <div className={cn(
+                        "w-12 h-12 rounded-xl flex items-center justify-center",
+                        currentTabConfig.iconBg
+                      )}>
+                        {(() => {
+                          const Icon = currentTabConfig.icon;
+                          return <Icon className={cn("w-6 h-6", currentTabConfig.accentColor)} />;
+                        })()}
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-bold text-foreground">
+                          {currentTabConfig.label}에 글쓰기
+                        </h2>
+                        <p className="text-sm text-muted-foreground">
+                          {currentTabConfig.description}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Title Input - Enhanced */}
+                    <div className="mb-6">
+                      <label className="block text-sm font-semibold text-foreground mb-2">
+                        제목
+                        <span className="text-destructive ml-1">*</span>
+                      </label>
+                      <div className="relative">
+                        <Input
+                          placeholder={
+                            activeTab === 'qna' ? "예: 정체기 탈출 방법이 궁금해요" :
+                            activeTab === 'free' ? "예: 드디어 -3kg 달성했어요!" :
+                            "예: 저탄수화물 식단 한 달 후기"
+                          }
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value.slice(0, 100))}
+                          className={cn(
+                            "h-12 text-base font-medium rounded-xl border-2 transition-all duration-200 pr-10",
+                            "bg-muted/30 border-transparent",
+                            "focus:bg-white dark:focus:bg-muted focus:border-primary/50 focus:ring-2 focus:ring-primary/20",
+                            editTitle.trim().length >= 5 && "border-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-950/20"
+                          )}
+                        />
+                        {editTitle.trim().length >= 5 && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                              <svg className="w-3 h-3 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex justify-between mt-1.5">
+                        <span className="text-xs text-muted-foreground">
+                          명확하고 구체적인 제목이 더 많은 관심을 받아요
+                        </span>
+                        <span className={cn(
+                          "text-xs",
+                          editTitle.length > 80 ? "text-amber-500" : "text-muted-foreground"
+                        )}>
+                          {editTitle.length}/100
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Content Textarea - Enhanced */}
+                    <div>
+                      <label className="block text-sm font-semibold text-foreground mb-2">
+                        내용
+                        <span className="text-destructive ml-1">*</span>
+                      </label>
+                      <Textarea
+                        placeholder={
+                          activeTab === 'qna'
+                            ? "현재 상황, 식단, 운동 루틴 등을 자세히 적어주시면 더 도움이 되는 답변을 받을 수 있어요..."
+                            : activeTab === 'free'
+                            ? "여러분과 나누고 싶은 이야기를 자유롭게 적어주세요..."
+                            : "유용한 다이어트 정보, 식단 팁, 운동 방법 등을 공유해주세요..."
+                        }
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value.slice(0, 2000))}
+                        className={cn(
+                          "min-h-[320px] rounded-xl border-2 transition-all duration-200 resize-none text-sm leading-relaxed",
+                          "bg-muted/30 border-transparent",
+                          "focus:bg-white dark:focus:bg-muted focus:border-primary/50 focus:ring-2 focus:ring-primary/20",
+                          editContent.trim().length >= 20 && "border-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-950/20"
+                        )}
+                      />
+                      <div className="flex justify-between items-center mt-2">
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5" />
+                            예상 읽기 시간: {Math.max(1, Math.ceil(editContent.length / 500))}분
+                          </span>
+                        </div>
+                        <span className={cn(
+                          "text-xs font-medium",
+                          editContent.length > 1800 ? "text-amber-500" :
+                          editContent.length > 1500 ? "text-amber-400" :
+                          "text-muted-foreground"
+                        )}>
+                          {editContent.length}/2000
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer Progress Bar */}
+                  <div className="px-6 py-4 bg-muted/20 border-t border-border/30">
+                    {(() => {
+                      const progress = Math.min(100,
+                        (editTitle.trim().length >= 5 ? 30 : 0) +
+                        (editTitle.trim().length >= 10 ? 10 : 0) +
+                        (editContent.trim().length >= 20 ? 30 : 0) +
+                        (editContent.trim().length >= 100 ? 20 : 0) +
+                        (editContent.trim().length >= 200 ? 10 : 0)
+                      );
+                      return (
+                        <>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-medium text-muted-foreground">작성 진행도</span>
+                            <span className={cn(
+                              "text-xs font-semibold",
+                              progress >= 80 ? "text-emerald-500" : progress >= 50 ? "text-amber-500" : "text-muted-foreground"
+                            )}>
+                              {progress}%
+                            </span>
+                          </div>
+                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className={cn(
+                                "h-full rounded-full transition-all duration-500 ease-out",
+                                progress >= 80 ? "bg-emerald-500" : progress >= 50 ? "bg-amber-500" : "bg-primary"
+                              )}
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Sidebar - Tips & Motivation */}
+              <div className="lg:col-span-1 space-y-4">
+                {/* Writing Tips Card */}
+                <div className="bg-white dark:bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden">
+                  <div className={cn(
+                    "px-4 py-3 border-b border-border/30",
+                    currentTabConfig.iconBg
+                  )}>
+                    <div className="flex items-center gap-2">
+                      <Lightbulb className={cn("w-4 h-4", currentTabConfig.accentColor)} />
+                      <span className="text-sm font-semibold text-foreground">작성 팁</span>
+                    </div>
+                  </div>
+                  <div className="p-4">
+                    <ul className="space-y-3">
+                      {(activeTab === 'qna' ? [
+                        "구체적인 상황을 설명해주세요",
+                        "시도해본 방법이 있다면 함께 알려주세요",
+                        "목표 체중이나 기간을 명시하면 더 정확한 답변을 받을 수 있어요",
+                      ] : activeTab === 'free' ? [
+                        "오늘의 다이어트 일상을 나눠보세요",
+                        "작은 성공도 큰 응원이 됩니다",
+                        "서로 격려하며 함께 성장해요",
+                      ] : [
+                        "출처가 있다면 함께 공유해주세요",
+                        "직접 경험한 정보라면 더욱 신뢰받아요",
+                        "간단명료하게 핵심을 전달해주세요",
+                      ]).map((tip, index) => (
+                        <li key={index} className="flex items-start gap-2.5">
+                          <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <span className="text-xs font-semibold text-primary">{index + 1}</span>
+                          </div>
+                          <span className="text-sm text-muted-foreground leading-relaxed">{tip}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Motivation Card */}
+                <div className="bg-gradient-to-br from-primary/5 via-primary/10 to-secondary/5 rounded-2xl border border-primary/20 p-5">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-white dark:bg-card shadow-sm flex items-center justify-center flex-shrink-0">
+                      <Heart className="w-5 h-5 text-secondary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground mb-1">
+                        나눔의 힘
+                      </p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        당신의 경험이 누군가에게 큰 힘이 됩니다.
+                        함께 나누면 다이어트도 즐거워져요!
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Guide Card */}
+                <div className="bg-white dark:bg-card rounded-2xl border border-border/50 shadow-sm p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Star className="w-4 h-4 text-amber-500" />
+                    <span className="text-sm font-semibold text-foreground">좋은 글 작성법</span>
+                  </div>
+                  <div className="space-y-2 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                      <span>제목은 5자 이상으로 작성</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                      <span>내용은 20자 이상 상세하게</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                      <span>경험담은 구체적으로</span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
