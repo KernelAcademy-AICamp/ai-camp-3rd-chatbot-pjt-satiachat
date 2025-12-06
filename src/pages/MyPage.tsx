@@ -71,6 +71,22 @@ export default function MyPage() {
   // 선택된 날짜에 이미 등록된 식사 유형들
   const existingMealTypes = selectedMeals?.map(m => m.meal_type) || [];
 
+  // 모든 식사 유형이 등록되었는지 확인
+  const allMealTypesRegistered = existingMealTypes.length >= 4;
+
+  // 식사 정렬 순서
+  const mealTypeOrder: Record<MealType, number> = {
+    breakfast: 0,
+    lunch: 1,
+    dinner: 2,
+    snack: 3,
+  };
+
+  // 정렬된 식단
+  const sortedMeals = selectedMeals
+    ? [...selectedMeals].sort((a, b) => mealTypeOrder[a.meal_type] - mealTypeOrder[b.meal_type])
+    : [];
+
   const generateSummary = async () => {
     try {
       const result = await aiAnalysis.mutateAsync({ persona: 'bright' });
@@ -348,15 +364,17 @@ export default function MyPage() {
                   variant="outline"
                   className="rounded-xl gap-1"
                   onClick={() => handleAddMeal("breakfast")}
+                  disabled={allMealTypesRegistered}
+                  title={allMealTypesRegistered ? "모든 식사가 등록되었습니다" : undefined}
                 >
                   <Plus className="w-4 h-4" />
                   추가
                 </Button>
               </div>
 
-              {selectedMeals && selectedMeals.length > 0 ? (
+              {sortedMeals.length > 0 ? (
                 <div className="space-y-2">
-                  {selectedMeals.map((meal) => (
+                  {sortedMeals.map((meal) => (
                     <button
                       key={meal.id}
                       onClick={() => handleEditMeal(meal)}
@@ -400,7 +418,7 @@ export default function MyPage() {
               )}
 
               {/* Calorie Summary for Selected Day */}
-              {selectedMeals && selectedMeals.length > 0 && (
+              {sortedMeals.length > 0 && (
                 <div className="mt-4 pt-4 border-t border-border">
                   <div className="flex justify-between text-xs text-muted-foreground mb-2">
                     <span>목표 대비</span>
