@@ -227,6 +227,7 @@ export interface Post {
   // Joined data
   author?: PostAuthor;
   user_reaction?: ReactionType | null;
+  is_mine?: boolean;
   comments?: PostComment[];
 }
 

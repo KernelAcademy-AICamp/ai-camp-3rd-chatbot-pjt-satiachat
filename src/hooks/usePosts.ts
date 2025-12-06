@@ -162,6 +162,7 @@ export function usePost(id: string | null) {
         ...post,
         author: postAuthor || { nickname: null, avatar_url: null },
         user_reaction: userReaction,
+        is_mine: post.user_id === userId,
         comments: comments?.map(c => ({
           ...c,
           author: commentAuthorMap.get(c.user_id) || { nickname: null, avatar_url: null },

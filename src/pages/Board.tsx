@@ -34,6 +34,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import {
   usePosts,
@@ -108,6 +118,8 @@ export default function Board() {
   const [newComment, setNewComment] = useState("");
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [editCommentContent, setEditCommentContent] = useState("");
+  const [deleteCommentId, setDeleteCommentId] = useState<string | null>(null);
+  const [deletePostId, setDeletePostId] = useState<string | null>(null);
 
   // Debounce search
   useEffect(() => {
@@ -277,11 +289,6 @@ export default function Board() {
     setEditingPostId(null);
   };
 
-  // Check if current user is author
-  const isAuthor = (post: Post) => {
-    const userId = localStorage.getItem('supabase_user_id');
-    return userId && post.user_id === userId;
-  };
 
   return (
     <div className="min-h-screen">
@@ -549,7 +556,7 @@ export default function Board() {
                           <h2 className="text-lg font-bold text-foreground">{selectedPost.title}</h2>
                         </div>
                       </div>
-                      {isAuthor(selectedPost) && (
+                      {selectedPost.is_mine && (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
@@ -562,7 +569,7 @@ export default function Board() {
                               수정
                             </DropdownMenuItem>
                             <DropdownMenuItem
-                              onClick={() => handleDeletePost(selectedPost.id)}
+                              onClick={() => setDeletePostId(selectedPost.id)}
                               className="text-destructive rounded text-sm"
                             >
                               <Trash2 className="w-3.5 h-3.5 mr-2" />
@@ -693,7 +700,7 @@ export default function Board() {
                                       variant="ghost"
                                       size="icon"
                                       className="h-6 w-6 rounded text-destructive hover:text-destructive"
-                                      onClick={() => handleDeleteComment(comment.id)}
+                                      onClick={() => setDeleteCommentId(comment.id)}
                                     >
                                       <Trash2 className="w-3 h-3" />
                                     </Button>
@@ -775,6 +782,58 @@ export default function Board() {
           </div>
         )}
       </div>
+
+      {/* Post Delete Confirmation Dialog */}
+      <AlertDialog open={!!deletePostId} onOpenChange={(open) => !open && setDeletePostId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>게시글 삭제</AlertDialogTitle>
+            <AlertDialogDescription>
+              정말 이 게시글을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deletePostId) {
+                  handleDeletePost(deletePostId);
+                  setDeletePostId(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              삭제
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Comment Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteCommentId} onOpenChange={(open) => !open && setDeleteCommentId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>댓글 삭제</AlertDialogTitle>
+            <AlertDialogDescription>
+              정말 이 댓글을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteCommentId) {
+                  handleDeleteComment(deleteCommentId);
+                  setDeleteCommentId(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              삭제
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
