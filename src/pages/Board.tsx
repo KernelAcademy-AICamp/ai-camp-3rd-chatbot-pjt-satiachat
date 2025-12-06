@@ -23,6 +23,9 @@ import {
   Heart,
   Flame,
   Loader2,
+  Share2,
+  Bookmark,
+  BookOpen,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -577,223 +580,345 @@ export default function Board() {
           </>
         )}
 
-        {/* Detail View */}
+        {/* Detail View - Enhanced */}
         {viewMode === "detail" && (
-          <div className="space-y-4 animate-fade-in">
-            {/* Back Button */}
-            <Button
-              variant="ghost"
-              onClick={handleBack}
-              className="gap-1.5 -ml-2 hover:bg-primary/10 rounded-lg h-8 text-sm"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              <span>목록으로</span>
-            </Button>
+          <div className="animate-fade-in">
+            {/* Header with Actions */}
+            <div className="flex items-center justify-between mb-6">
+              <Button
+                variant="ghost"
+                onClick={handleBack}
+                className="gap-2 -ml-3 hover:bg-muted rounded-xl h-10 px-4 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span className="font-medium">목록으로</span>
+              </Button>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 rounded-xl hover:bg-primary/10"
+                >
+                  <Share2 className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 rounded-xl hover:bg-primary/10"
+                >
+                  <Bookmark className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
 
             {postLoading || !selectedPost ? (
-              <div className="text-center py-20 bg-white dark:bg-card rounded-xl border border-border/50">
+              <div className="text-center py-20 bg-white dark:bg-card rounded-2xl border border-border/50">
                 <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
                 <p className="text-muted-foreground">게시글을 불러오는 중...</p>
               </div>
             ) : (
-              <>
-                {/* Post Content */}
-                <div className="bg-white dark:bg-card rounded-xl border border-border/50 shadow-sm overflow-hidden">
-                  {/* Header Bar */}
-                  <div className="h-1 bg-primary" />
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Main Content - Takes 2/3 on desktop */}
+                <div className="lg:col-span-2 space-y-6">
+                  {/* Post Card */}
+                  <div className="bg-white dark:bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden">
+                    {/* Gradient Header Bar */}
+                    <div className={cn(
+                      "h-1.5 bg-gradient-to-r",
+                      selectedPost.tab === 'qna' ? "from-primary to-primary/60" :
+                      selectedPost.tab === 'free' ? "from-secondary to-secondary/60" :
+                      "from-amber-500 to-orange-400"
+                    )} />
 
-                  <div className="p-5">
-                    {/* Author & Actions */}
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <AvatarDisplay
-                          src={selectedPost.author?.avatar_url}
-                          name={selectedPost.author?.nickname}
-                          size="lg"
-                        />
-                        <div>
-                          <div className="flex items-center gap-1.5 mb-0.5">
+                    <div className="p-6">
+                      {/* Title Section */}
+                      <div className="flex items-start gap-4 mb-6 pb-6 border-b border-border/30">
+                        <div className={cn(
+                          "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0",
+                          tabConfig[selectedPost.tab].iconBg
+                        )}>
+                          {(() => {
+                            const Icon = tabConfig[selectedPost.tab].icon;
+                            return <Icon className={cn("w-6 h-6", tabConfig[selectedPost.tab].accentColor)} />;
+                          })()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2">
                             <span className={cn(
-                              "inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium",
+                              "inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium",
                               tabConfig[selectedPost.tab].iconBg,
                               tabConfig[selectedPost.tab].accentColor
                             )}>
-                              {(() => {
-                                const Icon = tabConfig[selectedPost.tab].icon;
-                                return <Icon className="w-3 h-3" />;
-                              })()}
                               {tabConfig[selectedPost.tab].label}
                             </span>
                             {isHotPost(selectedPost) && (
-                              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-secondary/10 text-secondary">
-                                <Flame className="w-2.5 h-2.5" />
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-secondary/10 text-secondary">
+                                <Flame className="w-3 h-3" />
                                 HOT
                               </span>
                             )}
                           </div>
-                          <h2 className="text-lg font-bold text-foreground">{selectedPost.title}</h2>
+                          <h1 className="text-xl font-bold text-foreground leading-tight">
+                            {selectedPost.title}
+                          </h1>
+                        </div>
+
+                        {/* Edit/Delete Menu */}
+                        {selectedPost.is_mine && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl">
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="rounded-xl">
+                              <DropdownMenuItem onClick={() => handleStartEdit(selectedPost)} className="rounded-lg">
+                                <Pencil className="w-4 h-4 mr-2" />
+                                수정
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => setDeletePostId(selectedPost.id)}
+                                className="text-destructive rounded-lg"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                삭제
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
+                      </div>
+
+                      {/* Author Info */}
+                      <div className="flex items-center gap-3 mb-6">
+                        <AvatarDisplay
+                          src={selectedPost.author?.avatar_url}
+                          name={selectedPost.author?.nickname}
+                          size="md"
+                        />
+                        <div>
+                          <p className="font-semibold text-sm text-foreground">{getAuthorName(selectedPost)}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(selectedPost.created_at), "yyyy년 MM월 dd일 HH:mm", { locale: ko })}
+                          </p>
                         </div>
                       </div>
-                      {selectedPost.is_mine && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
-                              <MoreVertical className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="rounded-lg">
-                            <DropdownMenuItem onClick={() => handleStartEdit(selectedPost)} className="rounded text-sm">
-                              <Pencil className="w-3.5 h-3.5 mr-2" />
-                              수정
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => setDeletePostId(selectedPost.id)}
-                              className="text-destructive rounded text-sm"
-                            >
-                              <Trash2 className="w-3.5 h-3.5 mr-2" />
-                              삭제
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
-                    </div>
 
-                    {/* Meta Info */}
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground mb-4 pb-4 border-b border-border/50">
-                      <span className="font-medium text-foreground">{getAuthorName(selectedPost)}</span>
-                      <span className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {format(new Date(selectedPost.created_at), "yyyy.MM.dd HH:mm", { locale: ko })}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Eye className="w-3 h-3" />
-                        {selectedPost.views}
-                      </span>
-                    </div>
+                      {/* Content Body - Enhanced Readability */}
+                      <div className="text-foreground whitespace-pre-wrap text-base leading-[1.85] min-h-[200px] mb-8">
+                        {selectedPost.content}
+                      </div>
 
-                    {/* Content */}
-                    <div className="text-foreground whitespace-pre-wrap leading-relaxed text-sm mb-6 min-h-[120px]">
-                      {selectedPost.content}
-                    </div>
+                      {/* Engagement Section */}
+                      <div className="flex items-center justify-center gap-4 py-6 rounded-2xl bg-gradient-to-r from-muted/30 via-muted/50 to-muted/30 border border-border/30">
+                        <div className="text-center">
+                          <Button
+                            variant={selectedPost.user_reaction === 'like' ? "default" : "outline"}
+                            size="lg"
+                            onClick={() => handleLike(selectedPost.id, true)}
+                            disabled={toggleReaction.isPending}
+                            className={cn(
+                              "gap-3 rounded-2xl h-14 px-8 transition-all duration-300",
+                              selectedPost.user_reaction === 'like'
+                                ? "bg-gradient-to-r from-rose-500 to-pink-500 shadow-lg shadow-rose-500/25 scale-105"
+                                : "hover:border-rose-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+                            )}
+                          >
+                            <Heart className={cn("w-5 h-5", selectedPost.user_reaction === 'like' && "fill-current")} />
+                            <span className="text-lg font-bold">{selectedPost.likes}</span>
+                          </Button>
+                          <p className="text-xs text-muted-foreground mt-2">도움이 됐어요</p>
+                        </div>
 
-                    {/* Like/Dislike */}
-                    <div className="flex items-center justify-center gap-3 py-4 border-t border-border/50">
-                      <Button
-                        variant={selectedPost.user_reaction === 'like' ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => handleLike(selectedPost.id, true)}
-                        disabled={toggleReaction.isPending}
-                        className={cn(
-                          "gap-2 rounded-lg h-9 px-4 transition-all",
-                          selectedPost.user_reaction === 'like'
-                            ? "bg-rose-500 hover:bg-rose-600"
-                            : "hover:border-rose-300 hover:text-rose-500"
-                        )}
-                      >
-                        <Heart className={cn("w-4 h-4", selectedPost.user_reaction === 'like' && "fill-current")} />
-                        <span className="font-semibold">{selectedPost.likes}</span>
-                      </Button>
-                      <Button
-                        variant={selectedPost.user_reaction === 'dislike' ? "destructive" : "outline"}
-                        size="sm"
-                        onClick={() => handleLike(selectedPost.id, false)}
-                        disabled={toggleReaction.isPending}
-                        className="gap-2 rounded-lg h-9 px-4"
-                      >
-                        <ThumbsDown className="w-4 h-4" />
-                        <span className="font-semibold">{selectedPost.dislikes}</span>
-                      </Button>
+                        <div className="w-px h-12 bg-border/50" />
+
+                        <div className="text-center">
+                          <Button
+                            variant={selectedPost.user_reaction === 'dislike' ? "destructive" : "outline"}
+                            size="lg"
+                            onClick={() => handleLike(selectedPost.id, false)}
+                            disabled={toggleReaction.isPending}
+                            className="gap-3 rounded-2xl h-14 px-8 transition-all"
+                          >
+                            <ThumbsDown className="w-5 h-5" />
+                            <span className="text-lg font-bold">{selectedPost.dislikes}</span>
+                          </Button>
+                          <p className="text-xs text-muted-foreground mt-2">아쉬워요</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Comments */}
-                <div className="bg-white dark:bg-card rounded-xl border border-border/50 shadow-sm overflow-hidden">
-                  <div className="p-5">
-                    <h3 className="font-semibold text-sm text-foreground mb-4 flex items-center gap-2">
-                      <MessageCircle className="w-4 h-4 text-primary" />
-                      댓글
-                      <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs">
-                        {selectedPost.comment_count}
-                      </span>
-                    </h3>
+                  {/* Comments Card */}
+                  <div className="bg-white dark:bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden">
+                    <div className="p-6">
+                      <h3 className="font-semibold text-foreground mb-5 flex items-center gap-2">
+                        <MessageCircle className="w-5 h-5 text-primary" />
+                        댓글
+                        <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-sm font-bold">
+                          {selectedPost.comment_count}
+                        </span>
+                      </h3>
 
-                    {/* Comment Input */}
-                    <div className="flex gap-2 mb-4">
-                      <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-                        <span className="text-white text-xs font-semibold">나</span>
-                      </div>
-                      <div className="flex-1 flex gap-2">
-                        <Input
-                          placeholder="댓글을 남겨주세요..."
-                          value={newComment}
-                          onChange={(e) => setNewComment(e.target.value)}
-                          onKeyPress={(e) => e.key === "Enter" && handleAddComment()}
-                          className="h-9 rounded-lg bg-muted/30 border-0 focus:bg-white dark:focus:bg-muted transition-colors text-sm"
-                        />
-                        <Button
-                          onClick={handleAddComment}
-                          size="icon"
-                          disabled={createComment.isPending || !newComment.trim()}
-                          className="h-9 w-9 rounded-lg bg-primary hover:bg-primary/90 shrink-0"
-                        >
-                          {createComment.isPending ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            <Send className="w-4 h-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Comment List */}
-                    <div className="space-y-2">
-                      {!selectedPost.comments || selectedPost.comments.length === 0 ? (
-                        <div className="text-center py-8">
-                          <MessageCircle className="w-6 h-6 text-muted-foreground mx-auto mb-2" />
-                          <p className="text-muted-foreground text-sm">첫 번째 댓글을 남겨보세요!</p>
-                        </div>
-                      ) : (
-                        selectedPost.comments.map((comment) => (
-                          <div
-                            key={comment.id}
-                            className="group flex gap-2 p-3 rounded-lg bg-muted/20 hover:bg-muted/30 transition-colors"
-                          >
-                            <AvatarDisplay
-                              src={comment.author?.avatar_url}
-                              name={comment.author?.nickname}
-                              size="sm"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between mb-0.5">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium text-xs text-foreground">{getCommentAuthorName(comment)}</span>
-                                  <span className="text-[10px] text-muted-foreground">
-                                    {format(new Date(comment.created_at), "MM.dd HH:mm", { locale: ko })}
-                                  </span>
-                                </div>
-                                {comment.is_mine && (
-                                  <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-6 w-6 rounded text-destructive hover:text-destructive"
-                                      onClick={() => setDeleteCommentId(comment.id)}
-                                    >
-                                      <Trash2 className="w-3 h-3" />
-                                    </Button>
-                                  </div>
+                      {/* Comment Input - Enhanced */}
+                      <div className="bg-gradient-to-r from-primary/5 via-primary/10 to-transparent p-4 rounded-xl mb-6 border border-primary/10">
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
+                            <span className="text-primary text-sm font-bold">나</span>
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex gap-2">
+                              <Input
+                                placeholder="이 글에 대한 생각을 나눠주세요..."
+                                value={newComment}
+                                onChange={(e) => setNewComment(e.target.value)}
+                                onKeyPress={(e) => e.key === "Enter" && handleAddComment()}
+                                className="h-11 rounded-xl bg-white dark:bg-card border-border/50 focus:border-primary/50 text-sm"
+                              />
+                              <Button
+                                onClick={handleAddComment}
+                                disabled={createComment.isPending || !newComment.trim()}
+                                className="h-11 px-5 rounded-xl bg-primary hover:bg-primary/90 gap-2"
+                              >
+                                {createComment.isPending ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Send className="w-4 h-4" />
                                 )}
-                              </div>
-                              <p className="text-foreground text-sm">{comment.content}</p>
+                                <span className="hidden sm:inline">작성</span>
+                              </Button>
                             </div>
                           </div>
-                        ))
-                      )}
+                        </div>
+                      </div>
+
+                      {/* Comment List */}
+                      <div className="space-y-3">
+                        {!selectedPost.comments || selectedPost.comments.length === 0 ? (
+                          <div className="text-center py-12 rounded-xl bg-muted/20">
+                            <MessageCircle className="w-8 h-8 text-muted-foreground/50 mx-auto mb-3" />
+                            <p className="text-muted-foreground text-sm">첫 번째 댓글을 남겨보세요!</p>
+                          </div>
+                        ) : (
+                          selectedPost.comments.map((comment) => (
+                            <div
+                              key={comment.id}
+                              className="group relative pl-4 border-l-2 border-transparent hover:border-primary/30 transition-all"
+                            >
+                              <div className="flex gap-3 p-4 rounded-xl bg-muted/20 hover:bg-muted/30 transition-colors">
+                                <AvatarDisplay
+                                  src={comment.author?.avatar_url}
+                                  name={comment.author?.nickname}
+                                  size="sm"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-semibold text-sm text-foreground">{getCommentAuthorName(comment)}</span>
+                                      <span className="text-xs text-muted-foreground">
+                                        {format(new Date(comment.created_at), "MM.dd HH:mm", { locale: ko })}
+                                      </span>
+                                    </div>
+                                    {comment.is_mine && (
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-7 w-7 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                                        onClick={() => setDeleteCommentId(comment.id)}
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                  <p className="text-foreground text-sm leading-relaxed">{comment.content}</p>
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </>
+
+                {/* Sidebar */}
+                <div className="lg:col-span-1 space-y-4">
+                  {/* Author Info Card */}
+                  <div className="bg-white dark:bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden">
+                    <div className={cn(
+                      "h-20 bg-gradient-to-r",
+                      selectedPost.tab === 'qna' ? "from-primary/20 to-primary/5" :
+                      selectedPost.tab === 'free' ? "from-secondary/20 to-secondary/5" :
+                      "from-amber-500/20 to-amber-500/5"
+                    )} />
+                    <div className="px-5 pb-5 -mt-10">
+                      <div className="flex flex-col items-center">
+                        <div className="ring-4 ring-white dark:ring-card rounded-full">
+                          <AvatarDisplay
+                            src={selectedPost.author?.avatar_url}
+                            name={selectedPost.author?.nickname}
+                            size="lg"
+                          />
+                        </div>
+                        <h4 className="font-bold text-foreground mt-3">{getAuthorName(selectedPost)}</h4>
+                        <p className="text-sm text-muted-foreground">DietRx 회원</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Post Info Card */}
+                  <div className="bg-white dark:bg-card rounded-2xl border border-border/50 shadow-sm p-5">
+                    <h4 className="font-semibold text-sm text-foreground mb-4 flex items-center gap-2">
+                      <BookOpen className="w-4 h-4 text-primary" />
+                      게시글 정보
+                    </h4>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground flex items-center gap-2">
+                          <Clock className="w-4 h-4" />
+                          작성일
+                        </span>
+                        <span className="font-medium text-foreground">
+                          {format(new Date(selectedPost.created_at), "MM.dd HH:mm")}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground flex items-center gap-2">
+                          <Eye className="w-4 h-4" />
+                          조회수
+                        </span>
+                        <span className="font-medium text-foreground">{selectedPost.views}회</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground flex items-center gap-2">
+                          <BookOpen className="w-4 h-4" />
+                          읽기 시간
+                        </span>
+                        <span className="font-medium text-foreground">
+                          약 {Math.max(1, Math.ceil(selectedPost.content.length / 500))}분
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Encouragement Card */}
+                  <div className="bg-gradient-to-br from-primary/5 via-primary/10 to-secondary/5 rounded-2xl border border-primary/20 p-5">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-white dark:bg-card shadow-sm flex items-center justify-center flex-shrink-0">
+                        <Sparkles className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground mb-1">
+                          함께 나눠요
+                        </p>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          댓글로 경험을 나누거나 좋아요로 응원해주세요!
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
             )}
           </div>
         )}
