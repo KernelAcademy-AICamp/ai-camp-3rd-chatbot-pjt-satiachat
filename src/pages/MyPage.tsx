@@ -11,6 +11,10 @@ import {
   Scale,
   Target,
   CalendarDays,
+  Coffee,
+  Sun,
+  Moon,
+  Cookie,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -119,6 +123,15 @@ export default function MyPage() {
       case "dinner": return "저녁";
       case "snack": return "간식";
       default: return type;
+    }
+  };
+
+  const getMealTypeIcon = (type: MealType) => {
+    switch (type) {
+      case "breakfast": return Coffee;
+      case "lunch": return Sun;
+      case "dinner": return Moon;
+      case "snack": return Cookie;
     }
   };
 
@@ -374,14 +387,16 @@ export default function MyPage() {
 
               {sortedMeals.length > 0 ? (
                 <div className="space-y-2">
-                  {sortedMeals.map((meal) => (
+                  {sortedMeals.map((meal) => {
+                    const MealIcon = getMealTypeIcon(meal.meal_type);
+                    return (
                     <button
                       key={meal.id}
                       onClick={() => handleEditMeal(meal)}
                       className="w-full flex items-center gap-3 p-3 bg-muted/30 rounded-xl hover:bg-muted/50 transition-colors text-left"
                     >
                       <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                        <UtensilsCrossed className="w-4 h-4 text-primary" />
+                        <MealIcon className="w-4 h-4 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
@@ -397,7 +412,8 @@ export default function MyPage() {
                         </p>
                       </div>
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="py-6 text-center">
