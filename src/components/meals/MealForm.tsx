@@ -187,6 +187,7 @@ export function MealForm({
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
+                max={getToday()}
                 disabled={!!editMeal}
               />
             </div>

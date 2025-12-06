@@ -12,6 +12,7 @@ import MyPage from "./pages/MyPage";
 import Medications from "./pages/Medications";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
+import Board from "./pages/Board";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Onboarding from "./pages/Onboarding";
@@ -40,6 +41,7 @@ const App = () => (
               <Route path="/medications" element={<Medications />} />
               <Route path="/reports" element={<Reports />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/board" element={<Board />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

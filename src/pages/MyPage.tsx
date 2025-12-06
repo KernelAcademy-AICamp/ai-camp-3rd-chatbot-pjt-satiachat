@@ -9,6 +9,8 @@ import {
   UtensilsCrossed,
   Flame,
   Scale,
+  Target,
+  CalendarDays,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -20,6 +22,8 @@ import { MealForm } from "@/components/meals/MealForm";
 import { useLatestProgress, useWeeklyStats } from "@/hooks/useProgress";
 import { useProfile } from "@/hooks/useProfile";
 import { useTodayCalories, useMeals } from "@/hooks/useMeals";
+import { useAIAnalysis } from "@/hooks/useChat";
+import { useToast } from "@/hooks/use-toast";
 import type { MealType, MealWithItems } from "@/types/domain";
 
 // Fallback constants
@@ -28,7 +32,6 @@ const FALLBACK_START_WEIGHT = 78;
 
 export default function MyPage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [isGenerating, setIsGenerating] = useState(false);
   const [aiSummary, setAiSummary] = useState<string | null>(null);
   const [showWeightForm, setShowWeightForm] = useState(false);
   const [showMealForm, setShowMealForm] = useState(false);
@@ -40,6 +43,10 @@ export default function MyPage() {
   const { data: latestProgress, isLoading: isLoadingLatest } = useLatestProgress();
   const { startWeight: weeklyStartWeight, endWeight, weightChange, logs } = useWeeklyStats();
   const { totalCalories: todayCalories } = useTodayCalories();
+
+  // AI Analysis hook
+  const aiAnalysis = useAIAnalysis();
+  const { toast } = useToast();
 
   // Selected date meals
   const selectedDateStr = format(selectedDate, "yyyy-MM-dd");
@@ -61,26 +68,18 @@ export default function MyPage() {
   // Selected date meals total
   const selectedMealsTotal = selectedMeals?.reduce((sum, m) => sum + (m.total_calories || 0), 0) || 0;
 
-  const generateSummary = () => {
-    setIsGenerating(true);
-    setTimeout(() => {
-      if (logs.length === 0) {
-        setAiSummary(
-          "아직 기록된 체중 데이터가 없습니다.\n\n체중을 기록하시면 AI가 맞춤형 분석과 조언을 제공해드릴게요. '체중 기록' 버튼을 눌러 시작해보세요!"
-        );
-      } else {
-        setAiSummary(
-          `지난 7일 동안 ${logs.length}회 체중을 기록하셨습니다. ${
-            weightChange
-              ? weightChange < 0
-                ? `${Math.abs(weightChange).toFixed(1)}kg 감량에 성공하셨어요! 🎉`
-                : `${weightChange.toFixed(1)}kg 증가했어요.`
-              : ""
-          }\n\n**추천 사항:**\n• 매일 같은 시간에 체중을 측정하면 더 정확한 추이를 볼 수 있어요\n• 현재 페이스라면 목표 달성까지 순조롭게 진행 중이에요 💪\n• 체지방률도 함께 기록하면 더 정확한 분석이 가능해요`
-        );
-      }
-      setIsGenerating(false);
-    }, 2000);
+  const generateSummary = async () => {
+    try {
+      const result = await aiAnalysis.mutateAsync({ persona: 'bright' });
+      setAiSummary(result);
+    } catch (error) {
+      console.error('AI 분석 오류:', error);
+      toast({
+        title: "분석 실패",
+        description: "AI 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleAddMeal = (mealType: MealType) => {
@@ -108,89 +107,149 @@ export default function MyPage() {
     <div className="p-4 md:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground">My Page</h1>
-            <p className="text-muted-foreground mt-1">나의 건강 기록과 진행 상황</p>
+        <div className="mb-6">
+          <h1 className="text-2xl md:text-3xl font-bold text-foreground">My Page</h1>
+          <p className="text-muted-foreground mt-1">나의 건강 기록과 진행 상황</p>
+        </div>
+
+        {/* AI Coaching - Top Banner */}
+        <div className="p-5 rounded-2xl border shadow-sm bg-card hover:shadow-md transition-all duration-300 mb-6 animate-slide-up">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="p-2.5 rounded-xl bg-primary/10">
+                <Sparkles className="w-5 h-5 text-primary" />
+              </div>
+              {aiSummary ? (
+                <p className="text-sm text-foreground line-clamp-1 flex-1 font-medium">
+                  {aiSummary.split('\n')[0]}
+                </p>
+              ) : (
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-muted-foreground mb-1">AI 코칭</p>
+                  <p className="text-sm font-semibold text-foreground">맞춤형 분석을 받아보세요</p>
+                </div>
+              )}
+            </div>
+            <Button
+              onClick={generateSummary}
+              disabled={aiAnalysis.isPending}
+              size="sm"
+              className="gap-2 rounded-xl"
+            >
+              {aiAnalysis.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  분석 중...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  {aiSummary ? "새로고침" : "분석 받기"}
+                </>
+              )}
+            </Button>
           </div>
-          <Button
-            onClick={() => setShowMealForm(true)}
-            className="gap-2 rounded-xl shadow-glow"
-          >
-            <Plus className="w-4 h-4" />
-            식단 추가
-          </Button>
+          {aiSummary && (
+            <div className="mt-4 pt-4 border-t border-border">
+              <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">
+                {aiSummary}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Summary Cards Row */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {/* Current Weight Card */}
+          <div className="p-5 rounded-2xl border shadow-sm bg-success/5 border-success/20 hover:shadow-md transition-all duration-300 animate-slide-up">
+            <div className="flex items-start justify-between mb-4">
+              <div className="p-2.5 rounded-xl bg-success/10">
+                <Scale className="w-5 h-5 text-success" />
+              </div>
+            </div>
+            <p className="text-sm font-medium text-muted-foreground mb-1">현재 체중</p>
+            <p className="text-2xl font-bold text-foreground">
+              {isLoadingLatest ? "..." : currentWeight.toFixed(1)}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">kg</p>
+          </div>
+
+          {/* Goal Weight Card */}
+          <div className="p-5 rounded-2xl border shadow-sm bg-info/5 border-info/20 hover:shadow-md transition-all duration-300 animate-slide-up">
+            <div className="flex items-start justify-between mb-4">
+              <div className="p-2.5 rounded-xl bg-info/10">
+                <Target className="w-5 h-5 text-info" />
+              </div>
+              <span className="text-sm font-semibold text-muted-foreground">
+                {Math.min(100, Math.max(0, progressPercent))}%
+              </span>
+            </div>
+            <p className="text-sm font-medium text-muted-foreground mb-1">목표 체중</p>
+            <p className="text-2xl font-bold text-foreground">{goalWeight}</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {remainingWeight > 0 ? `${remainingWeight.toFixed(1)}kg 남음` : "목표 달성!"}
+            </p>
+            <div className="mt-3">
+              <div className="h-2 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-500 bg-info"
+                  style={{ width: `${Math.min(100, Math.max(0, progressPercent))}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Today Calories Card */}
+          <div className="p-5 rounded-2xl border shadow-sm bg-warning/5 border-warning/20 hover:shadow-md transition-all duration-300 animate-slide-up">
+            <div className="flex items-start justify-between mb-4">
+              <div className="p-2.5 rounded-xl bg-warning/10">
+                <Flame className="w-5 h-5 text-warning" />
+              </div>
+              <span className="text-sm font-semibold text-muted-foreground">
+                {Math.min(100, Math.round((todayCalories / targetCalories) * 100))}%
+              </span>
+            </div>
+            <p className="text-sm font-medium text-muted-foreground mb-1">오늘 섭취</p>
+            <p className="text-2xl font-bold text-foreground">{todayCalories.toLocaleString()}</p>
+            <p className="text-xs text-muted-foreground mt-1">/ {targetCalories} kcal</p>
+            <div className="mt-3">
+              <div className="h-2 bg-muted rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-500 bg-warning"
+                  style={{ width: `${Math.min(100, (todayCalories / targetCalories) * 100)}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Weight Change Card */}
+          <div className="p-5 rounded-2xl border shadow-sm bg-card border-border hover:shadow-md transition-all duration-300 animate-slide-up">
+            <div className="flex items-start justify-between mb-4">
+              <div className="p-2.5 rounded-xl bg-primary/10">
+                <TrendingDown className="w-5 h-5 text-primary" />
+              </div>
+            </div>
+            <p className="text-sm font-medium text-muted-foreground mb-1">시작 대비</p>
+            <p className="text-2xl font-bold text-foreground">
+              {weightFromStart > 0 ? `-${weightFromStart.toFixed(1)}` : weightFromStart.toFixed(1)}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">kg 변화</p>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Charts & Progress */}
+          {/* Left Column - Charts */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Progress Card */}
-            <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-2xl border border-primary/20 p-6 animate-slide-up">
-              <div className="flex items-center gap-4 mb-6">
-                <div className="w-14 h-14 rounded-2xl bg-primary/20 flex items-center justify-center">
-                  <TrendingDown className="w-7 h-7 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">현재 진행 상황</p>
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-bold text-foreground">
-                      {isLoadingLatest ? "..." : currentWeight.toFixed(1)}
-                    </span>
-                    <span className="text-muted-foreground">kg</span>
-                    {weightFromStart > 0 && (
-                      <span className="text-sm text-success font-medium ml-2">
-                        시작 대비 -{weightFromStart.toFixed(1)} kg
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center">
-                  <p className="text-xs text-muted-foreground mb-1">시작 체중</p>
-                  <p className="font-semibold text-foreground">{profileStartWeight} kg</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-xs text-muted-foreground mb-1">목표 체중</p>
-                  <p className="font-semibold text-foreground">{goalWeight} kg</p>
-                </div>
-                <div className="text-center">
-                  <p className="text-xs text-muted-foreground mb-1">남은 체중</p>
-                  <p className="font-semibold text-foreground">
-                    {remainingWeight > 0 ? remainingWeight.toFixed(1) : 0} kg
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4">
-                <div className="flex justify-between text-xs text-muted-foreground mb-2">
-                  <span>목표 달성률</span>
-                  <span>{Math.min(100, Math.max(0, progressPercent))}%</span>
-                </div>
-                <div className="h-3 bg-background rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-primary to-primary-glow rounded-full transition-all duration-700"
-                    style={{ width: `${Math.min(100, Math.max(0, progressPercent))}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-
             {/* Weight Chart */}
-            <div
-              className="bg-card rounded-2xl border border-border p-6 animate-slide-up"
-              style={{ animationDelay: "0.1s" }}
-            >
+            <div className="p-5 rounded-2xl border shadow-sm bg-card hover:shadow-md transition-all duration-300 animate-slide-up">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-secondary/20 flex items-center justify-center">
-                    <Scale className="w-5 h-5 text-secondary" />
+                  <div className="p-2.5 rounded-xl bg-success/10">
+                    <Scale className="w-5 h-5 text-success" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-foreground">체중 변화</h3>
-                    <p className="text-xs text-muted-foreground">최근 7일</p>
+                    <p className="text-sm font-medium text-muted-foreground">체중 변화</p>
+                    <p className="font-semibold text-foreground">최근 7일</p>
                   </div>
                 </div>
                 <Button
@@ -199,99 +258,50 @@ export default function MyPage() {
                   onClick={() => setShowWeightForm(true)}
                   className="gap-1.5 rounded-xl"
                 >
-                  <Scale className="w-3.5 h-3.5" />
+                  <Plus className="w-4 h-4" />
                   기록
-                  <Plus className="w-3 h-3" />
                 </Button>
               </div>
-              <div className="h-48">
+              <div className="h-64">
                 <WeightChart targetWeight={goalWeight} />
               </div>
             </div>
 
             {/* Calories Chart */}
-            <div
-              className="bg-card rounded-2xl border border-border p-6 animate-slide-up"
-              style={{ animationDelay: "0.15s" }}
-            >
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-warning/20 flex items-center justify-center">
-                  <Flame className="w-5 h-5 text-warning" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-foreground">칼로리 섭취</h3>
-                  <p className="text-xs text-muted-foreground">목표: {targetCalories} kcal</p>
-                </div>
-              </div>
-              <div className="h-48">
-                <CalorieChart targetCalories={targetCalories} />
-              </div>
-            </div>
-
-            {/* AI Summary */}
-            <div
-              className="bg-card rounded-2xl border border-border p-6 animate-slide-up"
-              style={{ animationDelay: "0.2s" }}
-            >
+            <div className="p-5 rounded-2xl border shadow-sm bg-card hover:shadow-md transition-all duration-300 animate-slide-up">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-secondary to-secondary/80 flex items-center justify-center">
-                    <Sparkles className="w-5 h-5 text-secondary-foreground" />
+                  <div className="p-2.5 rounded-xl bg-warning/10">
+                    <Flame className="w-5 h-5 text-warning" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-foreground">AI 코칭</h3>
-                    <p className="text-xs text-muted-foreground">주간 분석 & 피드백</p>
+                    <p className="text-sm font-medium text-muted-foreground">칼로리 섭취</p>
+                    <p className="font-semibold text-foreground">목표: {targetCalories} kcal</p>
                   </div>
                 </div>
-                <Button
-                  onClick={generateSummary}
-                  disabled={isGenerating}
-                  variant={aiSummary ? "outline" : "default"}
-                  className="gap-2 rounded-xl"
-                >
-                  {isGenerating ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      분석 중...
-                    </>
-                  ) : aiSummary ? (
-                    "새로고침"
-                  ) : (
-                    <>
-                      <Sparkles className="w-4 h-4" />
-                      분석 받기
-                    </>
-                  )}
-                </Button>
               </div>
-
-              {aiSummary ? (
-                <div className="bg-muted/50 rounded-xl p-4 whitespace-pre-line text-sm text-foreground leading-relaxed">
-                  {aiSummary}
-                </div>
-              ) : (
-                <div className="bg-muted/30 rounded-xl p-8 text-center">
-                  <Sparkles className="w-8 h-8 text-muted-foreground mx-auto mb-3" />
-                  <p className="text-sm text-muted-foreground">
-                    "분석 받기" 버튼을 눌러 AI 코치의 맞춤형 피드백을 받아보세요.
-                  </p>
-                </div>
-              )}
+              <div className="h-64">
+                <CalorieChart targetCalories={targetCalories} />
+              </div>
             </div>
           </div>
 
           {/* Right Column - Calendar & Daily Meals */}
           <div className="space-y-6">
             {/* Calendar */}
-            <div
-              className="bg-card rounded-2xl border border-border p-4 animate-slide-up"
-              style={{ animationDelay: "0.1s" }}
-            >
+            <div className="p-4 rounded-2xl border shadow-sm bg-card hover:shadow-md transition-all duration-300 animate-slide-up">
+              <div className="flex items-center gap-3 mb-3 px-1">
+                <div className="p-2 rounded-lg bg-primary/10">
+                  <CalendarDays className="w-4 h-4 text-primary" />
+                </div>
+                <p className="font-semibold text-foreground text-sm">날짜 선택</p>
+              </div>
               <Calendar
                 mode="single"
                 selected={selectedDate}
                 onSelect={(date) => date && setSelectedDate(date)}
                 locale={ko}
+                disabled={{ after: new Date() }}
                 className="w-full pointer-events-auto"
                 classNames={{
                   months: "w-full",
@@ -306,32 +316,34 @@ export default function MyPage() {
                     "hover:bg-primary/10 transition-colors"
                   ),
                   day_selected: "bg-primary text-primary-foreground hover:bg-primary",
-                  day_today: "bg-accent text-accent-foreground",
+                  day_today: "bg-accent text-accent-foreground font-semibold",
                   day_outside: "text-muted-foreground opacity-50",
                 }}
               />
             </div>
 
             {/* Selected Date Meals */}
-            <div
-              className="bg-card rounded-2xl border border-border p-5 animate-slide-up"
-              style={{ animationDelay: "0.15s" }}
-            >
+            <div className="p-5 rounded-2xl border shadow-sm bg-card hover:shadow-md transition-all duration-300 animate-slide-up">
               <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="font-semibold text-foreground">
-                    {format(selectedDate, "M월 d일 (EEE)", { locale: ko })}
-                  </h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {selectedMeals && selectedMeals.length > 0
-                      ? `총 ${selectedMealsTotal} kcal 섭취`
-                      : "기록된 식단이 없습니다"}
-                  </p>
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <UtensilsCrossed className="w-4 h-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground text-sm">
+                      {format(selectedDate, "M월 d일 (EEE)", { locale: ko })}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {selectedMeals && selectedMeals.length > 0
+                        ? `${selectedMealsTotal.toLocaleString()} kcal`
+                        : "기록 없음"}
+                    </p>
+                  </div>
                 </div>
                 <Button
                   size="sm"
-                  variant="ghost"
-                  className="rounded-lg gap-1"
+                  variant="outline"
+                  className="rounded-xl gap-1"
                   onClick={() => handleAddMeal("breakfast")}
                 >
                   <Plus className="w-4 h-4" />
@@ -340,14 +352,14 @@ export default function MyPage() {
               </div>
 
               {selectedMeals && selectedMeals.length > 0 ? (
-                <div className="space-y-3">
-                  {selectedMeals.map((meal, index) => (
+                <div className="space-y-2">
+                  {selectedMeals.map((meal) => (
                     <button
                       key={meal.id}
                       onClick={() => handleEditMeal(meal)}
                       className="w-full flex items-center gap-3 p-3 bg-muted/30 rounded-xl hover:bg-muted/50 transition-colors text-left"
                     >
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                         <UtensilsCrossed className="w-4 h-4 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -355,7 +367,7 @@ export default function MyPage() {
                           <span className="font-medium text-sm text-foreground">
                             {getMealTypeLabel(meal.meal_type)}
                           </span>
-                          <span className="text-xs font-semibold text-foreground">
+                          <span className="text-xs font-semibold text-primary">
                             {meal.total_calories || 0} kcal
                           </span>
                         </div>
@@ -367,15 +379,15 @@ export default function MyPage() {
                   ))}
                 </div>
               ) : (
-                <div className="py-8 text-center">
-                  <UtensilsCrossed className="w-10 h-10 text-muted-foreground/50 mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">
-                    이 날짜에 기록된 식단이 없어요
+                <div className="py-6 text-center">
+                  <UtensilsCrossed className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground mb-3">
+                    기록된 식단이 없어요
                   </p>
                   <Button
                     size="sm"
                     variant="outline"
-                    className="mt-3 rounded-lg"
+                    className="rounded-xl"
                     onClick={() => handleAddMeal("breakfast")}
                   >
                     <Plus className="w-4 h-4 mr-1" />
@@ -388,9 +400,9 @@ export default function MyPage() {
               {selectedMeals && selectedMeals.length > 0 && (
                 <div className="mt-4 pt-4 border-t border-border">
                   <div className="flex justify-between text-xs text-muted-foreground mb-2">
-                    <span>목표 대비 섭취량</span>
-                    <span>
-                      {selectedMealsTotal} / {targetCalories} kcal
+                    <span>목표 대비</span>
+                    <span className="font-medium">
+                      {selectedMealsTotal.toLocaleString()} / {targetCalories.toLocaleString()} kcal
                     </span>
                   </div>
                   <div className="h-2 bg-muted rounded-full overflow-hidden">

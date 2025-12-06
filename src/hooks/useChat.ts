@@ -764,3 +764,128 @@ export function useClearChat() {
     },
   });
 }
+
+/**
+ * AI 분석 전용 함수 (채팅 기록 저장 안 함)
+ * MyPage에서 주간 분석 리포트 생성에 사용
+ */
+export function useAIAnalysis() {
+  return useMutation({
+    mutationFn: async ({
+      persona = 'bright' as CoachPersona,
+    }: {
+      persona?: CoachPersona;
+    }): Promise<string> => {
+      const userId = getCurrentUserId();
+
+      // 1. 사용자 프로필 가져오기
+      const { data: profile } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      // 2. 최근 7일 체중 기록 가져오기
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      const weekAgoStr = weekAgo.toISOString().split('T')[0];
+
+      const { data: weightLogs } = await supabase
+        .from('progress_logs')
+        .select('date, weight_kg, body_fat_percent')
+        .eq('user_id', userId)
+        .gte('date', weekAgoStr)
+        .order('date', { ascending: true });
+
+      // 3. 최근 7일 식단 기록 가져오기
+      const { data: meals } = await supabase
+        .from('meals')
+        .select(`
+          date,
+          meal_type,
+          total_calories,
+          meal_items (name, calories, protein_g, carbs_g, fat_g)
+        `)
+        .eq('user_id', userId)
+        .gte('date', weekAgoStr)
+        .order('date', { ascending: true });
+
+      // 4. 컨텍스트 문자열 생성
+      let contextStr = '## 사용자 정보\n';
+      if (profile) {
+        contextStr += `- 현재 체중: ${profile.current_weight_kg}kg\n`;
+        contextStr += `- 목표 체중: ${profile.goal_weight_kg}kg\n`;
+        contextStr += `- 일일 목표 칼로리: ${profile.target_calories}kcal\n`;
+        contextStr += `- 활동 수준: ${profile.activity_level}\n`;
+      }
+
+      contextStr += '\n## 최근 7일 체중 기록\n';
+      if (weightLogs && weightLogs.length > 0) {
+        weightLogs.forEach((log) => {
+          contextStr += `- ${log.date}: ${log.weight_kg}kg`;
+          if (log.body_fat_percent) contextStr += ` (체지방 ${log.body_fat_percent}%)`;
+          contextStr += '\n';
+        });
+
+        // 체중 변화 계산
+        const firstWeight = weightLogs[0].weight_kg;
+        const lastWeight = weightLogs[weightLogs.length - 1].weight_kg;
+        const weightChange = lastWeight - firstWeight;
+        contextStr += `- 주간 체중 변화: ${weightChange > 0 ? '+' : ''}${weightChange.toFixed(1)}kg\n`;
+      } else {
+        contextStr += '- 기록 없음\n';
+      }
+
+      contextStr += '\n## 최근 7일 식단 요약\n';
+      if (meals && meals.length > 0) {
+        // 날짜별 칼로리 합계
+        const dailyCalories: Record<string, number> = {};
+        meals.forEach((meal) => {
+          if (!dailyCalories[meal.date]) dailyCalories[meal.date] = 0;
+          dailyCalories[meal.date] += meal.total_calories || 0;
+        });
+
+        Object.entries(dailyCalories).forEach(([date, cal]) => {
+          contextStr += `- ${date}: ${cal}kcal\n`;
+        });
+
+        const avgCalories = Object.values(dailyCalories).reduce((a, b) => a + b, 0) / Object.keys(dailyCalories).length;
+        contextStr += `- 일 평균 섭취: ${Math.round(avgCalories)}kcal\n`;
+      } else {
+        contextStr += '- 기록 없음\n';
+      }
+
+      // 5. AI 분석 요청 프롬프트
+      const analysisPrompt = `당신은 전문 식단 코치입니다. 아래 사용자의 최근 7일 데이터를 분석하여 간결하고 실용적인 피드백을 제공해주세요.
+
+${contextStr}
+
+다음 형식으로 응답해주세요:
+1. 주간 요약 (1-2문장)
+2. 잘한 점 (1-2개)
+3. 개선할 점 (1-2개)
+4. 이번 주 추천 액션 (구체적으로 1개)
+
+한국어로 응답하고, 격려적이면서도 실질적인 조언을 해주세요.`;
+
+      // 6. OpenAI API 호출
+      const completion = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompts[persona] },
+          { role: 'user', content: analysisPrompt },
+        ],
+        max_tokens: 600,
+        temperature: 0.7,
+      });
+
+      const response = completion.choices[0]?.message?.content;
+
+      if (!response) {
+        throw new Error('AI 응답을 받지 못했습니다.');
+      }
+
+      return response;
+    },
+  });
+}

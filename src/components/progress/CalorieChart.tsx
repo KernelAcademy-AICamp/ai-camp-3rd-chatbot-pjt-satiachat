@@ -43,7 +43,7 @@ export function CalorieChart({ targetCalories: propTargetCalories }: CalorieChar
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
+      <div className="flex items-center justify-center h-full">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
@@ -51,7 +51,7 @@ export function CalorieChart({ targetCalories: propTargetCalories }: CalorieChar
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground">
+      <div className="flex items-center justify-center h-full text-muted-foreground">
         <p>차트 데이터를 불러올 수 없습니다</p>
       </div>
     );
@@ -59,7 +59,7 @@ export function CalorieChart({ targetCalories: propTargetCalories }: CalorieChar
 
   if (chartData.length === 0 || chartData.every((d) => d.calories === 0)) {
     return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground">
+      <div className="flex items-center justify-center h-full text-muted-foreground">
         <div className="text-center">
           <p className="text-lg mb-2">아직 기록이 없습니다</p>
           <p className="text-sm">식단을 기록하면 여기에 그래프가 표시됩니다</p>
@@ -72,7 +72,7 @@ export function CalorieChart({ targetCalories: propTargetCalories }: CalorieChar
   const maxCalories = Math.max(...chartData.map((d) => d.calories), targetLine);
 
   return (
-    <ResponsiveContainer width="100%" height={300}>
+    <ResponsiveContainer width="100%" height="100%">
       <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
         <XAxis
