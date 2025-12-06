@@ -9,6 +9,8 @@ export interface UserProfile {
   id: string;
   user_id: string;
   email?: string;
+  nickname?: string;
+  avatar_url?: string;
   gender?: Gender;
   birth_year?: number;
   height_cm?: number;
@@ -230,7 +232,7 @@ export interface Post {
 
 export interface PostAuthor {
   nickname: string | null;
-  email: string;
+  avatar_url?: string | null;
 }
 
 export interface PostComment {

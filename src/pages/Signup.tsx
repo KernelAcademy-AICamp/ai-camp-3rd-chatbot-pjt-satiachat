@@ -1,29 +1,58 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useNavigate } from 'react-router-dom';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Loader2, Sparkles, Check, X, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { signupSchema, SignupFormData } from '@/lib/validations/onboarding';
+import { useCheckNickname } from '@/hooks/useCheckNickname';
+import { cn } from '@/lib/utils';
 
 export default function Signup() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { signUp } = useAuth();
   const navigate = useNavigate();
+  const { status: nicknameStatus, message: nicknameMessage, checkNickname } = useCheckNickname();
 
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
   });
 
+  // Watch nickname field for duplicate check
+  const nicknameValue = watch('nickname');
+
+  useEffect(() => {
+    if (nicknameValue) {
+      checkNickname(nicknameValue);
+    }
+  }, [nicknameValue, checkNickname]);
+
+  const isNicknameValid = nicknameStatus === 'available';
+
   const onSubmit = async (data: SignupFormData) => {
+    // Check nickname availability before submit
+    if (nicknameStatus === 'taken') {
+      setError('이미 사용 중인 닉네임입니다.');
+      return;
+    }
+    if (nicknameStatus === 'invalid') {
+      setError(nicknameMessage);
+      return;
+    }
+    if (nicknameStatus === 'checking') {
+      setError('닉네임 확인 중입니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
@@ -83,15 +112,43 @@ export default function Signup() {
 
             <div className="space-y-2">
               <Label htmlFor="nickname">닉네임</Label>
-              <Input
-                id="nickname"
-                type="text"
-                placeholder="홍길동"
-                {...register('nickname')}
-                className="rounded-xl"
-              />
+              <div className="relative">
+                <Input
+                  id="nickname"
+                  type="text"
+                  placeholder="홍길동"
+                  {...register('nickname')}
+                  className={cn(
+                    'rounded-xl pr-10',
+                    nicknameStatus === 'available' && 'border-green-500 focus-visible:ring-green-500',
+                    (nicknameStatus === 'taken' || nicknameStatus === 'invalid') && 'border-destructive focus-visible:ring-destructive'
+                  )}
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  {nicknameStatus === 'checking' && (
+                    <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                  )}
+                  {nicknameStatus === 'available' && (
+                    <Check className="w-4 h-4 text-green-500" />
+                  )}
+                  {nicknameStatus === 'taken' && (
+                    <X className="w-4 h-4 text-destructive" />
+                  )}
+                  {nicknameStatus === 'invalid' && (
+                    <AlertCircle className="w-4 h-4 text-destructive" />
+                  )}
+                </div>
+              </div>
               {errors.nickname && (
                 <p className="text-sm text-destructive">{errors.nickname.message}</p>
+              )}
+              {!errors.nickname && nicknameMessage && (
+                <p className={cn(
+                  'text-sm',
+                  nicknameStatus === 'available' ? 'text-green-600' : 'text-destructive'
+                )}>
+                  {nicknameMessage}
+                </p>
               )}
             </div>
 

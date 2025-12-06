@@ -88,17 +88,20 @@ export function OnboardingFlow() {
       // Save to Supabase user_profiles
       const { error } = await supabase
         .from('user_profiles')
-        .upsert({
-          user_id: user?.id || 'dev-user-00000000-0000-0000-0000-000000000001',
-          gender: data.gender,
-          birth_year: data.birthYear,
-          height_cm: data.heightCm,
-          current_weight_kg: data.currentWeightKg,
-          goal_weight_kg: data.goalWeightKg,
-          activity_level: data.activityLevel,
-          coach_persona: data.coachPersona,
-          updated_at: new Date().toISOString(),
-        });
+        .upsert(
+          {
+            user_id: user?.id || 'dev-user-00000000-0000-0000-0000-000000000001',
+            gender: data.gender,
+            birth_year: data.birthYear,
+            height_cm: data.heightCm,
+            current_weight_kg: data.currentWeightKg,
+            goal_weight_kg: data.goalWeightKg,
+            activity_level: data.activityLevel,
+            coach_persona: data.coachPersona,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id' }
+        );
 
       if (error) throw error;
 

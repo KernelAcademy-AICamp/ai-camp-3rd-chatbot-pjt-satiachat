@@ -55,15 +55,17 @@ export function usePosts(tab: PostTab, search?: string) {
         return [];
       }
 
-      // Fetch authors separately
+      // Fetch authors by user_id column
       const userIds = [...new Set(posts.map(p => p.user_id))];
+
       const { data: profiles } = await supabase
         .from('user_profiles')
-        .select('user_id, nickname, email')
+        .select('user_id, nickname, avatar_url')
         .in('user_id', userIds);
 
+      // Build profile map
       const profileMap = new Map(
-        profiles?.map(p => [p.user_id, { nickname: p.nickname, email: p.email || '' }])
+        profiles?.map(p => [p.user_id, { nickname: p.nickname, avatar_url: p.avatar_url || null }]) || []
       );
 
       // Fetch user's reactions for all posts
@@ -83,7 +85,7 @@ export function usePosts(tab: PostTab, search?: string) {
 
       return posts.map(post => ({
         ...post,
-        author: profileMap.get(post.user_id) || { nickname: null, email: '' },
+        author: profileMap.get(post.user_id) || { nickname: null, avatar_url: null },
         user_reaction: reactionMap.get(post.id) || null,
       }));
     },
@@ -109,12 +111,12 @@ export function usePost(id: string | null) {
 
       if (postError) throw postError;
 
-      // Fetch post author
+      // Fetch post author by user_id
       const { data: postAuthor } = await supabase
         .from('user_profiles')
-        .select('nickname, email')
+        .select('nickname, avatar_url')
         .eq('user_id', post.user_id)
-        .single();
+        .maybeSingle();
 
       // Fetch comments
       const { data: comments, error: commentsError } = await supabase
@@ -126,18 +128,21 @@ export function usePost(id: string | null) {
 
       if (commentsError) throw commentsError;
 
-      // Fetch comment authors
-      let commentAuthorMap = new Map<string, { nickname: string | null; email: string }>();
+      // Fetch comment authors by user_id
+      let commentAuthorMap = new Map<string, { nickname: string | null; avatar_url: string | null }>();
       if (comments && comments.length > 0) {
         const commentUserIds = [...new Set(comments.map(c => c.user_id))];
-        const { data: commentProfiles } = await supabase
+
+        const { data: profiles } = await supabase
           .from('user_profiles')
-          .select('user_id, nickname, email')
+          .select('user_id, nickname, avatar_url')
           .in('user_id', commentUserIds);
 
-        commentAuthorMap = new Map(
-          commentProfiles?.map(p => [p.user_id, { nickname: p.nickname, email: p.email || '' }])
-        );
+        profiles?.forEach(p => {
+          if (p.user_id) {
+            commentAuthorMap.set(p.user_id, { nickname: p.nickname, avatar_url: p.avatar_url || null });
+          }
+        });
       }
 
       // Get user's reaction
@@ -155,11 +160,11 @@ export function usePost(id: string | null) {
 
       return {
         ...post,
-        author: postAuthor || { nickname: null, email: '' },
+        author: postAuthor || { nickname: null, avatar_url: null },
         user_reaction: userReaction,
         comments: comments?.map(c => ({
           ...c,
-          author: commentAuthorMap.get(c.user_id) || { nickname: null, email: '' },
+          author: commentAuthorMap.get(c.user_id) || { nickname: null, avatar_url: null },
           is_mine: c.user_id === userId,
         })) || [],
       };
@@ -190,16 +195,16 @@ export function useCreatePost() {
 
       if (error) throw error;
 
-      // Fetch author profile
+      // Fetch author profile by user_id
       const { data: profile } = await supabase
         .from('user_profiles')
-        .select('nickname, email')
+        .select('nickname, avatar_url')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
       return {
         ...data,
-        author: profile || { nickname: null, email: '' },
+        author: profile || { nickname: null, avatar_url: null },
         user_reaction: null,
         comments: [],
       };
@@ -231,16 +236,16 @@ export function useUpdatePost() {
 
       if (error) throw error;
 
-      // Fetch author profile
+      // Fetch author profile by user_id
       const { data: profile } = await supabase
         .from('user_profiles')
-        .select('nickname, email')
+        .select('nickname, avatar_url')
         .eq('user_id', data.user_id)
-        .single();
+        .maybeSingle();
 
       return {
         ...data,
-        author: profile || { nickname: null, email: '' },
+        author: profile || { nickname: null, avatar_url: null },
       };
     },
     onSuccess: (data) => {
@@ -383,16 +388,16 @@ export function useCreateComment() {
 
       if (error) throw error;
 
-      // Fetch author profile
+      // Fetch author profile by user_id
       const { data: profile } = await supabase
         .from('user_profiles')
-        .select('nickname, email')
+        .select('nickname, avatar_url')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
       return {
         ...data,
-        author: profile || { nickname: null, email: '' },
+        author: profile || { nickname: null, avatar_url: null },
         is_mine: true,
       };
     },

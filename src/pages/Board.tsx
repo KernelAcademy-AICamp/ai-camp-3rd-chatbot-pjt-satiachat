@@ -47,6 +47,7 @@ import {
   useIncrementViews,
   isHotPost,
 } from "@/hooks/usePosts";
+import { AvatarDisplay } from "@/components/ui/avatar-display";
 import type { Post, PostTab, PostComment as CommentType } from "@/types/domain";
 
 // Tab configuration
@@ -133,11 +134,11 @@ export default function Board() {
 
   // Helper to get author display name
   const getAuthorName = (post: Post) => {
-    return post.author?.nickname || post.author?.email?.split('@')[0] || '익명';
+    return post.author?.nickname || '익명';
   };
 
   const getCommentAuthorName = (comment: CommentType) => {
-    return comment.author?.nickname || comment.author?.email?.split('@')[0] || '익명';
+    return comment.author?.nickname || '익명';
   };
 
   // View post detail
@@ -417,14 +418,11 @@ export default function Board() {
                       <div className="p-4">
                         <div className="flex items-start gap-3">
                           {/* Author Avatar */}
-                          <div className={cn(
-                            "w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0",
-                            currentTabConfig.iconBg
-                          )}>
-                            <span className={cn("text-sm font-semibold", currentTabConfig.accentColor)}>
-                              {getAuthorName(post).charAt(0)}
-                            </span>
-                          </div>
+                          <AvatarDisplay
+                            src={post.author?.avatar_url}
+                            name={post.author?.nickname}
+                            size="md"
+                          />
 
                           <div className="flex-1 min-w-0">
                             {/* Title with Badges */}
@@ -517,14 +515,11 @@ export default function Board() {
                     {/* Author & Actions */}
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
-                        <div className={cn(
-                          "w-10 h-10 rounded-lg flex items-center justify-center",
-                          tabConfig[selectedPost.tab].iconBg
-                        )}>
-                          <span className={cn("text-sm font-semibold", tabConfig[selectedPost.tab].accentColor)}>
-                            {getAuthorName(selectedPost).charAt(0)}
-                          </span>
-                        </div>
+                        <AvatarDisplay
+                          src={selectedPost.author?.avatar_url}
+                          name={selectedPost.author?.nickname}
+                          size="lg"
+                        />
                         <div>
                           <div className="flex items-center gap-1.5 mb-0.5">
                             <span className={cn(
@@ -673,19 +668,11 @@ export default function Board() {
                             key={comment.id}
                             className="group flex gap-2 p-3 rounded-lg bg-muted/20 hover:bg-muted/30 transition-colors"
                           >
-                            <div className={cn(
-                              "w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0",
-                              comment.is_mine
-                                ? "bg-primary"
-                                : "bg-muted"
-                            )}>
-                              <span className={cn(
-                                "text-xs font-semibold",
-                                comment.is_mine ? "text-white" : "text-muted-foreground"
-                              )}>
-                                {getCommentAuthorName(comment).charAt(0)}
-                              </span>
-                            </div>
+                            <AvatarDisplay
+                              src={comment.author?.avatar_url}
+                              name={comment.author?.nickname}
+                              size="sm"
+                            />
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between mb-0.5">
                                 <div className="flex items-center gap-2">
