@@ -710,40 +710,43 @@ export default function Board() {
                       </div>
 
                       {/* Engagement Section */}
-                      <div className="flex items-center justify-center gap-4 py-6 rounded-2xl bg-gradient-to-r from-muted/30 via-muted/50 to-muted/30 border border-border/30">
+                      <div className="flex items-center justify-center gap-3 py-4 rounded-xl bg-gradient-to-r from-muted/30 via-muted/50 to-muted/30 border border-border/30">
                         <div className="text-center">
                           <Button
                             variant={selectedPost.user_reaction === 'like' ? "default" : "outline"}
-                            size="lg"
                             onClick={() => handleLike(selectedPost.id, true)}
                             disabled={toggleReaction.isPending}
                             className={cn(
-                              "gap-3 rounded-2xl h-14 px-8 transition-all duration-300",
+                              "gap-2 rounded-xl h-11 px-5 transition-all duration-300",
                               selectedPost.user_reaction === 'like'
-                                ? "bg-gradient-to-r from-rose-500 to-pink-500 shadow-lg shadow-rose-500/25 scale-105"
+                                ? "bg-gradient-to-r from-rose-500 to-pink-500 shadow-md shadow-rose-500/25 scale-105"
                                 : "hover:border-rose-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20"
                             )}
                           >
-                            <Heart className={cn("w-5 h-5", selectedPost.user_reaction === 'like' && "fill-current")} />
-                            <span className="text-lg font-bold">{selectedPost.likes}</span>
+                            <Heart className={cn("w-4 h-4", selectedPost.user_reaction === 'like' && "fill-current")} />
+                            <span className="font-bold">{selectedPost.likes}</span>
                           </Button>
-                          <p className="text-xs text-muted-foreground mt-2">도움이 됐어요</p>
+                          <p className="text-xs text-muted-foreground mt-1.5">도움이 됐어요</p>
                         </div>
 
-                        <div className="w-px h-12 bg-border/50" />
+                        <div className="w-px h-10 bg-border/50" />
 
                         <div className="text-center">
                           <Button
-                            variant={selectedPost.user_reaction === 'dislike' ? "destructive" : "outline"}
-                            size="lg"
+                            variant={selectedPost.user_reaction === 'dislike' ? "default" : "outline"}
                             onClick={() => handleLike(selectedPost.id, false)}
                             disabled={toggleReaction.isPending}
-                            className="gap-3 rounded-2xl h-14 px-8 transition-all"
+                            className={cn(
+                              "gap-2 rounded-xl h-11 px-5 transition-all duration-300",
+                              selectedPost.user_reaction === 'dislike'
+                                ? "bg-gradient-to-r from-blue-500 to-indigo-500 shadow-md shadow-blue-500/25 scale-105 text-white border-transparent"
+                                : "hover:border-blue-300 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/20"
+                            )}
                           >
-                            <ThumbsDown className="w-5 h-5" />
-                            <span className="text-lg font-bold">{selectedPost.dislikes}</span>
+                            <ThumbsDown className="w-4 h-4" />
+                            <span className="font-bold">{selectedPost.dislikes}</span>
                           </Button>
-                          <p className="text-xs text-muted-foreground mt-2">아쉬워요</p>
+                          <p className="text-xs text-muted-foreground mt-1.5">아쉬워요</p>
                         </div>
                       </div>
                     </div>
