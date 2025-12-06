@@ -56,7 +56,17 @@ import {
   useDeleteComment,
   useIncrementViews,
   isHotPost,
+  PAGE_SIZE,
 } from "@/hooks/usePosts";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { AvatarDisplay } from "@/components/ui/avatar-display";
 import type { Post, PostTab, PostComment as CommentType } from "@/types/domain";
 
@@ -108,6 +118,7 @@ export default function Board() {
   const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Form state
   const [editTitle, setEditTitle] = useState("");
@@ -129,8 +140,16 @@ export default function Board() {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // Reset page when tab or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, debouncedSearch]);
+
   // Queries
-  const { data: posts = [], isLoading: postsLoading } = usePosts(activeTab, debouncedSearch || undefined);
+  const { data: postsData, isLoading: postsLoading } = usePosts(activeTab, currentPage, debouncedSearch || undefined);
+  const posts = postsData?.posts ?? [];
+  const totalPages = postsData?.totalPages ?? 0;
+  const totalCount = postsData?.totalCount ?? 0;
   const { data: selectedPost, isLoading: postLoading } = usePost(selectedPostId);
 
   // Mutations
@@ -496,6 +515,65 @@ export default function Board() {
                 })
               )}
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="mt-6 flex flex-col items-center gap-2">
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        className={cn(
+                          "cursor-pointer",
+                          currentPage === 1 && "pointer-events-none opacity-50"
+                        )}
+                      />
+                    </PaginationItem>
+
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter(p => {
+                        if (totalPages <= 7) return true;
+                        if (p === 1 || p === totalPages) return true;
+                        if (Math.abs(p - currentPage) <= 1) return true;
+                        return false;
+                      })
+                      .map((pageNum, idx, arr) => (
+                        <span key={pageNum} className="contents">
+                          {idx > 0 && arr[idx - 1] !== pageNum - 1 && (
+                            <PaginationItem>
+                              <PaginationEllipsis />
+                            </PaginationItem>
+                          )}
+                          <PaginationItem>
+                            <PaginationLink
+                              onClick={() => setCurrentPage(pageNum)}
+                              isActive={pageNum === currentPage}
+                              className="cursor-pointer"
+                            >
+                              {pageNum}
+                            </PaginationLink>
+                          </PaginationItem>
+                        </span>
+                      ))
+                    }
+
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        className={cn(
+                          "cursor-pointer",
+                          currentPage === totalPages && "pointer-events-none opacity-50"
+                        )}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+                <p className="text-xs text-muted-foreground">
+                  총 {totalCount}개의 게시글
+                </p>
+              </div>
+            )}
           </>
         )}
 

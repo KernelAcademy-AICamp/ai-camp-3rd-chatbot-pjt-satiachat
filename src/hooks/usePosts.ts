@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { supabase, getCurrentUserId } from '@/lib/supabase';
 import type {
   Post,
@@ -10,14 +10,25 @@ import type {
   CreateCommentRequest
 } from '@/types/domain';
 
+// Constants
+export const PAGE_SIZE = 10;
+
 // Query keys
 export const postKeys = {
   all: ['posts'] as const,
   lists: () => [...postKeys.all, 'list'] as const,
-  list: (tab: PostTab, search?: string) => [...postKeys.lists(), { tab, search }] as const,
+  list: (tab: PostTab, page: number, search?: string) => [...postKeys.lists(), { tab, page, search }] as const,
   details: () => [...postKeys.all, 'detail'] as const,
   detail: (id: string) => [...postKeys.details(), id] as const,
 };
+
+// Response type for paginated posts
+export interface PostsResult {
+  posts: Post[];
+  totalCount: number;
+  totalPages: number;
+  currentPage: number;
+}
 
 // Helper: Check if post is HOT
 export function isHotPost(post: Pick<Post, 'likes' | 'created_at'>): boolean {
@@ -29,30 +40,42 @@ export function isHotPost(post: Pick<Post, 'likes' | 'created_at'>): boolean {
   return post.likes >= 10 || (isWithin24Hours && post.likes >= 5);
 }
 
-// Fetch posts list
-export function usePosts(tab: PostTab, search?: string) {
+// Fetch posts list with pagination
+export function usePosts(tab: PostTab, page: number = 1, search?: string) {
   const userId = getCurrentUserId();
 
   return useQuery({
-    queryKey: postKeys.list(tab, search),
-    queryFn: async (): Promise<Post[]> => {
+    queryKey: postKeys.list(tab, page, search),
+    queryFn: async (): Promise<PostsResult> => {
+      const from = (page - 1) * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
+
       let query = supabase
         .from('posts')
-        .select('*')
+        .select('*', { count: 'exact' })
         .eq('tab', tab)
         .eq('is_deleted', false)
         .order('is_pinned', { ascending: false })
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(from, to);
 
       if (search) {
         query = query.or(`title.ilike.%${search}%,content.ilike.%${search}%`);
       }
 
-      const { data: posts, error } = await query;
+      const { data: posts, error, count } = await query;
       if (error) throw error;
 
+      const totalCount = count ?? 0;
+      const totalPages = Math.ceil(totalCount / PAGE_SIZE);
+
       if (!posts || posts.length === 0) {
-        return [];
+        return {
+          posts: [],
+          totalCount,
+          totalPages,
+          currentPage: page,
+        };
       }
 
       // Fetch authors by user_id column
@@ -83,12 +106,18 @@ export function usePosts(tab: PostTab, search?: string) {
         );
       }
 
-      return posts.map(post => ({
-        ...post,
-        author: profileMap.get(post.user_id) || { nickname: null, avatar_url: null },
-        user_reaction: reactionMap.get(post.id) || null,
-      }));
+      return {
+        posts: posts.map(post => ({
+          ...post,
+          author: profileMap.get(post.user_id) || { nickname: null, avatar_url: null },
+          user_reaction: reactionMap.get(post.id) || null,
+        })),
+        totalCount,
+        totalPages,
+        currentPage: page,
+      };
     },
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -211,7 +240,7 @@ export function useCreatePost() {
       };
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: postKeys.list(data.tab) });
+      queryClient.invalidateQueries({ queryKey: postKeys.lists() });
     },
   });
 }
@@ -251,7 +280,7 @@ export function useUpdatePost() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: postKeys.detail(data.id) });
-      queryClient.invalidateQueries({ queryKey: postKeys.list(data.tab) });
+      queryClient.invalidateQueries({ queryKey: postKeys.lists() });
     },
   });
 }
@@ -281,7 +310,7 @@ export function useDeletePost() {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: postKeys.detail(data.id) });
-      queryClient.invalidateQueries({ queryKey: postKeys.list(data.tab) });
+      queryClient.invalidateQueries({ queryKey: postKeys.lists() });
     },
   });
 }
