@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase, getCurrentUserId, getToday } from '@/lib/supabase';
+import { supabase, getCurrentUserId, getToday, formatDate } from '@/lib/supabase';
 import type { ProgressLog, CreateProgressRequest } from '@/types/domain';
 import { useProfile } from './useProfile';
 
@@ -67,7 +67,7 @@ export function useWeeklyProgress() {
   const sevenDaysAgo = new Date(today);
   sevenDaysAgo.setDate(today.getDate() - 6);
 
-  const from = sevenDaysAgo.toISOString().split('T')[0];
+  const from = formatDate(sevenDaysAgo);
   const to = getToday();
 
   return useQuery({
@@ -245,12 +245,12 @@ export function useWeeklyCalories() {
   return useQuery({
     queryKey: ['calories', 'weekly', userId],
     queryFn: async (): Promise<DailyCalorieData[]> => {
-      // 최근 7일 날짜 계산
+      // 최근 7일 날짜 계산 (로컬 타임존 기준)
       const dates: string[] = [];
       for (let i = 6; i >= 0; i--) {
         const date = new Date();
         date.setDate(date.getDate() - i);
-        dates.push(date.toISOString().split('T')[0]);
+        dates.push(formatDate(date));
       }
 
       // 7일간 식단 데이터 조회

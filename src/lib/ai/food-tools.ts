@@ -5,6 +5,17 @@
 
 import type OpenAI from 'openai';
 
+/**
+ * 오늘 날짜 반환 (YYYY-MM-DD) - 로컬 타임존 기준
+ */
+function getTodayLocal(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export const foodLoggingTools: OpenAI.Chat.ChatCompletionTool[] = [
   // 1. 식단 조회 기능
   {
@@ -190,12 +201,12 @@ export function parseGetMealsArgs(argsString: string): GetMealsArgs {
   try {
     const args = JSON.parse(argsString);
     return {
-      date: args.date || new Date().toISOString().split('T')[0],
+      date: args.date || getTodayLocal(),
       meal_type: args.meal_type || 'all',
     };
   } catch {
     return {
-      date: new Date().toISOString().split('T')[0],
+      date: getTodayLocal(),
       meal_type: 'all',
     };
   }
@@ -218,7 +229,7 @@ export function parseDeleteMealArgs(argsString: string): DeleteMealArgs | null {
     const args = JSON.parse(argsString);
     if (!args.meal_type) return null;
     return {
-      date: args.date || new Date().toISOString().split('T')[0],
+      date: args.date || getTodayLocal(),
       meal_type: args.meal_type,
       food_name: args.food_name,
     };
@@ -251,7 +262,7 @@ export function parseUpdateMealArgs(argsString: string): UpdateMealArgs | null {
     const args = JSON.parse(argsString);
     if (!args.meal_type || !args.old_food_name || !args.new_food) return null;
     return {
-      date: args.date || new Date().toISOString().split('T')[0],
+      date: args.date || getTodayLocal(),
       meal_type: args.meal_type,
       old_food_name: args.old_food_name,
       new_food: {
@@ -297,7 +308,7 @@ export function parseLogMealArgs(argsString: string): LogMealArgs | null {
 
     // 날짜 기본값 설정
     if (!args.date) {
-      args.date = new Date().toISOString().split('T')[0];
+      args.date = getTodayLocal();
     }
 
     // 각 음식의 기본값 설정

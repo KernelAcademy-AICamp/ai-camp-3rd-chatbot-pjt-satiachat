@@ -37,10 +37,14 @@ const chatKeys = {
 };
 
 /**
- * 오늘 날짜 반환 (YYYY-MM-DD)
+ * 오늘 날짜 반환 (YYYY-MM-DD) - 로컬 타임존 기준
  */
 function getToday(): string {
-  return new Date().toISOString().split('T')[0];
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 /**
@@ -788,7 +792,10 @@ export function useAIAnalysis() {
       // 2. 최근 7일 체중 기록 가져오기
       const weekAgo = new Date();
       weekAgo.setDate(weekAgo.getDate() - 7);
-      const weekAgoStr = weekAgo.toISOString().split('T')[0];
+      const weekAgoYear = weekAgo.getFullYear();
+      const weekAgoMonth = String(weekAgo.getMonth() + 1).padStart(2, '0');
+      const weekAgoDay = String(weekAgo.getDate()).padStart(2, '0');
+      const weekAgoStr = `${weekAgoYear}-${weekAgoMonth}-${weekAgoDay}`;
 
       const { data: weightLogs } = await supabase
         .from('progress_logs')

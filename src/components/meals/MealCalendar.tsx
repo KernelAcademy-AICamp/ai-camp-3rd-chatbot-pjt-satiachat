@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { cn } from '@/lib/utils';
+import { getToday } from '@/lib/supabase';
 import type { MonthlyMealData } from '@/hooks/useMonthlyMeals';
 
 interface MealCalendarProps {
@@ -56,7 +57,7 @@ export function MealCalendar({
   }, [year, month, dailyData, targetCalories]);
 
   // 오늘 날짜
-  const today = new Date().toISOString().split('T')[0];
+  const today = getToday();
 
   // 색상 결정 함수
   const getColorClass = (data: MonthlyMealData) => {

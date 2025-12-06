@@ -3,6 +3,7 @@ import { X, Plus, Utensils, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MealCard } from './MealCard';
 import { MealForm } from './MealForm';
+import { getToday } from '@/lib/supabase';
 import type { MealWithItems } from '@/types/domain';
 
 interface DayDetailPanelProps {
@@ -30,7 +31,7 @@ export function DayDetailPanel({ date, meals, isLoading, onClose }: DayDetailPan
   const totalCalories = meals?.reduce((sum, meal) => sum + (meal.total_calories || 0), 0) || 0;
 
   // 오늘인지 확인
-  const isToday = date === new Date().toISOString().split('T')[0];
+  const isToday = date === getToday();
 
   return (
     <div className="bg-card rounded-2xl border border-border p-4 sm:p-6 animate-slide-up">

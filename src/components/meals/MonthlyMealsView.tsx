@@ -6,6 +6,7 @@ import { MonthlyCalorieTrend } from './MonthlyCalorieTrend';
 import { DayDetailPanel } from './DayDetailPanel';
 import { useMonthlyMeals, useDayMeals } from '@/hooks/useMonthlyMeals';
 import { useProfile } from '@/hooks/useProfile';
+import { getToday } from '@/lib/supabase';
 
 export function MonthlyMealsView() {
   const today = new Date();
@@ -44,7 +45,7 @@ export function MonthlyMealsView() {
   const goToToday = () => {
     setCurrentYear(today.getFullYear());
     setCurrentMonth(today.getMonth() + 1);
-    setSelectedDate(today.toISOString().split('T')[0]);
+    setSelectedDate(getToday());
   };
 
   // 월간 통계 계산
