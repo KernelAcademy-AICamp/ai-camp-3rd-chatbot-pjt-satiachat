@@ -56,6 +56,7 @@ import {
   useDeletePost,
   useToggleReaction,
   useCreateComment,
+  useUpdateComment,
   useDeleteComment,
   useIncrementViews,
   isHotPost,
@@ -161,6 +162,7 @@ export default function Board() {
   const deletePost = useDeletePost();
   const toggleReaction = useToggleReaction();
   const createComment = useCreateComment();
+  const updateComment = useUpdateComment();
   const deleteComment = useDeleteComment();
   const incrementViews = useIncrementViews();
 
@@ -281,6 +283,43 @@ export default function Board() {
         variant: "destructive",
       });
     }
+  };
+
+  // Update comment
+  const handleUpdateComment = async (commentId: string) => {
+    if (!editCommentContent.trim() || !selectedPostId) return;
+
+    try {
+      await updateComment.mutateAsync({
+        commentId,
+        postId: selectedPostId,
+        content: editCommentContent,
+      });
+      setEditingCommentId(null);
+      setEditCommentContent("");
+      toast({
+        title: "수정 완료",
+        description: "댓글이 수정되었습니다.",
+      });
+    } catch (error) {
+      toast({
+        title: "오류",
+        description: "댓글 수정에 실패했습니다.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Start editing comment
+  const startEditComment = (comment: CommentType) => {
+    setEditingCommentId(comment.id);
+    setEditCommentContent(comment.content);
+  };
+
+  // Cancel editing comment
+  const cancelEditComment = () => {
+    setEditingCommentId(null);
+    setEditCommentContent("");
   };
 
   // Delete comment
@@ -821,19 +860,64 @@ export default function Board() {
                                       <span className="text-xs text-muted-foreground">
                                         {format(new Date(comment.created_at), "MM.dd HH:mm", { locale: ko })}
                                       </span>
+                                      {comment.updated_at && comment.updated_at !== comment.created_at && (
+                                        <span className="text-xs text-muted-foreground">(수정됨)</span>
+                                      )}
                                     </div>
-                                    {comment.is_mine && (
-                                      <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-7 w-7 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
-                                        onClick={() => setDeleteCommentId(comment.id)}
-                                      >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                      </Button>
+                                    {comment.is_mine && editingCommentId !== comment.id && (
+                                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-7 w-7 rounded-lg text-muted-foreground hover:text-primary"
+                                          onClick={() => startEditComment(comment)}
+                                        >
+                                          <Pencil className="w-3.5 h-3.5" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-7 w-7 rounded-lg text-muted-foreground hover:text-destructive"
+                                          onClick={() => setDeleteCommentId(comment.id)}
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </Button>
+                                      </div>
                                     )}
                                   </div>
-                                  <p className="text-foreground text-sm leading-relaxed break-words">{comment.content}</p>
+                                  {editingCommentId === comment.id ? (
+                                    <div className="flex gap-2 mt-2">
+                                      <Input
+                                        value={editCommentContent}
+                                        onChange={(e) => setEditCommentContent(e.target.value)}
+                                        onKeyPress={(e) => e.key === "Enter" && handleUpdateComment(comment.id)}
+                                        className="h-9 text-sm rounded-lg"
+                                        autoFocus
+                                      />
+                                      <Button
+                                        size="sm"
+                                        onClick={() => handleUpdateComment(comment.id)}
+                                        disabled={updateComment.isPending || !editCommentContent.trim()}
+                                        className="h-9 px-3 rounded-lg"
+                                      >
+                                        {updateComment.isPending ? (
+                                          <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                          "저장"
+                                        )}
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={cancelEditComment}
+                                        className="h-9 px-3 rounded-lg"
+                                      >
+                                        취소
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <p className="text-foreground text-sm leading-relaxed break-words">{comment.content}</p>
+                                  )}
                                 </div>
                               </div>
                             </div>

@@ -441,6 +441,40 @@ export function useCreateComment() {
   });
 }
 
+// Update comment
+export function useUpdateComment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      commentId,
+      postId,
+      content
+    }: {
+      commentId: string;
+      postId: string;
+      content: string;
+    }): Promise<{ commentId: string; postId: string }> => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+
+      if (!userId) throw new Error('User not authenticated');
+
+      const { error } = await supabase
+        .from('comments')
+        .update({ content, updated_at: new Date().toISOString() })
+        .eq('id', commentId)
+        .eq('user_id', userId);
+
+      if (error) throw error;
+      return { commentId, postId };
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: postKeys.detail(data.postId) });
+    },
+  });
+}
+
 // Delete comment (soft delete)
 export function useDeleteComment() {
   const queryClient = useQueryClient();
