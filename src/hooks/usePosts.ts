@@ -300,45 +300,69 @@ export function useToggleReaction() {
     }): Promise<{ postId: string; newReaction: ReactionType | null }> => {
       if (!userId) throw new Error('User not authenticated');
 
+      // DEBUG: Log user ID being used
+      console.log('[useToggleReaction] Using userId:', userId);
+      console.log('[useToggleReaction] PostId:', postId);
+      console.log('[useToggleReaction] ReactionType:', reactionType);
+
       // Check existing reaction
-      const { data: existing } = await supabase
+      const { data: existing, error: checkError } = await supabase
         .from('post_reactions')
         .select('id, reaction_type')
         .eq('post_id', postId)
         .eq('user_id', userId)
         .maybeSingle();
 
+      console.log('[useToggleReaction] Existing reaction:', existing);
+      console.log('[useToggleReaction] Check error:', checkError);
+
       if (existing) {
         if (existing.reaction_type === reactionType) {
           // Same reaction - remove it
+          console.log('[useToggleReaction] Deleting existing reaction:', existing.id);
           const { error } = await supabase
             .from('post_reactions')
             .delete()
             .eq('id', existing.id);
 
-          if (error) throw error;
+          if (error) {
+            console.error('[useToggleReaction] Delete error:', error);
+            throw error;
+          }
+          console.log('[useToggleReaction] Deleted successfully');
           return { postId, newReaction: null };
         } else {
           // Different reaction - update it
+          console.log('[useToggleReaction] Updating reaction from', existing.reaction_type, 'to', reactionType);
           const { error } = await supabase
             .from('post_reactions')
             .update({ reaction_type: reactionType })
             .eq('id', existing.id);
 
-          if (error) throw error;
+          if (error) {
+            console.error('[useToggleReaction] Update error:', error);
+            throw error;
+          }
+          console.log('[useToggleReaction] Updated successfully');
           return { postId, newReaction: reactionType };
         }
       } else {
         // No existing reaction - create new
-        const { error } = await supabase
+        console.log('[useToggleReaction] Creating new reaction');
+        const { error, data } = await supabase
           .from('post_reactions')
           .insert({
             post_id: postId,
             user_id: userId,
             reaction_type: reactionType,
-          });
+          })
+          .select();
 
-        if (error) throw error;
+        if (error) {
+          console.error('[useToggleReaction] Insert error:', error);
+          throw error;
+        }
+        console.log('[useToggleReaction] Inserted successfully:', data);
         return { postId, newReaction: reactionType };
       }
     },

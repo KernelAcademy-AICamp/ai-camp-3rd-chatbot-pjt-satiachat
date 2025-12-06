@@ -32,7 +32,9 @@ export const setCurrentUserId = (userId: string | null) => {
  * Returns cached user ID if authenticated, otherwise DEV_USER_ID for development.
  */
 export const getCurrentUserId = (): string => {
-  return cachedUserId ?? DEV_USER_ID;
+  const userId = cachedUserId ?? DEV_USER_ID;
+  console.log('[getCurrentUserId] cachedUserId:', cachedUserId, 'returning:', userId);
+  return userId;
 };
 
 // Helper to format date as YYYY-MM-DD

@@ -213,12 +213,15 @@ export default function Board() {
 
   // Like/Dislike
   const handleLike = async (postId: string, isLike: boolean) => {
+    console.log('[Board.handleLike] Called with postId:', postId, 'isLike:', isLike);
     try {
-      await toggleReaction.mutateAsync({
+      const result = await toggleReaction.mutateAsync({
         postId,
         reactionType: isLike ? 'like' : 'dislike',
       });
+      console.log('[Board.handleLike] Success:', result);
     } catch (error) {
+      console.error('[Board.handleLike] Error:', error);
       toast({
         title: "오류",
         description: "반응 처리에 실패했습니다.",
