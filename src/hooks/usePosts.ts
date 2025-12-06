@@ -300,11 +300,6 @@ export function useToggleReaction() {
     }): Promise<{ postId: string; newReaction: ReactionType | null }> => {
       if (!userId) throw new Error('User not authenticated');
 
-      // DEBUG: Log user ID being used
-      console.log('[useToggleReaction] Using userId:', userId);
-      console.log('[useToggleReaction] PostId:', postId);
-      console.log('[useToggleReaction] ReactionType:', reactionType);
-
       // Check existing reaction
       const { data: existing, error: checkError } = await supabase
         .from('post_reactions')
@@ -313,56 +308,37 @@ export function useToggleReaction() {
         .eq('user_id', userId)
         .maybeSingle();
 
-      console.log('[useToggleReaction] Existing reaction:', existing);
-      console.log('[useToggleReaction] Check error:', checkError);
-
       if (existing) {
         if (existing.reaction_type === reactionType) {
           // Same reaction - remove it
-          console.log('[useToggleReaction] Deleting existing reaction:', existing.id);
           const { error } = await supabase
             .from('post_reactions')
             .delete()
             .eq('id', existing.id);
 
-          if (error) {
-            console.error('[useToggleReaction] Delete error:', error);
-            throw error;
-          }
-          console.log('[useToggleReaction] Deleted successfully');
+          if (error) throw error;
           return { postId, newReaction: null };
         } else {
           // Different reaction - update it
-          console.log('[useToggleReaction] Updating reaction from', existing.reaction_type, 'to', reactionType);
           const { error } = await supabase
             .from('post_reactions')
             .update({ reaction_type: reactionType })
             .eq('id', existing.id);
 
-          if (error) {
-            console.error('[useToggleReaction] Update error:', error);
-            throw error;
-          }
-          console.log('[useToggleReaction] Updated successfully');
+          if (error) throw error;
           return { postId, newReaction: reactionType };
         }
       } else {
         // No existing reaction - create new
-        console.log('[useToggleReaction] Creating new reaction');
-        const { error, data } = await supabase
+        const { error } = await supabase
           .from('post_reactions')
           .insert({
             post_id: postId,
             user_id: userId,
             reaction_type: reactionType,
-          })
-          .select();
+          });
 
-        if (error) {
-          console.error('[useToggleReaction] Insert error:', error);
-          throw error;
-        }
-        console.log('[useToggleReaction] Inserted successfully:', data);
+        if (error) throw error;
         return { postId, newReaction: reactionType };
       }
     },
@@ -394,10 +370,13 @@ export function useIncrementViews() {
 // Create comment
 export function useCreateComment() {
   const queryClient = useQueryClient();
-  const userId = getCurrentUserId();
 
   return useMutation({
     mutationFn: async (request: CreateCommentRequest): Promise<PostComment> => {
+      // Get fresh user ID from session
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+
       if (!userId) throw new Error('User not authenticated');
 
       const { data, error } = await supabase
@@ -444,10 +423,29 @@ export function useDeleteComment() {
       commentId: string;
       postId: string;
     }): Promise<{ commentId: string; postId: string }> => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const userId = session?.user?.id;
+
+      if (!userId) throw new Error('User not authenticated');
+
+      // Verify the comment belongs to this user before attempting delete
+      const { data: comment, error: fetchError } = await supabase
+        .from('comments')
+        .select('id, user_id')
+        .eq('id', commentId)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      if (comment.user_id !== userId) {
+        throw new Error('You can only delete your own comments');
+      }
+
       const { error } = await supabase
         .from('comments')
         .update({ is_deleted: true })
-        .eq('id', commentId);
+        .eq('id', commentId)
+        .eq('user_id', userId);
 
       if (error) throw error;
       return { commentId, postId };

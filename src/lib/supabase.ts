@@ -9,9 +9,45 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
+// Custom storage wrapper to ensure proper localStorage access
+const customStorage = {
+  getItem: (key: string): string | null => {
+    if (typeof window !== 'undefined') {
+      return window.localStorage.getItem(key);
+    }
+    return null;
+  },
+  setItem: (key: string, value: string): void => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(key, value);
+    }
+  },
+  removeItem: (key: string): void => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(key);
+    }
+  },
+};
+
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
-  supabaseAnonKey || 'placeholder-key'
+  supabaseAnonKey || 'placeholder-key',
+  {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true,
+      storage: customStorage,
+      storageKey: 'supabase.auth.token',
+      flowType: 'pkce',
+    },
+    // Ensure auth header is always sent
+    global: {
+      headers: {
+        'X-Client-Info': 'dietrx-coach-web',
+      },
+    },
+  }
 );
 
 // Fallback user ID for development when not authenticated
@@ -32,9 +68,7 @@ export const setCurrentUserId = (userId: string | null) => {
  * Returns cached user ID if authenticated, otherwise DEV_USER_ID for development.
  */
 export const getCurrentUserId = (): string => {
-  const userId = cachedUserId ?? DEV_USER_ID;
-  console.log('[getCurrentUserId] cachedUserId:', cachedUserId, 'returning:', userId);
-  return userId;
+  return cachedUserId ?? DEV_USER_ID;
 };
 
 // Helper to format date as YYYY-MM-DD

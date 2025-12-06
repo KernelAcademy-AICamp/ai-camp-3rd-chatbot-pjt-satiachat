@@ -251,14 +251,17 @@ export default function Board() {
 
   // Delete comment
   const handleDeleteComment = async (commentId: string) => {
+    console.log('[Board.handleDeleteComment] Called with commentId:', commentId, 'selectedPostId:', selectedPostId);
     if (!selectedPostId) return;
 
     try {
-      await deleteComment.mutateAsync({
+      const result = await deleteComment.mutateAsync({
         commentId,
         postId: selectedPostId,
       });
+      console.log('[Board.handleDeleteComment] Success:', result);
     } catch (error) {
+      console.error('[Board.handleDeleteComment] Error:', error);
       toast({
         title: "오류",
         description: "댓글 삭제에 실패했습니다.",
