@@ -643,23 +643,23 @@ export default function Board() {
                             return <Icon className={cn("w-6 h-6", tabConfig[selectedPost.tab].accentColor)} />;
                           })()}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-2">
+                        <div className="flex-1 min-w-0 overflow-hidden">
+                          <div className="flex items-center gap-2 mb-2 flex-wrap">
                             <span className={cn(
-                              "inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium",
+                              "inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium flex-shrink-0",
                               tabConfig[selectedPost.tab].iconBg,
                               tabConfig[selectedPost.tab].accentColor
                             )}>
                               {tabConfig[selectedPost.tab].label}
                             </span>
                             {isHotPost(selectedPost) && (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-secondary/10 text-secondary">
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-secondary/10 text-secondary flex-shrink-0">
                                 <Flame className="w-3 h-3" />
                                 HOT
                               </span>
                             )}
                           </div>
-                          <h1 className="text-xl font-bold text-foreground leading-tight">
+                          <h1 className="text-xl font-bold text-foreground leading-tight break-words">
                             {selectedPost.title}
                           </h1>
                         </div>
@@ -705,7 +705,7 @@ export default function Board() {
                       </div>
 
                       {/* Content Body - Enhanced Readability */}
-                      <div className="text-foreground whitespace-pre-wrap text-base leading-[1.85] min-h-[200px] mb-8">
+                      <div className="text-foreground whitespace-pre-wrap text-base leading-[1.85] min-h-[200px] mb-8 break-words overflow-hidden">
                         {selectedPost.content}
                       </div>
 
@@ -830,7 +830,7 @@ export default function Board() {
                                       </Button>
                                     )}
                                   </div>
-                                  <p className="text-foreground text-sm leading-relaxed">{comment.content}</p>
+                                  <p className="text-foreground text-sm leading-relaxed break-words">{comment.content}</p>
                                 </div>
                               </div>
                             </div>
