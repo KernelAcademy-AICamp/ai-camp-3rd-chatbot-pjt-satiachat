@@ -147,13 +147,13 @@ export function usePost(id: string | null) {
         .eq('user_id', post.user_id)
         .maybeSingle();
 
-      // Fetch comments
+      // Fetch comments (최신순 - 최근 댓글이 위에)
       const { data: comments, error: commentsError } = await supabase
         .from('comments')
         .select('*')
         .eq('post_id', id)
         .eq('is_deleted', false)
-        .order('created_at', { ascending: true });
+        .order('created_at', { ascending: false });
 
       if (commentsError) throw commentsError;
 
