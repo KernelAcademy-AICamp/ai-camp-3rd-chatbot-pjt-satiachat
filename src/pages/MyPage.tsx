@@ -68,6 +68,9 @@ export default function MyPage() {
   // Selected date meals total
   const selectedMealsTotal = selectedMeals?.reduce((sum, m) => sum + (m.total_calories || 0), 0) || 0;
 
+  // 선택된 날짜에 이미 등록된 식사 유형들
+  const existingMealTypes = selectedMeals?.map(m => m.meal_type) || [];
+
   const generateSummary = async () => {
     try {
       const result = await aiAnalysis.mutateAsync({ persona: 'bright' });
@@ -433,6 +436,7 @@ export default function MyPage() {
         editMeal={editingMeal || undefined}
         defaultDate={selectedDateStr}
         defaultMealType={defaultMealType}
+        existingMealTypes={editingMeal ? [] : existingMealTypes}
       />
     </div>
   );

@@ -29,6 +29,7 @@ interface MealFormProps {
   editMeal?: MealWithItems;
   defaultDate?: string;
   defaultMealType?: MealType;
+  existingMealTypes?: MealType[]; // 이미 등록된 식사 유형들
 }
 
 interface FoodItem {
@@ -53,6 +54,7 @@ export function MealForm({
   editMeal,
   defaultDate,
   defaultMealType,
+  existingMealTypes = [],
 }: MealFormProps) {
   const createMeal = useCreateMeal();
   const updateMeal = useUpdateMeal();
@@ -62,6 +64,18 @@ export function MealForm({
   const [date, setDate] = useState(getToday());
   const [mealType, setMealType] = useState<MealType>('breakfast');
   const [items, setItems] = useState<FoodItem[]>([]);
+
+  // 사용 가능한 (아직 등록되지 않은) meal type 찾기
+  const getAvailableMealType = (): MealType => {
+    const allTypes: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
+    // defaultMealType이 사용 가능하면 그것 사용
+    if (defaultMealType && !existingMealTypes.includes(defaultMealType)) {
+      return defaultMealType;
+    }
+    // 아니면 첫 번째 사용 가능한 것
+    const available = allTypes.find(t => !existingMealTypes.includes(t));
+    return available || 'breakfast';
+  };
 
   useEffect(() => {
     if (open) {
@@ -82,11 +96,11 @@ export function MealForm({
         );
       } else {
         setDate(defaultDate || getToday());
-        setMealType(defaultMealType || 'breakfast');
+        setMealType(getAvailableMealType());
         setItems([]);
       }
     }
-  }, [open, editMeal?.id, defaultDate, defaultMealType]);
+  }, [open, editMeal?.id, defaultDate, defaultMealType, existingMealTypes]);
 
   const handleAddItem = () => {
     setItems([...items, { name: '', calories: 0 }]);
@@ -202,14 +216,23 @@ export function MealForm({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {Object.entries(mealTypeConfig).map(([value, config]) => (
-                    <SelectItem key={value} value={value}>
-                      <span className="flex items-center gap-2">
-                        <span>{config.emoji}</span>
-                        <span>{config.label}</span>
-                      </span>
-                    </SelectItem>
-                  ))}
+                  {Object.entries(mealTypeConfig).map(([value, config]) => {
+                    const isDisabled = !editMeal && existingMealTypes.includes(value as MealType);
+                    return (
+                      <SelectItem
+                        key={value}
+                        value={value}
+                        disabled={isDisabled}
+                        className={isDisabled ? "opacity-50" : ""}
+                      >
+                        <span className="flex items-center gap-2">
+                          <span>{config.emoji}</span>
+                          <span>{config.label}</span>
+                          {isDisabled && <span className="text-xs text-muted-foreground ml-1">(등록됨)</span>}
+                        </span>
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
