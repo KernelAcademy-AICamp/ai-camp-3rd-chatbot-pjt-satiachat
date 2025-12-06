@@ -3,7 +3,6 @@ import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
-  UtensilsCrossed,
   User,
   Pill,
   FileText,
@@ -20,7 +19,6 @@ import { useToast } from "@/hooks/use-toast";
 
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Meals", url: "/meals", icon: UtensilsCrossed },
   { title: "My Page", url: "/my-page", icon: User },
   { title: "Medications", url: "/medications", icon: Pill },
   { title: "Reports", url: "/reports", icon: FileText },

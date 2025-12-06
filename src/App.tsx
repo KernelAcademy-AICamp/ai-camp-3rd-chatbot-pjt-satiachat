@@ -8,7 +8,6 @@ import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
-import Meals from "./pages/Meals";
 import MyPage from "./pages/MyPage";
 import Medications from "./pages/Medications";
 import Reports from "./pages/Reports";
@@ -37,7 +36,6 @@ const App = () => (
             {/* Protected routes - require authentication */}
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/meals" element={<Meals />} />
               <Route path="/my-page" element={<MyPage />} />
               <Route path="/medications" element={<Medications />} />
               <Route path="/reports" element={<Reports />} />

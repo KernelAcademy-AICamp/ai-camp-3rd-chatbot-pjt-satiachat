@@ -2,18 +2,18 @@ import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
-  UtensilsCrossed,
   User,
   Pill,
+  FileText,
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const mobileNavItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Meals", url: "/meals", icon: UtensilsCrossed },
   { title: "My Page", url: "/my-page", icon: User },
   { title: "Meds", url: "/medications", icon: Pill },
+  { title: "Reports", url: "/reports", icon: FileText },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
