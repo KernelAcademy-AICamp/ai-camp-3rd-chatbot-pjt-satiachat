@@ -203,3 +203,70 @@ export interface MedicationAdherence {
   total_taken: number;
   adherence_percent: number;
 }
+
+// ============ Board (Community) ============
+export type PostTab = 'qna' | 'free' | 'info';
+export type ReactionType = 'like' | 'dislike';
+
+export interface Post {
+  id: string;
+  user_id: string;
+  tab: PostTab;
+  title: string;
+  content: string;
+  views: number;
+  likes: number;
+  dislikes: number;
+  comment_count: number;
+  is_pinned: boolean;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+  // Joined data
+  author?: PostAuthor;
+  user_reaction?: ReactionType | null;
+  comments?: PostComment[];
+}
+
+export interface PostAuthor {
+  nickname: string | null;
+  email: string;
+}
+
+export interface PostComment {
+  id: string;
+  post_id: string;
+  user_id: string;
+  content: string;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+  // Joined data
+  author?: PostAuthor;
+  is_mine?: boolean;
+}
+
+export interface PostReaction {
+  id: string;
+  post_id: string;
+  user_id: string;
+  reaction_type: ReactionType;
+  created_at: string;
+}
+
+// Board API Request Types
+export interface CreatePostRequest {
+  tab: PostTab;
+  title: string;
+  content: string;
+}
+
+export interface UpdatePostRequest {
+  title?: string;
+  content?: string;
+}
+
+export interface CreateCommentRequest {
+  post_id: string;
+  content: string;
+}

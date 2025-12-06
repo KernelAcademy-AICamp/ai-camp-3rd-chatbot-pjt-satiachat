@@ -6,6 +6,7 @@ import {
   Pill,
   FileText,
   Settings,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -13,7 +14,7 @@ const mobileNavItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "My Page", url: "/my-page", icon: User },
   { title: "Meds", url: "/medications", icon: Pill },
-  { title: "Reports", url: "/reports", icon: FileText },
+  { title: "Board", url: "/board", icon: MessageSquare },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 

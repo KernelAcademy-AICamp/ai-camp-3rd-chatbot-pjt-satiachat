@@ -11,6 +11,7 @@ import {
   ChevronRight,
   Sparkles,
   LogOut,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ const navItems = [
   { title: "My Page", url: "/my-page", icon: User },
   { title: "Medications", url: "/medications", icon: Pill },
   { title: "Reports", url: "/reports", icon: FileText },
+  { title: "Board", url: "/board", icon: MessageSquare },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
