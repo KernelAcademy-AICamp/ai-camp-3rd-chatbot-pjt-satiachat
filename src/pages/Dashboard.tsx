@@ -77,7 +77,7 @@ export default function Dashboard() {
           <SummaryCard
             title="Weight"
             value={isLoadingWeight ? "..." : currentWeight.toFixed(1)}
-            subtitle={latestProgress ? "kg • Updated" : "kg • No data"}
+            subtitle={latestProgress ? "kg ??Updated" : "kg ??No data"}
             icon={Scale}
             variant="success"
           />
@@ -104,7 +104,7 @@ export default function Dashboard() {
       </div>
 
       {/* Chat Panel - Desktop */}
-      <div className="hidden lg:block w-96 border-l border-border p-4 bg-muted/20">
+      <div className="hidden lg:block w-[420px] border-l border-border p-4 bg-muted/20">
         <div className="h-[calc(100vh-2rem)] sticky top-4">
           <ChatPanel />
         </div>
