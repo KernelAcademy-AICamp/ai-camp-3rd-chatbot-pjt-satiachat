@@ -1,12 +1,8 @@
 import { useState, useCallback } from 'react';
 import { supabase, getCurrentUserId } from '@/lib/supabase';
-import OpenAI from 'openai';
 
-// OpenAI client
-const openai = new OpenAI({
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-  dangerouslyAllowBrowser: true,
-});
+// RAG API endpoint (Python FastAPI backend)
+const RAG_API_URL = import.meta.env.VITE_RAG_API_URL || 'http://localhost:8000';
 
 export interface MedicationChatMessage {
   id: string;
@@ -14,38 +10,6 @@ export interface MedicationChatMessage {
   content: string;
   timestamp: Date;
 }
-
-// 약물 전문 시스템 프롬프트
-const MEDICATION_SYSTEM_PROMPT = `당신은 비만 치료제 전문 AI 상담사입니다. 위고비(Wegovy), 마운자로(Mounjaro), 삭센다(Saxenda) 등 GLP-1 수용체 작용제에 대한 전문 지식을 가지고 있습니다.
-
-## 역할
-- 사용자의 체중 변화, 칼로리 섭취, 약물 복용 기록을 분석하여 맞춤형 조언 제공
-- 약물 복용과 관련된 일반적인 질문에 답변
-- 체중 감량 진행 상황 평가 및 격려
-- 식이요법과 약물 복용의 상관관계 설명
-
-## 주의사항
-- 의료 진단이나 처방을 하지 않습니다
-- 부작용이나 심각한 증상은 반드시 의사와 상담하도록 안내합니다
-- 긍정적이고 격려적인 톤을 유지합니다
-- 한국어로 응답합니다
-- 답변은 간결하고 실용적으로 합니다 (200자 이내 권장)
-
-## 약물 정보
-### 위고비 (Wegovy, 세마글루타이드)
-- 주 1회 피하주사
-- 용량: 0.25mg → 0.5mg → 1mg → 1.7mg → 2.4mg (단계적 증량)
-- 평균 체중 감량: 15-17%
-
-### 마운자로 (Mounjaro, 티르제파티드)
-- 주 1회 피하주사
-- 용량: 2.5mg → 5mg → 7.5mg → 10mg → 12.5mg → 15mg
-- 평균 체중 감량: 20-25%
-
-### 삭센다 (Saxenda, 리라글루티드)
-- 매일 피하주사
-- 용량: 0.6mg → 1.2mg → 1.8mg → 2.4mg → 3.0mg
-- 평균 체중 감량: 5-10%`;
 
 /**
  * 사용자 건강 데이터 수집
@@ -199,26 +163,24 @@ export function useMedicationChat() {
       // 건강 데이터 컨텍스트 수집
       const healthContext = await getUserHealthContext();
 
-      // 대화 히스토리 구성 (최근 10개)
-      const recentMessages = messages.slice(-10).map((msg) => ({
-        role: msg.role as 'user' | 'assistant',
-        content: msg.content,
-      }));
-
-      // OpenAI API 호출
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: MEDICATION_SYSTEM_PROMPT },
-          { role: 'system', content: healthContext },
-          ...recentMessages,
-          { role: 'user', content },
-        ],
-        max_tokens: 500,
-        temperature: 0.7,
+      // RAG API 호출
+      const response = await fetch(`${RAG_API_URL}/ask`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query: content,
+          user_context: healthContext,
+        }),
       });
 
-      const responseContent = completion.choices[0]?.message?.content || '응답을 생성할 수 없습니다.';
+      if (!response.ok) {
+        throw new Error(`RAG API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      const responseContent = data.response || '응답을 생성할 수 없습니다.';
 
       // AI 응답 추가
       const assistantMessage: MedicationChatMessage = {
