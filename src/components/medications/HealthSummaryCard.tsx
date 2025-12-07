@@ -31,9 +31,9 @@ export function HealthSummaryCard() {
   const isLoading = weightLoading || calorieLoading;
 
   return (
-    <div className="grid grid-cols-2 gap-3">
+    <div className="grid grid-cols-1 gap-3 h-full">
       {/* 체중 변화 카드 */}
-      <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-2xl border border-primary/20 p-4">
+      <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-2xl border border-primary/20 p-4 flex flex-col justify-center">
         <div className="flex items-center gap-2 mb-3">
           <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center">
             <Scale className="w-4 h-4 text-primary" />
@@ -75,7 +75,7 @@ export function HealthSummaryCard() {
       </div>
 
       {/* 칼로리 섭취 카드 */}
-      <div className="bg-gradient-to-br from-warning/10 to-warning/5 rounded-2xl border border-warning/20 p-4">
+      <div className="bg-gradient-to-br from-warning/10 to-warning/5 rounded-2xl border border-warning/20 p-4 flex flex-col justify-center">
         <div className="flex items-center gap-2 mb-3">
           <div className="w-8 h-8 rounded-lg bg-warning/20 flex items-center justify-center">
             <Utensils className="w-4 h-4 text-warning" />

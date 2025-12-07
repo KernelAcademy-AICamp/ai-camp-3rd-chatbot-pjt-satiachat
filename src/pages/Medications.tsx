@@ -175,7 +175,7 @@ export default function Medications() {
                     </div>
 
                     {/* 건강 요약 (체중/칼로리) */}
-                    <div className="space-y-4">
+                    <div className="h-full">
                       <HealthSummaryCard />
                     </div>
                   </div>
