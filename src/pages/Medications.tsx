@@ -28,7 +28,7 @@ export default function Medications() {
     <div className="flex h-[calc(100vh-4rem)] gap-6 p-4 md:p-6 lg:p-8 bg-gradient-to-br from-background via-background to-accent/20">
       {/* 왼쪽: 메인 콘텐츠 */}
       <div className="flex-1 overflow-auto">
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-6xl mx-auto">
           {/* 헤더 */}
           <div className="mb-8">
             <div className="flex items-center justify-between">

@@ -1,8 +1,11 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { supabase, getCurrentUserId } from '@/lib/supabase';
 
 // RAG API endpoint (Python FastAPI backend)
 const RAG_API_URL = import.meta.env.VITE_RAG_API_URL || 'http://localhost:8000';
+
+// Chat type for medication conversations
+const CHAT_TYPE = 'medication';
 
 // 컨텍스트 캐시 (5분 TTL)
 const CONTEXT_CACHE_TTL = 5 * 60 * 1000;
@@ -155,21 +158,68 @@ async function getUserHealthContext(): Promise<string> {
 }
 
 /**
- * 약물 전문 AI 챗봇 훅
+ * 약물 전문 AI 챗봇 훅 (Supabase 저장 지원)
  */
 export function useMedicationChat() {
   const [messages, setMessages] = useState<MedicationChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
-  const sendMessage = useCallback(async (content: string) => {
+  // 페이지 로드 시 기존 대화 내역 불러오기
+  useEffect(() => {
+    const loadMessages = async () => {
+      const userId = getCurrentUserId();
+
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('chat_type', CHAT_TYPE)
+        .order('created_at', { ascending: true })
+        .limit(50);
+
+      if (!error && data) {
+        const loadedMessages: MedicationChatMessage[] = data.map((msg) => ({
+          id: msg.id,
+          role: msg.role as 'user' | 'assistant',
+          content: msg.content,
+          timestamp: new Date(msg.created_at),
+        }));
+        setMessages(loadedMessages);
+      }
+      setIsInitialLoading(false);
+    };
+
+    loadMessages();
+  }, []);
+
+  const sendMessage = useCallback(async (content: string, useRag: boolean = true) => {
     if (!content.trim() || isLoading) return;
 
-    // 사용자 메시지 추가
+    const userId = getCurrentUserId();
+
+    // 1. 사용자 메시지를 Supabase에 저장
+    const { data: userMsgData, error: userError } = await supabase
+      .from('chat_messages')
+      .insert({
+        user_id: userId,
+        role: 'user',
+        content,
+        chat_type: CHAT_TYPE,
+      })
+      .select()
+      .single();
+
+    if (userError) {
+      console.error('Failed to save user message:', userError);
+      return;
+    }
+
     const userMessage: MedicationChatMessage = {
-      id: `user-${Date.now()}`,
+      id: userMsgData.id,
       role: 'user',
       content,
-      timestamp: new Date(),
+      timestamp: new Date(userMsgData.created_at),
     };
 
     setMessages((prev) => [...prev, userMessage]);
@@ -188,6 +238,7 @@ export function useMedicationChat() {
         body: JSON.stringify({
           query: content,
           user_context: healthContext,
+          use_rag: useRag,  // false면 RAG 스킵 (토큰 절약)
         }),
       });
 
@@ -198,19 +249,34 @@ export function useMedicationChat() {
       const data = await response.json();
       const responseContent = data.response || '응답을 생성할 수 없습니다.';
 
-      // AI 응답 추가
+      // 2. AI 응답을 Supabase에 저장
+      const { data: assistantMsgData, error: assistantError } = await supabase
+        .from('chat_messages')
+        .insert({
+          user_id: userId,
+          role: 'assistant',
+          content: responseContent,
+          chat_type: CHAT_TYPE,
+        })
+        .select()
+        .single();
+
+      if (assistantError) {
+        console.error('Failed to save assistant message:', assistantError);
+      }
+
       const assistantMessage: MedicationChatMessage = {
-        id: `assistant-${Date.now()}`,
+        id: assistantMsgData?.id || `assistant-${Date.now()}`,
         role: 'assistant',
         content: responseContent,
-        timestamp: new Date(),
+        timestamp: new Date(assistantMsgData?.created_at || Date.now()),
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
       console.error('Medication chat error:', error);
 
-      // 에러 메시지 추가
+      // 에러 메시지 (저장하지 않음)
       const errorMessage: MedicationChatMessage = {
         id: `error-${Date.now()}`,
         role: 'assistant',
@@ -222,9 +288,18 @@ export function useMedicationChat() {
     } finally {
       setIsLoading(false);
     }
-  }, [messages, isLoading]);
+  }, [isLoading]);
 
-  const clearMessages = useCallback(() => {
+  const clearMessages = useCallback(async () => {
+    const userId = getCurrentUserId();
+
+    // Supabase에서 해당 사용자의 medication 채팅 삭제
+    await supabase
+      .from('chat_messages')
+      .delete()
+      .eq('user_id', userId)
+      .eq('chat_type', CHAT_TYPE);
+
     setMessages([]);
   }, []);
 
@@ -232,6 +307,7 @@ export function useMedicationChat() {
     messages,
     sendMessage,
     isLoading,
+    isInitialLoading,
     clearMessages,
   };
 }

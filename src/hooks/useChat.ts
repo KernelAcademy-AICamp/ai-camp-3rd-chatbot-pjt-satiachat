@@ -51,6 +51,9 @@ const systemPrompts: Record<CoachPersona, string> = {
 - 개선점 명확히 지적`,
 };
 
+// Chat type for diet conversations
+const CHAT_TYPE = 'diet';
+
 // Query keys
 const chatKeys = {
   all: ['chat'] as const,
@@ -558,6 +561,7 @@ export function useChatMessages(limit: number = 50) {
         .from('chat_messages')
         .select('*')
         .eq('user_id', userId)
+        .eq('chat_type', CHAT_TYPE)
         .order('created_at', { ascending: false })
         .limit(limit);
 
@@ -588,6 +592,7 @@ export function useSendMessage() {
           user_id: userId,
           role: 'user',
           content,
+          chat_type: CHAT_TYPE,
         })
         .select()
         .single();
@@ -604,6 +609,7 @@ export function useSendMessage() {
         .from('chat_messages')
         .select('role, content')
         .eq('user_id', userId)
+        .eq('chat_type', CHAT_TYPE)
         .order('created_at', { ascending: false })
         .limit(10);
 
@@ -748,6 +754,7 @@ export function useSendMessage() {
           user_id: userId,
           role: 'assistant',
           content: assistantContent,
+          chat_type: CHAT_TYPE,
         })
         .select()
         .single();
@@ -780,7 +787,8 @@ export function useClearChat() {
       const { error } = await supabase
         .from('chat_messages')
         .delete()
-        .eq('user_id', userId);
+        .eq('user_id', userId)
+        .eq('chat_type', CHAT_TYPE);
 
       if (error) throw error;
     },

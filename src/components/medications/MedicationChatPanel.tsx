@@ -7,10 +7,10 @@ import { cn } from "@/lib/utils";
 import { useMedicationChat, type MedicationChatMessage } from "@/hooks/useMedicationChat";
 
 const quickActions = [
-  { icon: Scale, label: "체중 분석", query: "최근 체중 변화를 분석해줘" },
-  { icon: Flame, label: "칼로리 분석", query: "이번 주 칼로리 섭취 패턴을 알려줘" },
-  { icon: Pill, label: "약물 효과", query: "약물 복용이 체중에 미친 영향은?" },
-  { icon: TrendingDown, label: "진행 상황", query: "현재 다이어트 진행 상황을 평가해줘" },
+  { icon: Scale, label: "체중 분석", query: "최근 체중 변화를 분석해줘", useRag: false },
+  { icon: Flame, label: "칼로리 분석", query: "이번 주 칼로리 섭취 패턴을 알려줘", useRag: false },
+  { icon: Pill, label: "약물 효과", query: "약물 복용이 체중에 미친 영향은?", useRag: true },  // RAG 필요
+  { icon: TrendingDown, label: "진행 상황", query: "현재 다이어트 진행 상황을 평가해줘", useRag: false },
 ];
 
 export function MedicationChatPanel() {
@@ -26,12 +26,12 @@ export function MedicationChatPanel() {
     }
   }, [messages]);
 
-  const handleSend = async (messageText?: string) => {
+  const handleSend = async (messageText?: string, useRag: boolean = true) => {
     const text = messageText || input;
     if (!text.trim() || isLoading) return;
 
     setInput("");
-    await sendMessage(text);
+    await sendMessage(text, useRag);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -64,7 +64,7 @@ export function MedicationChatPanel() {
           {quickActions.map((action) => (
             <button
               key={action.label}
-              onClick={() => handleSend(action.query)}
+              onClick={() => handleSend(action.query, action.useRag)}
               disabled={isLoading}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-background border border-border rounded-full text-xs font-medium text-foreground hover:border-info hover:bg-info/5 transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
             >
