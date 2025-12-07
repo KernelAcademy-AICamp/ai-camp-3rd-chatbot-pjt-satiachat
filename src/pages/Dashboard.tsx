@@ -1,8 +1,11 @@
-import { Flame, Scale, Pill, Target } from "lucide-react";
+import { useState } from "react";
+import { Flame, Scale, Pill, Target, X } from "lucide-react";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { ChatPanel } from "@/components/dashboard/ChatPanel";
 import { TodayMeals } from "@/components/dashboard/TodayMeals";
+import { FloatingChatButton } from "@/components/ui/FloatingChatButton";
+import { Button } from "@/components/ui/button";
 import { useTodayCalories } from "@/hooks/useMeals";
 import { useLatestProgress } from "@/hooks/useProgress";
 import { useTodayMedicationStats } from "@/hooks/useMedications";
@@ -14,6 +17,8 @@ const FALLBACK_GOAL_WEIGHT = 68;
 const FALLBACK_START_WEIGHT = 78;
 
 export default function Dashboard() {
+  const [showMobileChat, setShowMobileChat] = useState(false);
+
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
@@ -110,7 +115,36 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Chat Panel - Mobile (simplified floating button would go here) */}
+      {/* Chat Panel - Mobile */}
+      <FloatingChatButton
+        isOpen={showMobileChat}
+        onClick={() => setShowMobileChat(!showMobileChat)}
+      />
+
+      {/* Mobile Chat Modal */}
+      {showMobileChat && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setShowMobileChat(false)}
+          />
+          {/* Chat Panel */}
+          <div className="absolute inset-4 md:inset-8 bg-background rounded-3xl overflow-hidden shadow-2xl">
+            <div className="relative h-full">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-3 top-3 z-10 rounded-xl"
+                onClick={() => setShowMobileChat(false)}
+              >
+                <X className="w-5 h-5" />
+              </Button>
+              <ChatPanel />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

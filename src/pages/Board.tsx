@@ -412,7 +412,7 @@ export default function Board() {
                     key={tab}
                     onClick={() => setActiveTab(tab)}
                     className={cn(
-                      "group relative flex items-center gap-3 px-5 py-3.5 rounded-2xl font-medium text-sm transition-all duration-300",
+                      "group relative flex items-center gap-2 px-3 py-2 sm:gap-3 sm:px-5 sm:py-3.5 rounded-xl sm:rounded-2xl font-medium text-sm transition-all duration-300",
                       isActive
                         ? "bg-white dark:bg-card shadow-lg border border-border/50"
                         : "bg-white/50 dark:bg-card/50 hover:bg-white dark:hover:bg-card border border-transparent hover:border-border/50 hover:shadow-md"

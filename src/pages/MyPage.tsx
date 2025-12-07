@@ -330,14 +330,14 @@ export default function MyPage() {
           {/* Left Column - Charts */}
           <div className="lg:col-span-2 space-y-6">
             {/* 차트 기간 선택 컨트롤 */}
-            <div className="p-4 rounded-2xl border shadow-sm bg-card animate-slide-up">
-              <div className="flex items-center justify-between gap-4 flex-wrap">
+            <div className="p-3 sm:p-4 rounded-2xl border shadow-sm bg-card animate-slide-up">
+              <div className="flex items-center justify-between gap-2 sm:gap-4 flex-wrap">
                 {/* 주간/월간 토글 */}
                 <div className="flex gap-1 p-1 bg-muted/50 rounded-xl">
                   <button
                     onClick={() => setChartViewMode('weekly')}
                     className={cn(
-                      "px-4 py-1.5 rounded-lg text-sm font-medium transition-all",
+                      "px-3 sm:px-4 py-1.5 rounded-lg text-sm font-medium transition-all",
                       chartViewMode === 'weekly'
                         ? "bg-card text-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground"
@@ -348,7 +348,7 @@ export default function MyPage() {
                   <button
                     onClick={() => setChartViewMode('monthly')}
                     className={cn(
-                      "px-4 py-1.5 rounded-lg text-sm font-medium transition-all",
+                      "px-3 sm:px-4 py-1.5 rounded-lg text-sm font-medium transition-all",
                       chartViewMode === 'monthly'
                         ? "bg-card text-foreground shadow-sm"
                         : "text-muted-foreground hover:text-foreground"
@@ -359,12 +359,12 @@ export default function MyPage() {
                 </div>
 
                 {/* 기간 네비게이션 */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 sm:gap-2">
                   <Button
                     variant="ghost"
                     size="icon"
                     onClick={() => navigateChart('prev')}
-                    className="h-8 w-8 rounded-lg"
+                    className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg"
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
@@ -372,7 +372,7 @@ export default function MyPage() {
                   <Popover open={chartCalendarOpen} onOpenChange={setChartCalendarOpen}>
                     <PopoverTrigger asChild>
                       <button
-                        className="min-w-[140px] px-3 py-1.5 text-sm font-medium text-foreground bg-muted/50 hover:bg-muted rounded-lg transition-colors flex items-center justify-center gap-2"
+                        className="min-w-[100px] sm:min-w-[140px] px-2 sm:px-3 py-1.5 text-xs sm:text-sm font-medium text-foreground bg-muted/50 hover:bg-muted rounded-lg transition-colors flex items-center justify-center gap-1 sm:gap-2"
                       >
                         <CalendarDays className="h-4 w-4 text-muted-foreground" />
                         {chartDateRange.label}
@@ -415,7 +415,7 @@ export default function MyPage() {
                     variant="ghost"
                     size="icon"
                     onClick={() => navigateChart('next')}
-                    className="h-8 w-8 rounded-lg"
+                    className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg"
                     disabled={chartBaseDate >= new Date()}
                   >
                     <ChevronRight className="h-4 w-4" />
