@@ -25,10 +25,9 @@ export default function Medications() {
   const completedMeds = medications.filter((m) => m.medication_logs?.length > 0);
 
   return (
-    <div className="flex min-h-[calc(100vh-3.5rem)] gap-6 p-4 md:p-6 lg:p-8 bg-gradient-to-br from-background via-background to-accent/20">
+    <div className="flex flex-col lg:flex-row min-h-screen">
       {/* 왼쪽: 메인 콘텐츠 */}
-      <div className="flex-1 overflow-auto">
-        <div className="max-w-6xl mx-auto">
+      <div className="flex-1 p-4 md:p-6 lg:p-8">
           {/* 헤더 */}
           <div className="mb-8">
             <div className="flex items-center justify-between">
@@ -264,12 +263,13 @@ export default function Medications() {
               <p className="text-muted-foreground">곧 추가될 기능입니다</p>
             </div>
           )}
-        </div>
       </div>
 
       {/* 오른쪽: AI 챗봇 패널 (데스크톱) */}
-      <div className="hidden lg:block w-[400px] flex-shrink-0 h-full">
-        <MedicationChatPanel />
+      <div className="hidden lg:block w-[420px] border-l border-border p-4 bg-muted/20">
+        <div className="h-[calc(100vh-2rem)] sticky top-4">
+          <MedicationChatPanel />
+        </div>
       </div>
 
       {/* 모바일 챗봇 모달 */}
