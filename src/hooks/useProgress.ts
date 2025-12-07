@@ -229,7 +229,7 @@ export function useUpsertTodayProgress() {
   });
 }
 
-// 최근 7일간 칼로리 데이터 조회
+// 칼로리 데이터 타입
 export interface DailyCalorieData {
   date: string;
   totalCalories: number;
@@ -237,6 +237,77 @@ export interface DailyCalorieData {
   mealCount: number;
 }
 
+// 기간별 체중 데이터 조회
+export function useProgressByRange(startDate: string, endDate: string) {
+  const userId = getCurrentUserId();
+
+  return useQuery({
+    queryKey: [...progressKeys.all, 'range', startDate, endDate],
+    queryFn: async (): Promise<ProgressLog[]> => {
+      const { data, error } = await supabase
+        .from('progress_logs')
+        .select('*')
+        .eq('user_id', userId)
+        .gte('date', startDate)
+        .lte('date', endDate)
+        .order('date', { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+// 기간별 칼로리 데이터 조회
+export function useCaloriesByRange(startDate: string, endDate: string) {
+  const userId = getCurrentUserId();
+  const { data: profile } = useProfile();
+  const targetCalories = profile?.target_calories || 2000;
+
+  return useQuery({
+    queryKey: ['calories', 'range', startDate, endDate, userId],
+    queryFn: async (): Promise<DailyCalorieData[]> => {
+      // 기간 내 모든 날짜 생성
+      const dates: string[] = [];
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        dates.push(formatDate(d));
+      }
+
+      // 식단 데이터 조회
+      const { data: meals, error } = await supabase
+        .from('meals')
+        .select('date, total_calories')
+        .eq('user_id', userId)
+        .gte('date', startDate)
+        .lte('date', endDate);
+
+      if (error) throw error;
+
+      // 날짜별로 그룹화
+      const caloriesByDate: Record<string, { total: number; count: number }> = {};
+      (meals || []).forEach((meal) => {
+        if (!caloriesByDate[meal.date]) {
+          caloriesByDate[meal.date] = { total: 0, count: 0 };
+        }
+        caloriesByDate[meal.date].total += meal.total_calories || 0;
+        caloriesByDate[meal.date].count += 1;
+      });
+
+      return dates.map((date) => ({
+        date,
+        totalCalories: caloriesByDate[date]?.total || 0,
+        targetCalories,
+        mealCount: caloriesByDate[date]?.count || 0,
+      }));
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+// 최근 7일간 칼로리 데이터 조회 (하위 호환성)
 export function useWeeklyCalories() {
   const userId = getCurrentUserId();
   const { data: profile } = useProfile();

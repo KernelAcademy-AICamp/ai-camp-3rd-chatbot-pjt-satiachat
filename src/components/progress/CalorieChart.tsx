@@ -11,27 +11,37 @@ import {
   Cell,
 } from 'recharts';
 import { Loader2 } from 'lucide-react';
-import { useWeeklyCalories } from '@/hooks/useProgress';
+import { useWeeklyCalories, useCaloriesByRange } from '@/hooks/useProgress';
 
 interface CalorieChartProps {
   targetCalories?: number;
+  startDate?: string;
+  endDate?: string;
+  viewMode?: 'weekly' | 'monthly';
 }
 
-export function CalorieChart({ targetCalories: propTargetCalories }: CalorieChartProps) {
-  const { data: calorieData, isLoading, error } = useWeeklyCalories();
+export function CalorieChart({ targetCalories: propTargetCalories, startDate, endDate, viewMode = 'weekly' }: CalorieChartProps) {
+  // 기간이 지정되면 해당 기간 데이터, 아니면 최근 7일
+  const weeklyQuery = useWeeklyCalories();
+  const rangeQuery = useCaloriesByRange(startDate || '', endDate || '');
+
+  const { data: calorieData, isLoading, error } = startDate && endDate ? rangeQuery : weeklyQuery;
 
   const chartData = useMemo(() => {
     if (!calorieData || calorieData.length === 0) return [];
 
     return calorieData.map((day) => ({
-      date: new Date(day.date).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }),
+      date: viewMode === 'monthly'
+        ? new Date(day.date).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
+        : new Date(day.date).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }),
+      fullDate: day.date,
       calories: day.totalCalories,
       target: propTargetCalories || day.targetCalories,
       mealCount: day.mealCount,
       // 목표 대비 비율 계산
       ratio: day.totalCalories / (propTargetCalories || day.targetCalories),
     }));
-  }, [calorieData, propTargetCalories]);
+  }, [calorieData, propTargetCalories, viewMode]);
 
   // 바 색상 결정 함수
   const getBarColor = (ratio: number) => {

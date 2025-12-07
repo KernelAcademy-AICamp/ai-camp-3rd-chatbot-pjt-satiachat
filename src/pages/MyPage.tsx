@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { format } from "date-fns";
+import { useState, useMemo } from "react";
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, subWeeks, addMonths, subMonths } from "date-fns";
 import { ko } from "date-fns/locale";
 import {
   TrendingDown,
@@ -15,9 +15,16 @@ import {
   Sun,
   Moon,
   Cookie,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { WeightChart } from "@/components/progress/WeightChart";
 import { CalorieChart } from "@/components/progress/CalorieChart";
@@ -34,6 +41,8 @@ import type { MealType, MealWithItems } from "@/types/domain";
 const FALLBACK_GOAL_WEIGHT = 68;
 const FALLBACK_START_WEIGHT = 78;
 
+type ChartViewMode = 'weekly' | 'monthly';
+
 export default function MyPage() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [aiSummary, setAiSummary] = useState<string | null>(null);
@@ -41,6 +50,54 @@ export default function MyPage() {
   const [showMealForm, setShowMealForm] = useState(false);
   const [editingMeal, setEditingMeal] = useState<MealWithItems | null>(null);
   const [defaultMealType, setDefaultMealType] = useState<MealType>("breakfast");
+
+  // 차트 기간 선택 상태
+  const [chartViewMode, setChartViewMode] = useState<ChartViewMode>('weekly');
+  const [chartBaseDate, setChartBaseDate] = useState<Date>(new Date());
+  const [chartCalendarOpen, setChartCalendarOpen] = useState(false);
+
+  // 차트 날짜 범위 계산
+  const chartDateRange = useMemo(() => {
+    if (chartViewMode === 'weekly') {
+      const start = startOfWeek(chartBaseDate, { weekStartsOn: 1 }); // 월요일 시작
+      const end = endOfWeek(chartBaseDate, { weekStartsOn: 1 });
+      return {
+        startDate: format(start, 'yyyy-MM-dd'),
+        endDate: format(end, 'yyyy-MM-dd'),
+        label: `${format(start, 'M.d')} - ${format(end, 'M.d')}`,
+      };
+    } else {
+      const start = startOfMonth(chartBaseDate);
+      const end = endOfMonth(chartBaseDate);
+      return {
+        startDate: format(start, 'yyyy-MM-dd'),
+        endDate: format(end, 'yyyy-MM-dd'),
+        label: format(chartBaseDate, 'yyyy년 M월', { locale: ko }),
+      };
+    }
+  }, [chartViewMode, chartBaseDate]);
+
+  // 차트 기간 이동
+  const navigateChart = (direction: 'prev' | 'next') => {
+    if (chartViewMode === 'weekly') {
+      setChartBaseDate(prev => direction === 'prev' ? subWeeks(prev, 1) : addWeeks(prev, 1));
+    } else {
+      setChartBaseDate(prev => direction === 'prev' ? subMonths(prev, 1) : addMonths(prev, 1));
+    }
+  };
+
+  // 오늘로 이동
+  const goToToday = () => {
+    setChartBaseDate(new Date());
+  };
+
+  // 달력에서 날짜 선택 시 해당 주/월로 이동
+  const handleChartCalendarSelect = (date: Date | undefined) => {
+    if (date) {
+      setChartBaseDate(date);
+      setChartCalendarOpen(false);
+    }
+  };
 
   // Data hooks
   const { data: profile } = useProfile();
@@ -272,6 +329,101 @@ export default function MyPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Charts */}
           <div className="lg:col-span-2 space-y-6">
+            {/* 차트 기간 선택 컨트롤 */}
+            <div className="p-4 rounded-2xl border shadow-sm bg-card animate-slide-up">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                {/* 주간/월간 토글 */}
+                <div className="flex gap-1 p-1 bg-muted/50 rounded-xl">
+                  <button
+                    onClick={() => setChartViewMode('weekly')}
+                    className={cn(
+                      "px-4 py-1.5 rounded-lg text-sm font-medium transition-all",
+                      chartViewMode === 'weekly'
+                        ? "bg-card text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    주간
+                  </button>
+                  <button
+                    onClick={() => setChartViewMode('monthly')}
+                    className={cn(
+                      "px-4 py-1.5 rounded-lg text-sm font-medium transition-all",
+                      chartViewMode === 'monthly'
+                        ? "bg-card text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    월간
+                  </button>
+                </div>
+
+                {/* 기간 네비게이션 */}
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => navigateChart('prev')}
+                    className="h-8 w-8 rounded-lg"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+
+                  <Popover open={chartCalendarOpen} onOpenChange={setChartCalendarOpen}>
+                    <PopoverTrigger asChild>
+                      <button
+                        className="min-w-[140px] px-3 py-1.5 text-sm font-medium text-foreground bg-muted/50 hover:bg-muted rounded-lg transition-colors flex items-center justify-center gap-2"
+                      >
+                        <CalendarDays className="h-4 w-4 text-muted-foreground" />
+                        {chartDateRange.label}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="center">
+                      <div className="p-3 border-b border-border">
+                        <p className="text-sm font-medium text-center">
+                          {chartViewMode === 'weekly' ? '주 선택' : '월 선택'}
+                        </p>
+                        <p className="text-xs text-muted-foreground text-center mt-1">
+                          날짜를 선택하면 해당 {chartViewMode === 'weekly' ? '주' : '월'}로 이동합니다
+                        </p>
+                      </div>
+                      <Calendar
+                        mode="single"
+                        selected={chartBaseDate}
+                        onSelect={handleChartCalendarSelect}
+                        locale={ko}
+                        disabled={{ after: new Date() }}
+                        defaultMonth={chartBaseDate}
+                      />
+                      <div className="p-2 border-t border-border flex justify-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            goToToday();
+                            setChartCalendarOpen(false);
+                          }}
+                          className="text-xs"
+                        >
+                          오늘로 이동
+                        </Button>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => navigateChart('next')}
+                    className="h-8 w-8 rounded-lg"
+                    disabled={chartBaseDate >= new Date()}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+
             {/* Weight Chart */}
             <div className="p-5 rounded-2xl border shadow-sm bg-card hover:shadow-md transition-all duration-300 animate-slide-up">
               <div className="flex items-center justify-between mb-4">
@@ -281,7 +433,7 @@ export default function MyPage() {
                   </div>
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">체중 변화</p>
-                    <p className="font-semibold text-foreground">최근 7일</p>
+                    <p className="font-semibold text-foreground">{chartDateRange.label}</p>
                   </div>
                 </div>
                 <Button
@@ -295,7 +447,12 @@ export default function MyPage() {
                 </Button>
               </div>
               <div className="h-64">
-                <WeightChart targetWeight={goalWeight} />
+                <WeightChart
+                  targetWeight={goalWeight}
+                  startDate={chartDateRange.startDate}
+                  endDate={chartDateRange.endDate}
+                  viewMode={chartViewMode}
+                />
               </div>
             </div>
 
@@ -313,7 +470,12 @@ export default function MyPage() {
                 </div>
               </div>
               <div className="h-64">
-                <CalorieChart targetCalories={targetCalories} />
+                <CalorieChart
+                  targetCalories={targetCalories}
+                  startDate={chartDateRange.startDate}
+                  endDate={chartDateRange.endDate}
+                  viewMode={chartViewMode}
+                />
               </div>
             </div>
           </div>

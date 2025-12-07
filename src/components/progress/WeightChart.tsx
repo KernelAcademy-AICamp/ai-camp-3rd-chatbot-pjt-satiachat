@@ -9,25 +9,35 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { Loader2 } from 'lucide-react';
-import { useWeeklyProgress } from '@/hooks/useProgress';
+import { useWeeklyProgress, useProgressByRange } from '@/hooks/useProgress';
 
 interface WeightChartProps {
   targetWeight?: number;
+  startDate?: string;
+  endDate?: string;
+  viewMode?: 'weekly' | 'monthly';
 }
 
-export function WeightChart({ targetWeight }: WeightChartProps) {
-  const { data: logs, isLoading, error } = useWeeklyProgress();
+export function WeightChart({ targetWeight, startDate, endDate, viewMode = 'weekly' }: WeightChartProps) {
+  // 기간이 지정되면 해당 기간 데이터, 아니면 최근 7일
+  const weeklyQuery = useWeeklyProgress();
+  const rangeQuery = useProgressByRange(startDate || '', endDate || '');
+
+  const { data: logs, isLoading, error } = startDate && endDate ? rangeQuery : weeklyQuery;
 
   const chartData = useMemo(() => {
     if (!logs || logs.length === 0) return [];
 
     return logs.map(log => ({
-      date: new Date(log.date).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }),
+      date: viewMode === 'monthly'
+        ? new Date(log.date).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })
+        : new Date(log.date).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' }),
+      fullDate: log.date,
       weight: log.weight_kg,
       bodyFat: log.body_fat_percent,
       target: targetWeight,
     }));
-  }, [logs, targetWeight]);
+  }, [logs, targetWeight, viewMode]);
 
   if (isLoading) {
     return (
