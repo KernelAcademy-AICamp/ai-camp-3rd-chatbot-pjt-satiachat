@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { format } from "date-fns";
 import { ko } from "date-fns/locale";
 import {
@@ -117,9 +118,23 @@ type ViewMode = "list" | "detail" | "write" | "edit";
 
 export default function Board() {
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { id: urlPostId } = useParams<{ id: string }>();
+
+  // URL 기반으로 viewMode 결정
+  const viewMode = useMemo<ViewMode>(() => {
+    const path = location.pathname;
+    if (path === "/board/write") return "write";
+    if (path.endsWith("/edit")) return "edit";
+    if (urlPostId && urlPostId !== "write") return "detail";
+    return "list";
+  }, [location.pathname, urlPostId]);
+
+  // URL에서 postId 가져오기
+  const selectedPostId = viewMode === "detail" || viewMode === "edit" ? urlPostId || null : null;
+
   const [activeTab, setActiveTab] = useState<PostTab>("qna");
-  const [viewMode, setViewMode] = useState<ViewMode>("list");
-  const [selectedPostId, setSelectedPostId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -149,12 +164,28 @@ export default function Board() {
     setCurrentPage(1);
   }, [activeTab, debouncedSearch]);
 
+  // Edit 모드일 때 게시글 데이터 로드
+  useEffect(() => {
+    if (viewMode === "edit" && selectedPostId && !editingPostId) {
+      setEditingPostId(selectedPostId);
+    }
+  }, [viewMode, selectedPostId, editingPostId]);
+
   // Queries
   const { data: postsData, isLoading: postsLoading } = usePosts(activeTab, currentPage, debouncedSearch || undefined);
   const posts = postsData?.posts ?? [];
   const totalPages = postsData?.totalPages ?? 0;
   const totalCount = postsData?.totalCount ?? 0;
   const { data: selectedPost, isLoading: postLoading } = usePost(selectedPostId);
+
+  // selectedPost가 로드되면 edit 폼에 데이터 채우기
+  useEffect(() => {
+    if (viewMode === "edit" && selectedPost && editTitle === "" && editContent === "") {
+      setEditTitle(selectedPost.title);
+      setEditContent(selectedPost.content);
+      setActiveTab(selectedPost.tab);
+    }
+  }, [viewMode, selectedPost, editTitle, editContent]);
 
   // Mutations
   const createPost = useCreatePost();
@@ -179,8 +210,7 @@ export default function Board() {
 
   // View post detail
   const handleViewPost = (post: Post) => {
-    setSelectedPostId(post.id);
-    setViewMode("detail");
+    navigate(`/board/${post.id}`);
     incrementViews.mutate(post.id);
   };
 
@@ -189,7 +219,7 @@ export default function Board() {
     setEditTitle("");
     setEditContent("");
     setEditingPostId(null);
-    setViewMode("write");
+    navigate("/board/write");
   };
 
   // Start editing
@@ -197,7 +227,7 @@ export default function Board() {
     setEditTitle(post.title);
     setEditContent(post.content);
     setEditingPostId(post.id);
-    setViewMode("edit");
+    navigate(`/board/${post.id}/edit`);
   };
 
   // Save post (create/update)
@@ -212,16 +242,16 @@ export default function Board() {
           content: editContent,
         });
         toast({ title: "수정 완료", description: "게시글이 수정되었습니다." });
+        navigate(`/board/${editingPostId}`);
       } else {
-        await createPost.mutateAsync({
+        const newPost = await createPost.mutateAsync({
           tab: activeTab,
           title: editTitle,
           content: editContent,
         });
         toast({ title: "등록 완료", description: "게시글이 등록되었습니다." });
+        navigate(`/board/${newPost.id}`);
       }
-      setViewMode("list");
-      setSelectedPostId(null);
     } catch (error) {
       toast({
         title: "오류",
@@ -236,8 +266,7 @@ export default function Board() {
     try {
       await deletePost.mutateAsync(postId);
       toast({ title: "삭제 완료", description: "게시글이 삭제되었습니다." });
-      setViewMode("list");
-      setSelectedPostId(null);
+      navigate("/board");
     } catch (error) {
       toast({
         title: "오류",
@@ -345,9 +374,8 @@ export default function Board() {
 
   // Back to list
   const handleBack = () => {
-    setViewMode("list");
-    setSelectedPostId(null);
     setEditingPostId(null);
+    navigate("/board");
   };
 
 

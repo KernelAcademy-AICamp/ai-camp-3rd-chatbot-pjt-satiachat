@@ -42,6 +42,9 @@ const App = () => (
               <Route path="/reports" element={<Reports />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/board" element={<Board />} />
+              <Route path="/board/write" element={<Board />} />
+              <Route path="/board/:id" element={<Board />} />
+              <Route path="/board/:id/edit" element={<Board />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
