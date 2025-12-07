@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { Check, Clock, MoreVertical, Pencil, Trash2, Undo2 } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
+import { Check, Clock, MoreVertical, Pencil, Trash2, Undo2, Pill, Flame, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -25,15 +24,17 @@ import type { MedicationWithLogs, MedicationFrequency } from '@/types/domain';
 
 interface MedicationCardProps {
   medication: MedicationWithLogs;
+  animationDelay?: number;
+  completed?: boolean;
 }
 
 const frequencyLabels: Record<MedicationFrequency, string> = {
-  daily: 'Daily',
-  weekly: 'Weekly',
-  as_needed: 'As needed',
+  daily: '매일',
+  weekly: '주간',
+  as_needed: '필요시',
 };
 
-export function MedicationCard({ medication }: MedicationCardProps) {
+export function MedicationCard({ medication, animationDelay = 0, completed }: MedicationCardProps) {
   const [showEditForm, setShowEditForm] = useState(false);
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
 
@@ -69,63 +70,95 @@ export function MedicationCard({ medication }: MedicationCardProps) {
 
   return (
     <>
-      <Card className={cn(
-        "overflow-hidden transition-all",
-        isTaken && "bg-success/5 border-success/20"
-      )}>
-        <CardContent className="p-4">
-          <div className="flex items-start justify-between">
-            <div className="flex items-start gap-3 flex-1">
-              <Button
-                variant={isTaken ? "default" : "outline"}
-                size="icon"
+      <div
+        className={cn(
+          "group relative bg-card rounded-2xl border p-4 transition-all duration-300 animate-slide-up hover:shadow-lg",
+          isTaken || completed
+            ? "border-success/30 bg-gradient-to-r from-success/5 to-transparent"
+            : "border-border/50 hover:border-primary/30"
+        )}
+        style={{ animationDelay: `${animationDelay}s` }}
+      >
+        <div className="flex items-center gap-4">
+          {/* 아이콘 */}
+          <div
+            className={cn(
+              "w-14 h-14 rounded-2xl flex items-center justify-center transition-all duration-300 group-hover:scale-105",
+              isTaken || completed ? "bg-success/10" : "bg-primary/10"
+            )}
+          >
+            {isTaken || completed ? (
+              <Check className="w-7 h-7 text-success" />
+            ) : (
+              <Pill className="w-7 h-7 text-primary" />
+            )}
+          </div>
+
+          {/* 약물 정보 */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <h3
                 className={cn(
-                  "h-10 w-10 rounded-full shrink-0",
-                  isTaken && "bg-success hover:bg-success/90"
+                  "font-semibold text-lg",
+                  isTaken || completed ? "text-muted-foreground line-through" : "text-foreground"
                 )}
+              >
+                {medication.name}
+              </h3>
+              {medication.dosage && (
+                <span
+                  className={cn(
+                    "text-xs px-2 py-0.5 rounded-full font-medium",
+                    isTaken || completed
+                      ? "bg-success/10 text-success"
+                      : "bg-primary/10 text-primary"
+                  )}
+                >
+                  {medication.dosage}
+                </span>
+              )}
+            </div>
+
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5" />
+                {medication.time_of_day || "시간 미정"}
+              </span>
+              <span className="text-muted-foreground/50">•</span>
+              <span>{frequencyLabels[medication.frequency || "daily"]}</span>
+            </div>
+
+            {isTaken && takenLog && (
+              <p className="text-xs text-success mt-2 flex items-center gap-1">
+                <Check className="w-3 h-3" />
+                {new Date(takenLog.taken_at).toLocaleTimeString('ko-KR', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}에 복용 완료
+              </p>
+            )}
+          </div>
+
+          {/* 액션 버튼 */}
+          <div className="flex items-center gap-2">
+            {!isTaken && !completed ? (
+              <Button
                 onClick={handleToggleTaken}
                 disabled={isLoading}
+                className="rounded-xl bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-md shadow-primary/20 px-5"
               >
-                {isTaken ? (
-                  <Check className="h-5 w-5" />
-                ) : (
-                  <Clock className="h-5 w-5" />
-                )}
+                <Check className="w-4 h-4 mr-1.5" />
+                복용 완료
               </Button>
-
-              <div className="space-y-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h4 className={cn(
-                    "font-medium",
-                    isTaken && "text-success"
-                  )}>
-                    {medication.name}
-                  </h4>
-                  {medication.dosage && (
-                    <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded">
-                      {medication.dosage}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span>{frequencyLabels[medication.frequency || 'daily']}</span>
-                  {medication.time_of_day && (
-                    <>
-                      <span>•</span>
-                      <span>{medication.time_of_day}</span>
-                    </>
-                  )}
-                </div>
-                {isTaken && takenLog && (
-                  <p className="text-xs text-success">
-                    Taken at {new Date(takenLog.taken_at).toLocaleTimeString('ko-KR', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </p>
-                )}
-              </div>
-            </div>
+            ) : (
+              <button
+                onClick={handleToggleTaken}
+                disabled={isLoading}
+                className="p-2 rounded-xl text-muted-foreground hover:bg-muted transition-colors"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+            )}
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -154,17 +187,17 @@ export function MedicationCard({ medication }: MedicationCardProps) {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Edit Form Dialog */}
+      {/* 수정 폼 다이얼로그 */}
       <MedicationForm
         open={showEditForm}
         onOpenChange={setShowEditForm}
         editMedication={medication}
       />
 
-      {/* Delete Confirmation Dialog */}
+      {/* 삭제 확인 다이얼로그 */}
       <AlertDialog open={showDeleteAlert} onOpenChange={setShowDeleteAlert}>
         <AlertDialogContent>
           <AlertDialogHeader>

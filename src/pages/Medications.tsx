@@ -1,106 +1,303 @@
 import { useState } from "react";
-import { Pill, Plus, AlertCircle, Loader2 } from "lucide-react";
+import {
+  Pill, Plus, Calendar, Clock, History,
+  Bell, Loader2, MessageCircle, X
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { MedicationCard } from "@/components/medications/MedicationCard";
 import { MedicationForm } from "@/components/medications/MedicationForm";
+import { MedicationSchedule } from "@/components/medications/MedicationSchedule";
+import { HealthSummaryCard } from "@/components/medications/HealthSummaryCard";
+import { MedicationChatPanel } from "@/components/medications/MedicationChatPanel";
 import { useTodayMedicationStats } from "@/hooks/useMedications";
+
+type ViewTab = "today" | "schedule" | "history";
 
 export default function Medications() {
   const [showAddForm, setShowAddForm] = useState(false);
+  const [activeView, setActiveView] = useState<ViewTab>("today");
+  const [showMobileChat, setShowMobileChat] = useState(false);
 
   const { total, taken, percentage, medications, isLoading, error } = useTodayMedicationStats();
 
+  const pendingMeds = medications.filter((m) => !m.medication_logs?.length);
+  const completedMeds = medications.filter((m) => m.medication_logs?.length > 0);
+
   return (
-    <div className="p-4 md:p-6 lg:p-8 max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-foreground">Medications</h1>
-          <p className="text-muted-foreground mt-1">Manage your medication schedule</p>
-        </div>
-        <Button
-          className="gap-2 rounded-xl shadow-glow"
-          onClick={() => setShowAddForm(true)}
-        >
-          <Plus className="w-4 h-4" />
-          Add Medication
-        </Button>
-      </div>
-
-      {/* Today's Progress */}
-      <div className="bg-gradient-to-br from-warning/10 to-warning/5 rounded-2xl border border-warning/20 p-5 mb-6 animate-slide-up">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-warning/20 flex items-center justify-center">
-              <Pill className="w-6 h-6 text-warning" />
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Today's Medications</p>
-              <p className="text-2xl font-bold text-foreground">
-                {isLoading ? "..." : `${taken} / ${total}`}
-              </p>
+    <div className="flex h-[calc(100vh-4rem)] gap-6 p-4 md:p-6 lg:p-8 bg-gradient-to-br from-background via-background to-accent/20">
+      {/* 왼쪽: 메인 콘텐츠 */}
+      <div className="flex-1 overflow-auto">
+        <div className="max-w-3xl mx-auto">
+          {/* 헤더 */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg shadow-primary/20">
+                    <Pill className="w-6 h-6 text-primary-foreground" />
+                  </div>
+                  <div>
+                    <h1 className="text-2xl md:text-3xl font-bold text-foreground">약물 관리</h1>
+                    <p className="text-muted-foreground text-sm">오늘의 복용 현황을 확인하세요</p>
+                  </div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {/* 모바일 챗봇 버튼 */}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="lg:hidden rounded-xl border-info/30 text-info hover:bg-info/10"
+                  onClick={() => setShowMobileChat(true)}
+                >
+                  <MessageCircle className="w-5 h-5" />
+                </Button>
+                <Button
+                  onClick={() => setShowAddForm(true)}
+                  className="gap-2 rounded-2xl bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/20 px-6"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span className="hidden sm:inline">약물 추가</span>
+                </Button>
+              </div>
             </div>
           </div>
-          <div className="text-right">
-            <span className="text-3xl font-bold text-warning">
-              {isLoading ? "..." : `${percentage}%`}
-            </span>
-            <p className="text-xs text-muted-foreground">completed</p>
+
+          {/* 탭 네비게이션 */}
+          <div className="flex gap-2 mb-6 p-1 bg-muted/50 rounded-2xl w-fit">
+            {[
+              { id: "today" as ViewTab, label: "오늘", icon: Calendar },
+              { id: "schedule" as ViewTab, label: "일정", icon: Clock },
+              { id: "history" as ViewTab, label: "기록", icon: History },
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveView(tab.id)}
+                className={cn(
+                  "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all",
+                  activeView === tab.id
+                    ? "bg-card text-foreground shadow-md"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <tab.icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* 오늘 탭 */}
+          {activeView === "today" && (
+            <>
+              {/* 로딩 상태 */}
+              {isLoading && (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              )}
+
+              {/* 에러 상태 */}
+              {error && (
+                <div className="bg-destructive/10 text-destructive rounded-xl p-4 text-center mb-6">
+                  <p>약물 데이터를 불러오는데 실패했습니다.</p>
+                  <p className="text-sm mt-1">Supabase 연결을 확인해주세요.</p>
+                </div>
+              )}
+
+              {!isLoading && !error && (
+                <>
+                  {/* 진행 현황 카드 */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                    {/* 오늘의 복용 현황 */}
+                    <div className="md:col-span-2 bg-gradient-to-br from-card to-card/80 rounded-3xl border border-border/50 p-6 shadow-lg">
+                      <div className="flex items-center justify-between mb-6">
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1">오늘의 복용 현황</p>
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-4xl font-bold text-foreground">{taken}</span>
+                            <span className="text-xl text-muted-foreground">/ {total}</span>
+                          </div>
+                        </div>
+                        {/* 원형 프로그레스 */}
+                        <div className="relative w-24 h-24">
+                          <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                            <circle
+                              cx="50"
+                              cy="50"
+                              r="40"
+                              fill="none"
+                              stroke="hsl(var(--muted))"
+                              strokeWidth="12"
+                            />
+                            <circle
+                              cx="50"
+                              cy="50"
+                              r="40"
+                              fill="none"
+                              stroke="hsl(var(--primary))"
+                              strokeWidth="12"
+                              strokeLinecap="round"
+                              strokeDasharray={`${total > 0 ? (taken / total) * 251.2 : 0} 251.2`}
+                              className="transition-all duration-500"
+                            />
+                          </svg>
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <span className="text-lg font-bold text-primary">
+                              {percentage}%
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 프로그레스 바 */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">복용 완료</span>
+                          <span className="text-success font-medium">{completedMeds.length}개</span>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-success to-success/70 rounded-full transition-all duration-500"
+                            style={{ width: total > 0 ? `${(completedMeds.length / total) * 100}%` : "0%" }}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">대기 중</span>
+                          <span className="text-warning font-medium">{pendingMeds.length}개</span>
+                        </div>
+                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-gradient-to-r from-warning to-warning/70 rounded-full transition-all duration-500"
+                            style={{ width: total > 0 ? `${(pendingMeds.length / total) * 100}%` : "0%" }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 건강 요약 (체중/칼로리) */}
+                    <div className="space-y-4">
+                      <HealthSummaryCard />
+                    </div>
+                  </div>
+
+                  {/* 빈 상태 */}
+                  {medications.length === 0 && (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Pill className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p className="text-lg mb-2">등록된 약물이 없습니다</p>
+                      <p className="text-sm">위의 "약물 추가" 버튼을 눌러 약물을 추가해보세요!</p>
+                    </div>
+                  )}
+
+                  {/* 복용 대기 */}
+                  {pendingMeds.length > 0 && (
+                    <div className="mb-6">
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="w-2 h-2 rounded-full bg-warning animate-pulse" />
+                        <h2 className="text-lg font-semibold text-foreground">복용 대기</h2>
+                        <span className="text-sm text-muted-foreground">({pendingMeds.length})</span>
+                      </div>
+                      <div className="space-y-3">
+                        {pendingMeds.map((med, index) => (
+                          <MedicationCard
+                            key={med.id}
+                            medication={med}
+                            animationDelay={index * 0.1}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 복용 완료 */}
+                  {completedMeds.length > 0 && (
+                    <div className="mb-6">
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="w-2 h-2 rounded-full bg-success" />
+                        <h2 className="text-lg font-semibold text-foreground">복용 완료</h2>
+                        <span className="text-sm text-muted-foreground">({completedMeds.length})</span>
+                      </div>
+                      <div className="space-y-3">
+                        {completedMeds.map((med, index) => (
+                          <MedicationCard
+                            key={med.id}
+                            medication={med}
+                            animationDelay={index * 0.1}
+                            completed
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 알림 배너 */}
+                  <div className="mt-8 flex items-center gap-4 p-4 bg-gradient-to-r from-info/10 to-info/5 border border-info/20 rounded-2xl">
+                    <div className="w-12 h-12 rounded-xl bg-info/20 flex items-center justify-center flex-shrink-0">
+                      <Bell className="w-6 h-6 text-info" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-foreground">알림 설정</p>
+                      <p className="text-sm text-muted-foreground">
+                        복용 시간에 맞춰 알림을 받으세요
+                      </p>
+                    </div>
+                    <Button variant="outline" size="sm" className="rounded-xl border-info/30 text-info hover:bg-info/10">
+                      설정하기
+                    </Button>
+                  </div>
+                </>
+              )}
+            </>
+          )}
+
+          {/* 일정 탭 */}
+          {activeView === "schedule" && (
+            <MedicationSchedule medications={medications} />
+          )}
+
+          {/* 기록 탭 */}
+          {activeView === "history" && (
+            <div className="bg-card rounded-3xl border border-border/50 p-8 text-center">
+              <History className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold text-foreground mb-2">복용 기록</h3>
+              <p className="text-muted-foreground">곧 추가될 기능입니다</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 오른쪽: AI 챗봇 패널 (데스크톱) */}
+      <div className="hidden lg:block w-[400px] flex-shrink-0 h-full">
+        <MedicationChatPanel />
+      </div>
+
+      {/* 모바일 챗봇 모달 */}
+      {showMobileChat && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          {/* 백드롭 */}
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setShowMobileChat(false)}
+          />
+          {/* 챗봇 패널 */}
+          <div className="absolute inset-4 md:inset-8 bg-background rounded-3xl overflow-hidden shadow-2xl">
+            <div className="relative h-full">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-3 top-3 z-10 rounded-xl"
+                onClick={() => setShowMobileChat(false)}
+              >
+                <X className="w-5 h-5" />
+              </Button>
+              <MedicationChatPanel />
+            </div>
           </div>
         </div>
-      </div>
-
-      {/* Loading State */}
-      {isLoading && (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
       )}
 
-      {/* Error State */}
-      {error && (
-        <div className="bg-destructive/10 text-destructive rounded-xl p-4 text-center">
-          <p>약물 데이터를 불러오는데 실패했습니다.</p>
-          <p className="text-sm mt-1">Supabase 연결을 확인해주세요.</p>
-        </div>
-      )}
-
-      {/* Empty State */}
-      {!isLoading && !error && medications.length === 0 && (
-        <div className="text-center py-12 text-muted-foreground">
-          <Pill className="h-12 w-12 mx-auto mb-4 opacity-50" />
-          <p className="text-lg mb-2">등록된 약물이 없습니다</p>
-          <p className="text-sm">위의 "Add Medication" 버튼을 눌러 약물을 추가해보세요!</p>
-        </div>
-      )}
-
-      {/* Medication List */}
-      {!isLoading && !error && medications.length > 0 && (
-        <div className="space-y-3">
-          {medications.map((medication, index) => (
-            <div
-              key={medication.id}
-              className="animate-slide-up"
-              style={{ animationDelay: `${index * 0.05}s` }}
-            >
-              <MedicationCard medication={medication} />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Reminder Note */}
-      <div className="mt-6 flex items-start gap-3 p-4 bg-info/5 border border-info/20 rounded-xl animate-slide-up" style={{ animationDelay: "0.3s" }}>
-        <AlertCircle className="w-5 h-5 text-info flex-shrink-0 mt-0.5" />
-        <div className="text-sm">
-          <p className="font-medium text-foreground">Medication Reminders</p>
-          <p className="text-muted-foreground mt-0.5">
-            Enable notifications in Settings to receive timely reminders for your medications.
-          </p>
-        </div>
-      </div>
-
-      {/* Add Medication Form */}
+      {/* 약물 추가 폼 */}
       <MedicationForm
         open={showAddForm}
         onOpenChange={setShowAddForm}
