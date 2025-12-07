@@ -25,7 +25,7 @@ export default function Medications() {
   const completedMeds = medications.filter((m) => m.medication_logs?.length > 0);
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] gap-6 p-4 md:p-6 lg:p-8 bg-gradient-to-br from-background via-background to-accent/20">
+    <div className="flex min-h-[calc(100vh-3.5rem)] gap-6 p-4 md:p-6 lg:p-8 bg-gradient-to-br from-background via-background to-accent/20">
       {/* 왼쪽: 메인 콘텐츠 */}
       <div className="flex-1 overflow-auto">
         <div className="max-w-6xl mx-auto">

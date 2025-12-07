@@ -96,14 +96,14 @@ export function ChatPanel() {
       : [{ id: 'welcome', role: 'assistant' as const, content: welcomeMessages[persona], created_at: new Date().toISOString() }];
 
   return (
-    <div className="flex flex-col h-full bg-card rounded-2xl border border-border shadow-sm overflow-hidden animate-slide-in-right">
+    <div className="flex flex-col h-full bg-card rounded-3xl border border-border/50 shadow-lg overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-3 p-4 border-b border-border bg-muted/30">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center shadow-glow">
-          <Sparkles className="w-5 h-5 text-primary-foreground" />
+      <div className="flex items-center gap-3 p-4 border-b border-border bg-gradient-to-r from-primary/10 to-primary/5">
+        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-md">
+          <Sparkles className="w-5 h-5 text-white" />
         </div>
         <div className="flex-1">
-          <h3 className="font-semibold text-foreground">AI Coach</h3>
+          <h3 className="font-semibold text-foreground">AI 식단 코치</h3>
           <div className="flex items-center gap-2">
             {(Object.keys(personaConfig) as CoachPersona[]).map((p) => {
               const config = personaConfig[p];
@@ -115,8 +115,8 @@ export function ChatPanel() {
                   className={cn(
                     "flex items-center gap-1 text-xs px-2 py-0.5 rounded-full transition-colors",
                     persona === p
-                      ? "bg-muted"
-                      : "hover:bg-muted/50 opacity-50"
+                      ? "bg-background/50"
+                      : "hover:bg-background/30 opacity-50"
                   )}
                 >
                   <Icon className={cn("w-3 h-3", config.color)} />
@@ -126,17 +126,23 @@ export function ChatPanel() {
             })}
           </div>
         </div>
-        {messages.length > 0 && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-            onClick={handleClearChat}
-            disabled={clearChat.isPending}
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {messages.length > 0 && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-destructive"
+              onClick={handleClearChat}
+              disabled={clearChat.isPending}
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          )}
+          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-success/10 rounded-full">
+            <span className="w-2 h-2 bg-success rounded-full animate-pulse" />
+            <span className="text-xs text-success font-medium">온라인</span>
+          </div>
+        </div>
       </div>
 
       {/* Messages */}
@@ -162,23 +168,35 @@ export function ChatPanel() {
                 >
                   <div
                     className={cn(
-                      "max-w-[85%] px-4 py-2.5 rounded-2xl text-sm whitespace-pre-wrap",
+                      "max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-relaxed",
                       message.role === "user"
-                        ? "bg-chat-user text-primary-foreground rounded-br-md"
-                        : "bg-chat-assistant text-foreground rounded-bl-md"
+                        ? "bg-primary text-white rounded-br-md"
+                        : "bg-muted text-foreground rounded-bl-md"
                     )}
                   >
-                    {message.content}
+                    <p className="whitespace-pre-wrap">{message.content}</p>
+                    <p className={cn(
+                      "text-[10px] mt-1.5",
+                      message.role === "user" ? "text-white/70" : "text-muted-foreground"
+                    )}>
+                      {new Date(message.created_at).toLocaleTimeString("ko-KR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </p>
                   </div>
                 </div>
               ))}
               {sendMessage.isPending && (
                 <div className="flex justify-start">
-                  <div className="bg-chat-assistant px-4 py-3 rounded-2xl rounded-bl-md">
-                    <div className="flex gap-1">
-                      <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                      <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                      <span className="w-2 h-2 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                  <div className="bg-muted px-4 py-3 rounded-2xl rounded-bl-md">
+                    <div className="flex items-center gap-2">
+                      <div className="flex gap-1">
+                        <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                        <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                        <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                      </div>
+                      <span className="text-xs text-muted-foreground">분석 중...</span>
                     </div>
                   </div>
                 </div>
@@ -200,15 +218,15 @@ export function ChatPanel() {
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="오늘 뭐 드셨어요?"
-            className="flex-1 rounded-xl bg-background border-border"
+            placeholder="오늘 뭐 드셨어요? (예: 점심에 김치찌개 먹었어)"
+            className="flex-1 rounded-xl bg-background border-border focus:border-primary"
             disabled={sendMessage.isPending}
           />
           <Button
             type="submit"
             size="icon"
             disabled={!input.trim() || sendMessage.isPending}
-            className="rounded-xl shadow-glow"
+            className="rounded-xl bg-primary hover:bg-primary/90 disabled:opacity-50"
           >
             <Send className="w-4 h-4" />
           </Button>
