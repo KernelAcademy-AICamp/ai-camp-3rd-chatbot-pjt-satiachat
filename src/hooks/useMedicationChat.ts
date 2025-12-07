@@ -1,8 +1,12 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase, getCurrentUserId } from '@/lib/supabase';
 
 // RAG API endpoint (Python FastAPI backend)
 const RAG_API_URL = import.meta.env.VITE_RAG_API_URL || 'http://localhost:8000';
+
+// 컨텍스트 캐시 (5분 TTL)
+const CONTEXT_CACHE_TTL = 5 * 60 * 1000;
+let cachedContext: { data: string; timestamp: number; userId: string } | null = null;
 
 export interface MedicationChatMessage {
   id: string;
@@ -12,10 +16,19 @@ export interface MedicationChatMessage {
 }
 
 /**
- * 사용자 건강 데이터 수집
+ * 사용자 건강 데이터 수집 (캐싱 적용)
  */
 async function getUserHealthContext(): Promise<string> {
   const userId = getCurrentUserId();
+
+  // 캐시 유효성 검사
+  if (
+    cachedContext &&
+    cachedContext.userId === userId &&
+    Date.now() - cachedContext.timestamp < CONTEXT_CACHE_TTL
+  ) {
+    return cachedContext.data;
+  }
 
   // 1. 프로필 정보
   const { data: profile } = await supabase
@@ -134,6 +147,9 @@ async function getUserHealthContext(): Promise<string> {
   } else {
     context += '- 등록된 약물 없음\n';
   }
+
+  // 캐시 저장
+  cachedContext = { data: context, timestamp: Date.now(), userId };
 
   return context;
 }

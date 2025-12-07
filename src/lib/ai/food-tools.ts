@@ -126,7 +126,13 @@ export const foodLoggingTools: OpenAI.Chat.ChatCompletionTool[] = [
       name: 'log_meal',
       description: `사용자가 먹은 음식을 기록합니다.
 "~먹었어", "~섭취했어", "~먹음" 등 음식 섭취를 말하면 호출하세요.
-영양정보(칼로리, 단백질, 탄수화물, 지방)는 일반적인 값으로 추정하세요.`,
+
+영양정보 추정 기준 (1인분 기준):
+- 밥: 300kcal, 단백질5g, 탄수화물65g, 지방1g
+- 국/찌개: 100-200kcal
+- 고기류 100g: 단백질20-25g, 지방10-20g
+- 치킨 1/4마리: 450kcal, 단백질35g
+- 라면: 500kcal, 탄수화물80g`,
       parameters: {
         type: 'object',
         properties: {
