@@ -130,7 +130,7 @@ export default function Dashboard() {
             onClick={() => setShowMobileChat(false)}
           />
           {/* Chat Panel */}
-          <div className="absolute inset-4 md:inset-8 bg-background rounded-3xl shadow-2xl flex flex-col max-h-[calc(100vh-2rem)] md:max-h-[calc(100vh-4rem)]">
+          <div className="absolute top-4 left-4 right-4 bottom-20 md:top-8 md:left-8 md:right-8 md:bottom-8 bg-background rounded-3xl shadow-2xl flex flex-col overflow-hidden">
             <div className="relative flex-1 flex flex-col min-h-0">
               <Button
                 variant="ghost"
