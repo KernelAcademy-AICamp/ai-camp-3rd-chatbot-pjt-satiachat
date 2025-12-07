@@ -59,14 +59,14 @@ export function MedicationChatPanel() {
       </div>
 
       {/* 빠른 질문 버튼 */}
-      <div className="p-3 border-b border-border bg-muted/20">
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+      <div className="p-3 border-b border-border bg-muted/20 flex-shrink-0">
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide snap-x snap-mandatory">
           {quickActions.map((action) => (
             <button
               key={action.label}
               onClick={() => handleSend(action.query, action.useRag)}
               disabled={isLoading}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-background border border-border rounded-full text-xs font-medium text-foreground hover:border-info hover:bg-info/5 transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-background border border-border rounded-full text-xs font-medium text-foreground hover:border-info hover:bg-info/5 transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed snap-start flex-shrink-0"
             >
               <action.icon className="w-3.5 h-3.5 text-info" />
               {action.label}
@@ -76,7 +76,7 @@ export function MedicationChatPanel() {
       </div>
 
       {/* 메시지 영역 */}
-      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+      <ScrollArea className="flex-1 p-4 min-h-0" ref={scrollRef}>
         <div className="space-y-4">
           {messages.length === 0 && (
             <div className="text-center py-8">

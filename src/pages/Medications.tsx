@@ -1,7 +1,7 @@
 import { useState } from "react";
 import {
   Pill, Plus, Calendar, Clock, History,
-  Bell, Loader2, MessageCircle, X
+  Bell, Loader2, X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -10,6 +10,7 @@ import { MedicationForm } from "@/components/medications/MedicationForm";
 import { MedicationSchedule } from "@/components/medications/MedicationSchedule";
 import { HealthSummaryCard } from "@/components/medications/HealthSummaryCard";
 import { MedicationChatPanel } from "@/components/medications/MedicationChatPanel";
+import { FloatingChatButton } from "@/components/ui/FloatingChatButton";
 import { useTodayMedicationStats } from "@/hooks/useMedications";
 
 type ViewTab = "today" | "schedule" | "history";
@@ -42,24 +43,13 @@ export default function Medications() {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                {/* 모바일 챗봇 버튼 */}
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="lg:hidden rounded-xl border-info/30 text-info hover:bg-info/10"
-                  onClick={() => setShowMobileChat(true)}
-                >
-                  <MessageCircle className="w-5 h-5" />
-                </Button>
-                <Button
-                  onClick={() => setShowAddForm(true)}
-                  className="gap-2 rounded-2xl bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/20 px-6"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span className="hidden sm:inline">약물 추가</span>
-                </Button>
-              </div>
+              <Button
+                onClick={() => setShowAddForm(true)}
+                className="gap-2 rounded-2xl bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/20 px-6"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="hidden sm:inline">약물 추가</span>
+              </Button>
             </div>
           </div>
 
@@ -272,6 +262,13 @@ export default function Medications() {
         </div>
       </div>
 
+      {/* 플로팅 챗봇 버튼 (모바일) */}
+      <FloatingChatButton
+        isOpen={showMobileChat}
+        onClick={() => setShowMobileChat(!showMobileChat)}
+        className="bg-gradient-to-br from-info to-info/80 shadow-lg shadow-info/30"
+      />
+
       {/* 모바일 챗봇 모달 */}
       {showMobileChat && (
         <div className="fixed inset-0 z-50 lg:hidden">
@@ -281,8 +278,8 @@ export default function Medications() {
             onClick={() => setShowMobileChat(false)}
           />
           {/* 챗봇 패널 */}
-          <div className="absolute inset-4 md:inset-8 bg-background rounded-3xl overflow-hidden shadow-2xl">
-            <div className="relative h-full">
+          <div className="absolute inset-4 md:inset-8 bg-background rounded-3xl shadow-2xl flex flex-col max-h-[calc(100vh-2rem)] md:max-h-[calc(100vh-4rem)]">
+            <div className="relative flex-1 flex flex-col min-h-0">
               <Button
                 variant="ghost"
                 size="icon"

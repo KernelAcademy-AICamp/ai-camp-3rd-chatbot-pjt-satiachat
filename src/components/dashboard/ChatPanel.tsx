@@ -146,7 +146,7 @@ export function ChatPanel() {
       </div>
 
       {/* Messages */}
-      <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+      <ScrollArea className="flex-1 p-4 min-h-0" ref={scrollRef}>
         <div className="space-y-4">
           {isLoadingMessages ? (
             <div className="flex justify-center py-8">
