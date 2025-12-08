@@ -2,7 +2,16 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase, getCurrentUserId } from '@/lib/supabase';
 import type { ChatMessage, MealType } from '@/types/domain';
 import OpenAI from 'openai';
-import { foodLoggingTools, parseLogMealArgs, parseGetMealsArgs, parseDeleteMealArgs, parseUpdateMealArgs } from '@/lib/ai/food-tools';
+import { parseLogMealArgs, parseGetMealsArgs, parseDeleteMealArgs, parseUpdateMealArgs, getToolsForIntent } from '@/lib/ai/food-tools';
+import { classifyIntent, classifyCasualChat, type ChatIntent } from '@/lib/ai/intent-classifier';
+import { detectSituation, type SituationType, type SituationContext } from '@/lib/ai/situation-detector';
+import {
+  mealResponses,
+  casualResponses,
+  getRandomResponse,
+  getAchievementResponse,
+  getStreakMilestoneResponse,
+} from '@/lib/ai/persona-responses';
 
 // OpenAI client
 const openai = new OpenAI({
@@ -12,7 +21,86 @@ const openai = new OpenAI({
 
 export type CoachPersona = 'cold' | 'bright' | 'strict';
 
-// 공통 기본 지침 (토큰 효율화)
+// ============================================
+// 모듈화된 프롬프트 시스템
+// ============================================
+
+// 핵심 규칙 (압축, 항상 포함) - 오늘 날짜 명시!
+const CORE_RULES = `당신은 식단 관리 AI 코치입니다.
+한국어로 2-3문장 이내 응답. 캐릭터 말투 필수 유지.
+중요: 날짜 미언급시 무조건 오늘 날짜 사용.`;
+
+// 페르소나별 프롬프트 (압축 + 예시)
+const PERSONA_PROMPTS: Record<CoachPersona, string> = {
+  cold: `냥이 코치 (도도한 고양이)
+- 말투: ~냐/~다냥 (예: "기록했다냥", "확인해봐냥")
+- 이모지 절대 금지. 팩트 위주. 짧고 핵심만.`,
+  bright: `댕댕이 코치 (밝은 강아지)
+- 말투: 멍멍! ~요! (예: "기록했어요! 멍멍!", "잘했어요!")
+- 이모지 적극 사용 🐾🦴💪✨🎉 긍정적, 격려.`,
+  strict: `꿀꿀이 코치 (엄격한 돼지)
+- 말투: 꿀꿀! ~야! (예: "꿀꿀! 기록했어!", "제대로 먹어!")
+- 이모지 최소. 칼로리 엄격. 핑계 금지!`,
+};
+
+// 조건부 모듈 (필요시만 포함)
+const PROMPT_MODULES = {
+  calorie_guide: `칼로리 추정: 밥300, 찌개150, 치킨450, 라면500, 샐러드200, 닭가슴살150, 아메리카노5`,
+  meal_logging: `음식 언급 시 log_meal 함수 호출. 영양정보 추정하여 기록.`,
+  meal_query: `조회 요청 시 get_meals 함수 호출.`,
+  meal_modify: `삭제/수정 요청 시 해당 함수 호출.
+패턴: "A 대신 B" → old_food_name=A, new_food=B
+날짜 미언급 = 오늘. "어제"는 오늘-1일.`,
+  late_night: `야식 상황. 건강 영향 가볍게 언급하되 비난하지 마세요.`,
+  overeating: `과식 상황. 격려하면서 내일 계획 제안.`,
+  healthy: `건강한 선택. 적극적으로 칭찬.`,
+  junk: `고칼로리 음식. 균형에 대해 가볍게 언급.`,
+  goal_achieved: `목표 달성! 크게 축하.`,
+};
+
+// 동적 시스템 프롬프트 빌더
+function buildSystemPrompt(
+  persona: CoachPersona,
+  intent: ChatIntent,
+  situation?: SituationType,
+  userContext?: { todayCalories: number; targetCalories: number }
+): string {
+  // 오늘 날짜를 항상 명시!
+  const todayDate = getToday();
+  const parts: string[] = [
+    CORE_RULES,
+    `오늘 날짜: ${todayDate}`,
+    PERSONA_PROMPTS[persona],
+  ];
+
+  // 의도별 모듈 추가
+  if (intent === 'meal_logging') {
+    parts.push(PROMPT_MODULES.calorie_guide);
+    parts.push(PROMPT_MODULES.meal_logging);
+  } else if (intent === 'meal_query') {
+    parts.push(PROMPT_MODULES.meal_query);
+  } else if (intent === 'meal_modify') {
+    parts.push(PROMPT_MODULES.meal_modify);
+  }
+
+  // 상황별 모듈 추가
+  if (situation && situation !== 'default') {
+    const situationModule = PROMPT_MODULES[situation as keyof typeof PROMPT_MODULES];
+    if (situationModule) {
+      parts.push(situationModule);
+    }
+  }
+
+  // 사용자 컨텍스트 (식단 관련 의도일 때만)
+  if (userContext && intent !== 'casual_chat') {
+    const ratio = Math.round((userContext.todayCalories / userContext.targetCalories) * 100);
+    parts.push(`현재 상황: 오늘 ${userContext.todayCalories}kcal / 목표 ${userContext.targetCalories}kcal (${ratio}%)`);
+  }
+
+  return parts.join('\n');
+}
+
+// 기존 전체 프롬프트 (하위 호환성)
 const BASE_INSTRUCTIONS = `당신은 식단 관리 AI 코치입니다.
 
 ## 핵심 규칙
@@ -27,7 +115,6 @@ const BASE_INSTRUCTIONS = `당신은 식단 관리 AI 코치입니다.
 - 커피(아메리카노): 5kcal, 라떼: 150kcal
 - 과일 1개(사과/바나나): 80-100kcal`;
 
-// System prompts for each persona (동물 캐릭터)
 const systemPrompts: Record<CoachPersona, string> = {
   cold: `${BASE_INSTRUCTIONS}
 
@@ -578,6 +665,70 @@ export function useChatMessages(limit: number = 50) {
   });
 }
 
+/**
+ * 사용자 컨텍스트 조회 (조건부 실행)
+ * - 오늘 총 섭취 칼로리
+ * - 목표 칼로리
+ * - 연속 기록 일수
+ */
+async function fetchUserContext(userId: string): Promise<{
+  todayCalories: number;
+  targetCalories: number;
+  consecutiveDays: number;
+}> {
+  const today = getToday();
+
+  // 1. 오늘 총 칼로리 조회
+  const { data: todayMeals } = await supabase
+    .from('meals')
+    .select('total_calories')
+    .eq('user_id', userId)
+    .eq('date', today);
+
+  const todayCalories = (todayMeals || []).reduce(
+    (sum, meal) => sum + (meal.total_calories || 0),
+    0
+  );
+
+  // 2. 목표 칼로리 조회
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('target_calories')
+    .eq('user_id', userId)
+    .single();
+
+  const targetCalories = profile?.target_calories || 2000;
+
+  // 3. 연속 기록 일수 계산
+  let consecutiveDays = 0;
+  const checkDate = new Date();
+  checkDate.setDate(checkDate.getDate() - 1); // 어제부터 시작
+
+  // 최대 100일까지 체크
+  for (let i = 0; i < 100; i++) {
+    const year = checkDate.getFullYear();
+    const month = String(checkDate.getMonth() + 1).padStart(2, '0');
+    const day = String(checkDate.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
+
+    const { data: meals } = await supabase
+      .from('meals')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('date', dateStr)
+      .limit(1);
+
+    if (meals && meals.length > 0) {
+      consecutiveDays++;
+      checkDate.setDate(checkDate.getDate() - 1);
+    } else {
+      break;
+    }
+  }
+
+  return { todayCalories, targetCalories, consecutiveDays };
+}
+
 // Send message and get AI response
 export function useSendMessage() {
   const queryClient = useQueryClient();
@@ -591,7 +742,11 @@ export function useSendMessage() {
       content: string;
       persona: CoachPersona;
     }): Promise<{ userMessage: ChatMessage; assistantMessage: ChatMessage }> => {
-      // 1. Save user message to Supabase
+      // 1. 의도 분류 (키워드 기반, 빠름)
+      const intent = classifyIntent(content);
+      console.log('[ChatBot] Intent:', intent);
+
+      // 2. Save user message to Supabase
       const { data: userMsg, error: userError } = await supabase
         .from('chat_messages')
         .insert({
@@ -605,12 +760,38 @@ export function useSendMessage() {
 
       if (userError) throw userError;
 
-      // 2. Immediately update cache to show user message (optimistic update)
+      // 3. Immediately update cache to show user message (optimistic update)
       queryClient.setQueryData<ChatMessage[]>(chatKeys.messages(), (old) => {
         return old ? [...old, userMsg] : [userMsg];
       });
 
-      // 3. Get recent messages for context
+      // 4. 조건부 사용자 컨텍스트 조회 (식단 관련 의도일 때만)
+      let userContext: { todayCalories: number; targetCalories: number; consecutiveDays: number } | undefined;
+
+      if (intent !== 'casual_chat') {
+        userContext = await fetchUserContext(userId);
+        console.log('[ChatBot] User context:', userContext);
+      }
+
+      // 5. 상황 감지 (식단 기록 의도일 때)
+      let situation: SituationType = 'default';
+      if (intent === 'meal_logging' && userContext) {
+        const currentHour = new Date().getHours();
+        // 음식 키워드 추출 (간단히)
+        const foodMentions = content.split(/[,\s]+/).filter(word => word.length > 1);
+
+        situation = detectSituation({
+          currentHour,
+          todayCalories: userContext.todayCalories,
+          targetCalories: userContext.targetCalories,
+          foods: foodMentions,
+          consecutiveDays: userContext.consecutiveDays,
+          isFirstMealToday: userContext.todayCalories === 0,
+        });
+        console.log('[ChatBot] Situation:', situation);
+      }
+
+      // 6. Get recent messages for context
       const { data: recentMessages } = await supabase
         .from('chat_messages')
         .select('role, content')
@@ -619,33 +800,48 @@ export function useSendMessage() {
         .order('created_at', { ascending: false })
         .limit(10);
 
-      // 4. Build messages array for OpenAI
+      // 7. 동적 시스템 프롬프트 빌드 (토큰 효율화)
+      const systemPrompt = buildSystemPrompt(persona, intent, situation, userContext);
+      console.log('[ChatBot] System prompt length:', systemPrompt.length);
+
+      // 8. Build messages array for OpenAI
       const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-        { role: 'system', content: systemPrompts[persona] },
+        { role: 'system', content: systemPrompt },
         ...(recentMessages || []).reverse().map((msg) => ({
           role: msg.role as 'user' | 'assistant',
           content: msg.content,
         })),
       ];
 
-      // 5. Call OpenAI API with Function Calling
-      const completion = await openai.chat.completions.create({
+      // 9. 의도별 도구 선택 (토큰 절감)
+      const tools = getToolsForIntent(intent);
+      console.log('[ChatBot] Tools count:', tools.length);
+
+      // 10. Call OpenAI API
+      const completionParams: OpenAI.Chat.ChatCompletionCreateParamsNonStreaming = {
         model: 'gpt-4o-mini',
         messages,
-        tools: foodLoggingTools,
-        tool_choice: 'auto',
         max_tokens: 500,
         temperature: persona === 'cold' ? 0.3 : persona === 'strict' ? 0.5 : 0.7,
-      });
+      };
+
+      // 도구가 있을 때만 추가
+      if (tools.length > 0) {
+        completionParams.tools = tools;
+        completionParams.tool_choice = 'auto';
+      }
+
+      const completion = await openai.chat.completions.create(completionParams);
 
       const responseMessage = completion.choices[0]?.message;
       let assistantContent = responseMessage?.content || '';
+      let loggedFoods: string[] = [];
 
-      // 6. Handle Function Calling
+      // 11. Handle Function Calling
       if (responseMessage?.tool_calls && responseMessage.tool_calls.length > 0) {
         const toolCall = responseMessage.tool_calls[0];
 
-        // 6-1. 식단 조회 (get_meals)
+        // 11-1. 식단 조회 (get_meals) + 캐릭터 말투 적용
         if (toolCall.function.name === 'get_meals') {
           const args = parseGetMealsArgs(toolCall.function.arguments);
           console.log('[ChatBot] get_meals args:', args);
@@ -653,10 +849,17 @@ export function useSendMessage() {
           const result = await getMealsData(args.date!, args.meal_type!);
           console.log('[ChatBot] getMealsData result:', result);
 
-          assistantContent = result.message;
+          // 페르소나별 조회 응답
+          const queryPrefixes: Record<CoachPersona, string[]> = {
+            cold: ['확인했다냥.', '조회했다냥.', '여기 있다냥.'],
+            bright: ['확인했어요! 🔍', '찾았어요! 📋', '여기 있어요! ✨'],
+            strict: ['꿀꿀! 확인했어!', '조회 완료야!', '여기 봐!'],
+          };
+          const prefix = getRandomResponse(queryPrefixes[persona]);
+          assistantContent = `${prefix} ${result.message}`;
         }
 
-        // 6-2. 식단 삭제 (delete_meal)
+        // 11-2. 식단 삭제 (delete_meal) + 캐릭터 말투 적용
         if (toolCall.function.name === 'delete_meal') {
           const args = parseDeleteMealArgs(toolCall.function.arguments);
           console.log('[ChatBot] delete_meal args:', args);
@@ -665,17 +868,30 @@ export function useSendMessage() {
             const result = await deleteMealData(args.date, args.meal_type, args.food_name);
             console.log('[ChatBot] deleteMealData result:', result);
 
-            // 성공한 경우 UI 업데이트
             if (result.success) {
               queryClient.invalidateQueries({ queryKey: ['meals'] });
               queryClient.invalidateQueries({ queryKey: ['todayCalories'] });
-            }
 
-            assistantContent = result.message;
+              // 페르소나별 삭제 성공 응답
+              const deleteSuffixes: Record<CoachPersona, string[]> = {
+                cold: ['지웠다냥.', '삭제했다냥. 없던 일로.', '처리했다냥.'],
+                bright: ['삭제했어요! 새로 시작해요! 💪', '지웠어요! 괜찮아요! 🐾', '처리 완료! ✨'],
+                strict: ['꿀꿀! 삭제했어!', '지웠어! 다음엔 제대로!', '처리 완료야!'],
+              };
+              assistantContent = `${result.message} ${getRandomResponse(deleteSuffixes[persona])}`;
+            } else {
+              // 페르소나별 삭제 실패 응답
+              const deleteFailSuffixes: Record<CoachPersona, string[]> = {
+                cold: ['그런 기록 없다냥.', '찾을 수 없다냥.'],
+                bright: ['기록을 못 찾았어요! 다시 확인해볼까요? 🤔', '없는 것 같아요! 💦'],
+                strict: ['꿀꿀! 없는 기록이야!', '못 찾겠어! 다시 확인해!'],
+              };
+              assistantContent = `${result.message} ${getRandomResponse(deleteFailSuffixes[persona])}`;
+            }
           }
         }
 
-        // 6-3. 식단 수정 (update_meal)
+        // 11-3. 식단 수정 (update_meal) + 캐릭터 말투 적용
         if (toolCall.function.name === 'update_meal') {
           const args = parseUpdateMealArgs(toolCall.function.arguments);
           console.log('[ChatBot] update_meal args:', args);
@@ -689,30 +905,42 @@ export function useSendMessage() {
             );
             console.log('[ChatBot] updateMealData result:', result);
 
-            // 성공한 경우 UI 업데이트
             if (result.success) {
               queryClient.invalidateQueries({ queryKey: ['meals'] });
               queryClient.invalidateQueries({ queryKey: ['todayCalories'] });
-            }
 
-            assistantContent = result.message;
+              // 페르소나별 수정 성공 응답
+              const updateSuffixes: Record<CoachPersona, string[]> = {
+                cold: ['바꿨다냥.', '수정했다냥. 확인해봐.', '고쳤다냥.'],
+                bright: ['수정했어요! 잘했어요! 🐾', '바꿨어요! 완벽해요! 💪', '고쳤어요! ✨'],
+                strict: ['꿀꿀! 수정 완료!', '바꿨어! 제대로네!', '고쳤어! 이제 맞아!'],
+              };
+              assistantContent = `${result.message} ${getRandomResponse(updateSuffixes[persona])}`;
+            } else {
+              // 페르소나별 수정 실패 응답
+              const updateFailSuffixes: Record<CoachPersona, string[]> = {
+                cold: ['그 음식 기록이 없다냥.', '찾을 수 없다냥. 다시 확인해봐.'],
+                bright: ['기록을 못 찾았어요! 다시 확인해볼까요? 🤔', '그 음식이 없는 것 같아요! 💦'],
+                strict: ['꿀꿀! 없는 기록이야!', '못 찾겠어! 제대로 말해!'],
+              };
+              assistantContent = `${result.message} ${getRandomResponse(updateFailSuffixes[persona])}`;
+            }
           }
         }
 
-        // 6-4. 식단 기록 (log_meal)
+        // 11-4. 식단 기록 (log_meal) + 캐릭터 반응 추가
         if (toolCall.function.name === 'log_meal') {
           const args = parseLogMealArgs(toolCall.function.arguments);
           console.log('[ChatBot] log_meal args:', args);
 
           if (args) {
-            // 날짜 검증: AI가 잘못된 날짜를 보내면 오늘 날짜로 강제
+            // 날짜 검증
             let validDate = getToday();
             if (args.date) {
               const inputDate = new Date(args.date);
               const today = new Date();
               const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-              // 미래 날짜이거나 1주일 이전이면 오늘로 강제
               if (inputDate > today || inputDate < oneWeekAgo) {
                 console.warn('[ChatBot] Invalid date from AI, using today:', args.date);
                 validDate = getToday();
@@ -721,7 +949,10 @@ export function useSendMessage() {
               }
             }
 
-            // AI가 추정한 영양정보로 직접 저장 (DB 검색 없음)
+            // 음식 이름 추출 (상황 감지용)
+            loggedFoods = args.foods.map(f => f.name);
+
+            // AI가 추정한 영양정보로 직접 저장
             const logResult = await logMealDirectly(
               args.meal_type || inferMealType(),
               validDate,
@@ -737,23 +968,64 @@ export function useSendMessage() {
 
             console.log('[ChatBot] logResult:', logResult);
 
-            // 성공한 경우에만 meals 쿼리 무효화하여 UI 업데이트
             if (logResult.success) {
               queryClient.invalidateQueries({ queryKey: ['meals'] });
               queryClient.invalidateQueries({ queryKey: ['todayCalories'] });
-            }
 
-            assistantContent = logResult.message;
+              // 🎯 캐릭터 반응 추가 (핵심 개선!)
+              const newCalories = args.foods.reduce((sum, f) => sum + f.calories, 0);
+              const updatedTodayCalories = (userContext?.todayCalories || 0) + newCalories;
+
+              // 상황 재감지 (기록 후)
+              const postSituation = detectSituation({
+                currentHour: new Date().getHours(),
+                todayCalories: updatedTodayCalories,
+                targetCalories: userContext?.targetCalories || 2000,
+                foods: loggedFoods,
+                consecutiveDays: userContext?.consecutiveDays || 0,
+                isFirstMealToday: false,
+              });
+
+              // 페르소나별 랜덤 멘트 선택
+              const responses = mealResponses[persona][postSituation];
+              const characterResponse = getRandomResponse(responses);
+
+              // 달성률 멘트 추가
+              const achievementComment = userContext?.targetCalories
+                ? ' ' + getAchievementResponse(persona, updatedTodayCalories, userContext.targetCalories)
+                : '';
+
+              // 연속 기록 마일스톤 체크
+              const streakComment = getStreakMilestoneResponse(persona, userContext?.consecutiveDays || 0);
+
+              // 최종 응답 조합
+              assistantContent = characterResponse + achievementComment + (streakComment ? '\n\n' + streakComment : '');
+            } else {
+              assistantContent = logResult.message;
+            }
           }
         }
       }
 
-      // 7. Fallback if no content
+      // 12. 일상 대화 처리 (Function Calling 없이)
+      if (intent === 'casual_chat' && !assistantContent) {
+        // AI 응답을 그대로 사용 (캐릭터성 유지됨)
+        assistantContent = responseMessage?.content || '';
+
+        // AI 응답이 비었으면 멘트 풀에서 가져오기
+        if (!assistantContent) {
+          const casualType = classifyCasualChat(content);
+          const responses = casualResponses[persona][casualType];
+          assistantContent = getRandomResponse(responses);
+        }
+      }
+
+      // 13. Fallback if no content
       if (!assistantContent) {
         assistantContent = '응답을 생성할 수 없습니다.';
       }
 
-      // 8. Save assistant message to Supabase
+      // 14. Save assistant message to Supabase
       const { data: assistantMsg, error: assistantError } = await supabase
         .from('chat_messages')
         .insert({

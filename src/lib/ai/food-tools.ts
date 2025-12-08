@@ -16,98 +16,140 @@ function getTodayLocal(): string {
   return `${year}-${month}-${day}`;
 }
 
-export const foodLoggingTools: OpenAI.Chat.ChatCompletionTool[] = [
-  // 1. 식단 조회 기능
-  {
-    type: 'function',
-    function: {
-      name: 'get_meals',
-      description: `사용자의 식단 기록을 조회합니다.
-사용자가 "오늘 뭐 먹었지?", "아침에 뭐 먹었어?", "어제 식단 알려줘", "이번주 먹은거" 등 식단 조회를 요청하면 이 함수를 호출하세요.
-
-조회 후 결과를 친절하게 요약해서 알려주세요:
-- 각 끼니별 음식 목록
-- 총 칼로리 및 영양소 합계
-- 목표 대비 진행 상황 (가능한 경우)`,
-      parameters: {
-        type: 'object',
-        properties: {
-          date: {
-            type: 'string',
-            description: 'YYYY-MM-DD 형식의 날짜. 기본값은 오늘. "어제"는 어제 날짜, "이번주"는 최근 7일.',
-          },
-          meal_type: {
-            type: 'string',
-            enum: ['breakfast', 'lunch', 'dinner', 'snack', 'all'],
-            description: '조회할 식사 종류. 기본값은 "all" (전체).',
-          },
+// 개별 도구 정의 (조건부 로딩용)
+export const getMealsTool: OpenAI.Chat.ChatCompletionTool = {
+  type: 'function',
+  function: {
+    name: 'get_meals',
+    description: `사용자의 식단 기록을 조회합니다.
+사용자가 "오늘 뭐 먹었지?", "아침에 뭐 먹었어?", "어제 식단 알려줘" 등 식단 조회를 요청하면 이 함수를 호출하세요.`,
+    parameters: {
+      type: 'object',
+      properties: {
+        date: {
+          type: 'string',
+          description: 'YYYY-MM-DD 형식의 날짜. 기본값은 오늘.',
         },
-        required: [],
+        meal_type: {
+          type: 'string',
+          enum: ['breakfast', 'lunch', 'dinner', 'snack', 'all'],
+          description: '조회할 식사 종류. 기본값은 "all".',
+        },
       },
+      required: [],
     },
   },
-  // 2. 식단 삭제 기능
-  {
-    type: 'function',
-    function: {
-      name: 'delete_meal',
-      description: `사용자의 식단 기록을 삭제합니다.
-사용자가 "취소해줘", "삭제해줘", "지워줘", "없던걸로 해줘" 등 삭제를 요청하면 이 함수를 호출하세요.
+};
 
-삭제 전에 먼저 get_meals로 조회해서 어떤 기록이 있는지 확인하고, 삭제할 대상을 명확히 파악하세요.
-삭제 완료 후 결과를 알려주세요.`,
-      parameters: {
-        type: 'object',
-        properties: {
-          date: {
-            type: 'string',
-            description: 'YYYY-MM-DD 형식의 날짜. 기본값은 오늘.',
-          },
-          meal_type: {
-            type: 'string',
-            enum: ['breakfast', 'lunch', 'dinner', 'snack'],
-            description: '삭제할 식사 종류.',
-          },
-          food_name: {
-            type: 'string',
-            description: '삭제할 특정 음식 이름 (선택). 지정하지 않으면 해당 끼니 전체 삭제.',
-          },
+export const deleteMealTool: OpenAI.Chat.ChatCompletionTool = {
+  type: 'function',
+  function: {
+    name: 'delete_meal',
+    description: `사용자의 식단 기록을 삭제합니다.
+
+예시:
+- "점심 피자 지워줘" → meal_type: "lunch", food_name: "피자"
+- "아침 취소해줘" → meal_type: "breakfast" (전체 삭제)
+- "어제 저녁 삭제" → date: 어제날짜, meal_type: "dinner"
+
+중요: 날짜를 언급하지 않으면 반드시 오늘 날짜를 사용하세요.`,
+    parameters: {
+      type: 'object',
+      properties: {
+        date: {
+          type: 'string',
+          description: 'YYYY-MM-DD 형식. 미지정시 오늘 날짜 사용. "어제"는 오늘-1일로 계산.'
         },
-        required: ['meal_type'],
+        meal_type: {
+          type: 'string',
+          enum: ['breakfast', 'lunch', 'dinner', 'snack'],
+          description: '삭제할 식사 종류.',
+        },
+        food_name: { type: 'string', description: '삭제할 특정 음식 이름. 미지정시 해당 끼니 전체 삭제.' },
       },
+      required: ['meal_type'],
     },
   },
-  // 3. 식단 수정 기능
-  {
-    type: 'function',
-    function: {
-      name: 'update_meal',
-      description: `사용자의 식단 기록을 수정합니다.
-사용자가 "바꿔줘", "수정해줘", "~가 아니라 ~였어", "~로 변경해줘" 등 수정을 요청하면 이 함수를 호출하세요.
+};
 
-수정 완료 후 변경된 내용을 알려주세요.`,
-      parameters: {
-        type: 'object',
-        properties: {
-          date: {
-            type: 'string',
-            description: 'YYYY-MM-DD 형식의 날짜. 기본값은 오늘.',
+export const updateMealTool: OpenAI.Chat.ChatCompletionTool = {
+  type: 'function',
+  function: {
+    name: 'update_meal',
+    description: `사용자의 식단 기록을 수정합니다.
+
+패턴 인식 (중요!):
+- "A 대신 B 먹었어" → old_food_name: "A", new_food.name: "B"
+- "A 말고 B였어" → old_food_name: "A", new_food.name: "B"
+- "A를 B로 바꿔줘" → old_food_name: "A", new_food.name: "B"
+
+예시:
+- "점심에 피자 대신 닭가슴살 샐러드 먹었어, 수정해줘"
+  → meal_type: "lunch", old_food_name: "피자", new_food: {name: "닭가슴살 샐러드", calories: 350, ...}
+- "아침 라면을 계란후라이로 바꿔"
+  → meal_type: "breakfast", old_food_name: "라면", new_food: {name: "계란후라이", calories: 180, ...}
+
+중요: 날짜를 언급하지 않으면 반드시 오늘 날짜를 사용하세요.
+칼로리 추정: 밥300, 치킨450, 라면500, 샐러드200, 닭가슴살150, 계란후라이180`,
+    parameters: {
+      type: 'object',
+      properties: {
+        date: {
+          type: 'string',
+          description: 'YYYY-MM-DD 형식. 미지정시 오늘 날짜 사용. "어제"는 오늘-1일로 계산.'
+        },
+        meal_type: {
+          type: 'string',
+          enum: ['breakfast', 'lunch', 'dinner', 'snack'],
+          description: '수정할 식사 종류. "점심"=lunch, "아침"=breakfast, "저녁"=dinner',
+        },
+        old_food_name: {
+          type: 'string',
+          description: '수정 대상 기존 음식 이름. "A 대신 B"에서 A에 해당.'
+        },
+        new_food: {
+          type: 'object',
+          description: '새로운 음식 정보. "A 대신 B"에서 B에 해당. 영양정보 추정 필수.',
+          properties: {
+            name: { type: 'string' },
+            calories: { type: 'number' },
+            protein: { type: 'number' },
+            carbs: { type: 'number' },
+            fat: { type: 'number' },
           },
-          meal_type: {
-            type: 'string',
-            enum: ['breakfast', 'lunch', 'dinner', 'snack'],
-            description: '수정할 식사 종류.',
-          },
-          old_food_name: {
-            type: 'string',
-            description: '수정 대상 기존 음식 이름.',
-          },
-          new_food: {
+          required: ['name', 'calories', 'protein', 'carbs', 'fat'],
+        },
+      },
+      required: ['meal_type', 'old_food_name', 'new_food'],
+    },
+  },
+};
+
+export const logMealTool: OpenAI.Chat.ChatCompletionTool = {
+  type: 'function',
+  function: {
+    name: 'log_meal',
+    description: `사용자가 먹은 음식을 기록합니다.
+"~먹었어", "~섭취했어" 등 음식 섭취 언급 시 호출하세요.
+
+칼로리 추정: 밥300, 국/찌개100-200, 치킨1/4마리450, 라면500`,
+    parameters: {
+      type: 'object',
+      properties: {
+        meal_type: {
+          type: 'string',
+          enum: ['breakfast', 'lunch', 'dinner', 'snack'],
+          description: '식사 종류 (시간 기준: 아침5-10시, 점심10-15시, 저녁15-21시, 그 외 간식)',
+        },
+        foods: {
+          type: 'array',
+          description: '먹은 음식들',
+          items: {
             type: 'object',
-            description: '새로운 음식 정보',
             properties: {
-              name: { type: 'string', description: '새 음식 이름' },
-              calories: { type: 'number', description: '새 음식 칼로리' },
+              name: { type: 'string', description: '음식 이름과 양' },
+              quantity: { type: 'number', description: '인분 수 (기본값 1)' },
+              calories: { type: 'number', description: '총 칼로리 (kcal)' },
               protein: { type: 'number', description: '단백질 (g)' },
               carbs: { type: 'number', description: '탄수화물 (g)' },
               fat: { type: 'number', description: '지방 (g)' },
@@ -115,82 +157,42 @@ export const foodLoggingTools: OpenAI.Chat.ChatCompletionTool[] = [
             required: ['name', 'calories', 'protein', 'carbs', 'fat'],
           },
         },
-        required: ['meal_type', 'old_food_name', 'new_food'],
+        date: { type: 'string', description: 'YYYY-MM-DD 형식의 날짜.' },
       },
+      required: ['meal_type', 'foods'],
     },
   },
-  // 4. 식단 기록 기능
-  {
-    type: 'function',
-    function: {
-      name: 'log_meal',
-      description: `사용자가 먹은 음식을 기록합니다.
-"~먹었어", "~섭취했어", "~먹음" 등 음식 섭취를 말하면 호출하세요.
+};
 
-영양정보 추정 기준 (1인분 기준):
-- 밥: 300kcal, 단백질5g, 탄수화물65g, 지방1g
-- 국/찌개: 100-200kcal
-- 고기류 100g: 단백질20-25g, 지방10-20g
-- 치킨 1/4마리: 450kcal, 단백질35g
-- 라면: 500kcal, 탄수화물80g`,
-      parameters: {
-        type: 'object',
-        properties: {
-          meal_type: {
-            type: 'string',
-            enum: ['breakfast', 'lunch', 'dinner', 'snack'],
-            description: `식사 종류.
-- breakfast: 아침 (5시~10시)
-- lunch: 점심 (10시~15시)
-- dinner: 저녁 (15시~21시)
-- snack: 간식 (그 외 시간 또는 "간식"이라고 명시한 경우)
-사용자가 명시하지 않으면 현재 시간을 기준으로 추론하세요.`,
-          },
-          foods: {
-            type: 'array',
-            description: '먹은 음식들의 목록 (각 음식의 영양정보 포함)',
-            items: {
-              type: 'object',
-              properties: {
-                name: {
-                  type: 'string',
-                  description: '음식 이름과 양 (예: "닭가슴살 200g", "치킨 1인분", "밥 1공기")',
-                },
-                quantity: {
-                  type: 'number',
-                  description: '인분 수 (기본값 1). 이미 name에 양이 포함되어 있으면 1로 설정',
-                  default: 1,
-                },
-                calories: {
-                  type: 'number',
-                  description: '해당 양의 총 칼로리 (kcal). 위 가이드라인 참고하여 정확히 계산',
-                },
-                protein: {
-                  type: 'number',
-                  description: '해당 양의 총 단백질 (g)',
-                },
-                carbs: {
-                  type: 'number',
-                  description: '해당 양의 총 탄수화물 (g)',
-                },
-                fat: {
-                  type: 'number',
-                  description: '해당 양의 총 지방 (g)',
-                },
-              },
-              required: ['name', 'calories', 'protein', 'carbs', 'fat'],
-            },
-          },
-          date: {
-            type: 'string',
-            description: 'YYYY-MM-DD 형식의 날짜. 기본값은 오늘. "어제"라고 하면 어제 날짜로 변환.',
-          },
-        },
-        required: ['meal_type', 'foods'],
-      },
-    },
-  },
+// 전체 도구 배열 (기존 호환성 유지)
+export const foodLoggingTools: OpenAI.Chat.ChatCompletionTool[] = [
+  getMealsTool,
+  deleteMealTool,
+  updateMealTool,
+  logMealTool,
 ];
+
+// 의도별 도구 매핑 (조건부 로딩용)
+import type { ChatIntent } from './intent-classifier';
+
+export function getToolsForIntent(intent: ChatIntent): OpenAI.Chat.ChatCompletionTool[] {
+  switch (intent) {
+    case 'meal_logging':
+      return [logMealTool];
+    case 'meal_query':
+      return [getMealsTool];
+    case 'meal_modify':
+      return [deleteMealTool, updateMealTool];
+    case 'casual_chat':
+      return []; // 일상 대화는 도구 없음 → 토큰 절감
+    default:
+      return [];
+  }
+}
+
+// ============================================
+// 타입 및 파싱 함수
+// ============================================
 
 /**
  * get_meals 함수의 인자 타입
