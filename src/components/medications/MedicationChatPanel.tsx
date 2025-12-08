@@ -15,16 +15,19 @@ const quickActions = [
 
 export function MedicationChatPanel() {
   const [input, setInput] = useState("");
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { messages, sendMessage, isLoading, clearMessages } = useMedicationChat();
 
-  // 새 메시지가 오면 스크롤
+  // 새 메시지가 오면 스크롤 (맨 아래로)
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
+    // 약간의 딜레이를 주어 DOM 업데이트 후 스크롤
+    const timer = setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [messages, isLoading]);
 
   const handleSend = async (messageText?: string, useRag: boolean = true) => {
     const text = messageText || input;
@@ -80,7 +83,7 @@ export function MedicationChatPanel() {
       </div>
 
       {/* 메시지 영역 */}
-      <ScrollArea className="flex-1 p-4 min-h-0" ref={scrollRef}>
+      <ScrollArea className="flex-1 p-4 min-h-0" ref={scrollAreaRef}>
         <div className="space-y-4">
           {messages.length === 0 && (
             <div className="text-center py-8">
@@ -142,6 +145,8 @@ export function MedicationChatPanel() {
               </div>
             </div>
           )}
+          {/* 스크롤 앵커 */}
+          <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
 

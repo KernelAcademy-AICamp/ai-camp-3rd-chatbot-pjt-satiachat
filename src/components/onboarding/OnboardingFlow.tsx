@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ArrowLeft, Loader2, Sparkles } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import {
   onboardingSchema,
   step1Schema,
@@ -19,6 +19,7 @@ import { CompletionStep } from './steps/CompletionStep';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { SatiaChatLogo } from '@/components/brand/SatiaChatLogo';
 
 const TOTAL_STEPS = 5;
 const STORAGE_KEY = 'dietrx_onboarding_data';
@@ -141,13 +142,8 @@ export function OnboardingFlow() {
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 py-8 px-4">
       <div className="max-w-lg mx-auto">
         {/* Header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-primary-glow shadow-glow mb-4">
-            <Sparkles className="w-6 h-6 text-primary-foreground" />
-          </div>
-          <h1 className="text-2xl font-bold text-foreground">
-            DietRx Coach
-          </h1>
+        <div className="text-center mb-8 flex flex-col items-center">
+          <SatiaChatLogo size="lg" animate className="mb-2" />
           <p className="text-muted-foreground mt-1">
             맞춤 코칭 환경을 설정합니다
           </p>

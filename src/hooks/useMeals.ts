@@ -110,6 +110,7 @@ export function useCreateMeal() {
       queryClient.invalidateQueries({ queryKey: mealKeys.today() });
       // Also invalidate calorie chart data
       queryClient.invalidateQueries({ queryKey: ['calories', 'weekly'] });
+      queryClient.invalidateQueries({ queryKey: ['calories', 'range'] });
       // Invalidate monthly data
       queryClient.invalidateQueries({ queryKey: ['meals', 'monthly'] });
     },
@@ -210,6 +211,7 @@ export function useUpdateMeal() {
       queryClient.invalidateQueries({ queryKey: mealKeys.today() });
       // Also invalidate calorie chart data
       queryClient.invalidateQueries({ queryKey: ['calories', 'weekly'] });
+      queryClient.invalidateQueries({ queryKey: ['calories', 'range'] });
       // Invalidate monthly data
       queryClient.invalidateQueries({ queryKey: ['meals', 'monthly'] });
     },
@@ -246,6 +248,7 @@ export function useDeleteMeal() {
       queryClient.invalidateQueries({ queryKey: mealKeys.lists() });
       // Also invalidate calorie chart data
       queryClient.invalidateQueries({ queryKey: ['calories', 'weekly'] });
+      queryClient.invalidateQueries({ queryKey: ['calories', 'range'] });
       // Invalidate monthly data
       queryClient.invalidateQueries({ queryKey: ['meals', 'monthly'] });
     },
@@ -296,6 +299,7 @@ export function useAddMealItem() {
       queryClient.invalidateQueries({ queryKey: mealKeys.lists() });
       // Also invalidate calorie chart data
       queryClient.invalidateQueries({ queryKey: ['calories', 'weekly'] });
+      queryClient.invalidateQueries({ queryKey: ['calories', 'range'] });
       // Invalidate monthly data
       queryClient.invalidateQueries({ queryKey: ['meals', 'monthly'] });
     },
@@ -342,6 +346,7 @@ export function useRemoveMealItem() {
       queryClient.invalidateQueries({ queryKey: mealKeys.lists() });
       // Also invalidate calorie chart data
       queryClient.invalidateQueries({ queryKey: ['calories', 'weekly'] });
+      queryClient.invalidateQueries({ queryKey: ['calories', 'range'] });
       // Invalidate monthly data
       queryClient.invalidateQueries({ queryKey: ['meals', 'monthly'] });
     },

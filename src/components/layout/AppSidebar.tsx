@@ -9,7 +9,6 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Sparkles,
   LogOut,
   MessageSquare,
 } from "lucide-react";
@@ -17,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { SatiaChatLogo, SatiaChatLogoMark } from "@/components/brand/SatiaChatLogo";
 
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -69,17 +69,11 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     >
       {/* Logo */}
       <div className="flex items-center h-16 px-4 border-b border-sidebar-border">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center shadow-glow">
-            <Sparkles className="w-5 h-5 text-primary-foreground" />
-          </div>
-          {!collapsed && (
-            <div className="animate-fade-in">
-              <h1 className="font-bold text-lg text-sidebar-foreground">DietRx</h1>
-              <p className="text-xs text-muted-foreground -mt-0.5">Coach</p>
-            </div>
-          )}
-        </div>
+        {collapsed ? (
+          <SatiaChatLogoMark size={40} className="mx-auto" />
+        ) : (
+          <SatiaChatLogo size="md" showText={true} className="animate-fade-in" />
+        )}
       </div>
 
       {/* Navigation */}

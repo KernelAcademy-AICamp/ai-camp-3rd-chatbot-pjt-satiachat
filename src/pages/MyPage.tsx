@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addWeeks, subWeeks, addMonths, subMonths } from "date-fns";
+import { format, startOfMonth, endOfMonth, subDays, addDays, subMonths, addMonths } from "date-fns";
 import { ko } from "date-fns/locale";
 import {
   TrendingDown,
@@ -56,11 +56,11 @@ export default function MyPage() {
   const [chartBaseDate, setChartBaseDate] = useState<Date>(new Date());
   const [chartCalendarOpen, setChartCalendarOpen] = useState(false);
 
-  // 차트 날짜 범위 계산
+  // 차트 날짜 범위 계산 (주간: 오늘 기준 최근 7일)
   const chartDateRange = useMemo(() => {
     if (chartViewMode === 'weekly') {
-      const start = startOfWeek(chartBaseDate, { weekStartsOn: 1 }); // 월요일 시작
-      const end = endOfWeek(chartBaseDate, { weekStartsOn: 1 });
+      const end = chartBaseDate;
+      const start = subDays(chartBaseDate, 6); // 오늘 포함 7일
       return {
         startDate: format(start, 'yyyy-MM-dd'),
         endDate: format(end, 'yyyy-MM-dd'),
@@ -77,10 +77,10 @@ export default function MyPage() {
     }
   }, [chartViewMode, chartBaseDate]);
 
-  // 차트 기간 이동
+  // 차트 기간 이동 (주간: 7일 단위로 이동)
   const navigateChart = (direction: 'prev' | 'next') => {
     if (chartViewMode === 'weekly') {
-      setChartBaseDate(prev => direction === 'prev' ? subWeeks(prev, 1) : addWeeks(prev, 1));
+      setChartBaseDate(prev => direction === 'prev' ? subDays(prev, 7) : addDays(prev, 7));
     } else {
       setChartBaseDate(prev => direction === 'prev' ? subMonths(prev, 1) : addMonths(prev, 1));
     }
