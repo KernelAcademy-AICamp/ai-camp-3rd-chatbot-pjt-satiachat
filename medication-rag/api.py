@@ -6,7 +6,7 @@ Run: uvicorn api:app --reload --port 8001
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 import logging
 
 from rag_core import MedicationRAG
@@ -54,12 +54,14 @@ class QueryRequest(BaseModel):
     query: str
     user_context: Optional[str] = None
     use_rag: bool = True
+    intent: str = "medication_info"  # medication_info, stats, analysis, chat
 
 
 class QueryResponse(BaseModel):
     """응답 모델"""
     response: str
     is_emergency: bool
+    sources: List[str] = []  # RAG 검색 출처
 
 
 @app.post("/ask", response_model=QueryResponse)
@@ -71,9 +73,10 @@ async def ask_endpoint(request: QueryRequest):
         query: 사용자 질문
         user_context: 건강 데이터 (체중, 칼로리, 복용 기록 등)
         use_rag: RAG 문서 검색 사용 여부
+        intent: 의도 (medication_info, stats, analysis, chat)
 
     Returns:
-        AI 응답 및 응급 상황 여부
+        AI 응답, 응급 상황 여부, 참고 출처
     """
     if not rag or not rag._initialized:
         raise HTTPException(
@@ -82,15 +85,17 @@ async def ask_endpoint(request: QueryRequest):
         )
 
     try:
-        response = rag.ask(
+        result = rag.ask(
             query=request.query,
             user_context=request.user_context or "",
             use_rag=request.use_rag,
+            intent=request.intent,
         )
 
         return QueryResponse(
-            response=response,
-            is_emergency=rag.is_emergency(request.query),
+            response=result["response"],
+            is_emergency=result["is_emergency"],
+            sources=result["sources"],
         )
 
     except Exception as e:

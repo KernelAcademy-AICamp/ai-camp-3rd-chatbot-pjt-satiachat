@@ -4,10 +4,12 @@
 
 // 타입
 export type { ChatIntent } from './classifier';
+export type { MedicationIntent } from './medication-classifier';
 export type { CoachPersona } from './personas';
 
 // 분류기
 export { classifyIntent } from './classifier';
+export { classifyMedicationIntent } from './medication-classifier';
 
 // 페르소나
 export { PERSONAS } from './personas';

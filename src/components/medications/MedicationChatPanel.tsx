@@ -1,16 +1,17 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, Scale, Flame, Pill, TrendingDown, Loader2 } from "lucide-react";
+import { Send, Pill, Scale, Activity, FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useMedicationChat, type MedicationChatMessage } from "@/hooks/useMedicationChat";
 
+// 전문 의료 상담용 빠른 질문 버튼 (페르소나 없음)
 const quickActions = [
-  { icon: Scale, label: "체중 분석", query: "최근 체중 변화를 분석해줘", useRag: false },
-  { icon: Flame, label: "칼로리 분석", query: "이번 주 칼로리 섭취 패턴을 알려줘", useRag: false },
-  { icon: Pill, label: "약물 효과", query: "약물 복용이 체중에 미친 영향은?", useRag: true },  // RAG 필요
-  { icon: TrendingDown, label: "진행 상황", query: "현재 다이어트 진행 상황을 평가해줘", useRag: false },
+  { icon: Pill, label: "위고비 효능", query: "위고비 효능과 부작용을 알려주세요" },
+  { icon: FileText, label: "마운자로 용법", query: "마운자로 주사 방법은 어떻게 되나요?" },
+  { icon: Scale, label: "체중 분석", query: "최근 체중 변화를 분석해주세요" },
+  { icon: Activity, label: "복용 효과", query: "약 복용 후 체중 변화를 분석해주세요" },
 ];
 
 export function MedicationChatPanel() {
@@ -29,12 +30,12 @@ export function MedicationChatPanel() {
     }
   }, [messages, isLoading]);
 
-  const handleSend = async (messageText?: string, useRag: boolean = true) => {
+  const handleSend = async (messageText?: string) => {
     const text = messageText || input;
     if (!text.trim() || isLoading) return;
 
     setInput("");
-    await sendMessage(text, useRag);
+    await sendMessage(text);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -46,22 +47,22 @@ export function MedicationChatPanel() {
 
   return (
     <div className="flex flex-col h-full bg-card rounded-3xl border border-border/50 shadow-lg overflow-hidden">
-      {/* 헤더 */}
-      <div className="flex items-center gap-3 p-4 border-b border-border bg-gradient-to-r from-info/10 to-info/5">
+      {/* 헤더 - 전문 의료 상담 스타일 */}
+      <div className="flex items-center gap-3 p-4 border-b border-border bg-gradient-to-r from-blue-50 to-slate-50 dark:from-blue-950/20 dark:to-slate-950/20">
         <div className="w-11 h-11 rounded-xl overflow-hidden shadow-md bg-muted">
           <img
             src="/coaches/doctor.png"
-            alt="AI 약물 상담"
+            alt="의약품 전문 상담"
             className="w-full h-full object-cover"
           />
         </div>
         <div className="flex-1">
-          <h3 className="font-semibold text-foreground">AI 약물 상담</h3>
-          <p className="text-xs text-muted-foreground">위고비 · 마운자로 전문 코칭</p>
+          <h3 className="font-semibold text-foreground">의약품 전문 상담</h3>
+          <p className="text-xs text-muted-foreground">위고비/마운자로 허가정보 기반</p>
         </div>
-        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-success/10 rounded-full">
-          <span className="w-2 h-2 bg-success rounded-full animate-pulse" />
-          <span className="text-xs text-success font-medium">상담 가능</span>
+        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-100 dark:bg-blue-900/30 rounded-full">
+          <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+          <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">상담 가능</span>
         </div>
       </div>
 
@@ -71,7 +72,7 @@ export function MedicationChatPanel() {
           {quickActions.map((action) => (
             <button
               key={action.label}
-              onClick={() => handleSend(action.query, action.useRag)}
+              onClick={() => handleSend(action.query)}
               disabled={isLoading}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-background border border-border rounded-full text-xs font-medium text-foreground hover:border-info hover:bg-info/5 transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed snap-start flex-shrink-0"
             >
@@ -90,13 +91,13 @@ export function MedicationChatPanel() {
               <div className="w-16 h-16 rounded-2xl overflow-hidden mx-auto mb-4 bg-muted">
                 <img
                   src="/coaches/doctor.png"
-                  alt="AI 약물 상담"
+                  alt="의약품 전문 상담"
                   className="w-full h-full object-cover"
                 />
               </div>
-              <h4 className="font-semibold text-foreground mb-2">약물 상담을 시작하세요</h4>
+              <h4 className="font-semibold text-foreground mb-2">의약품 상담을 시작하세요</h4>
               <p className="text-sm text-muted-foreground max-w-[280px] mx-auto">
-                위고비, 마운자로 등 비만 치료제에 대한 궁금증이나 복용 관련 조언을 받아보세요.
+                위고비, 마운자로의 효능, 용법, 주의사항 등 식약처 허가정보 기반의 전문 상담을 받아보세요.
               </p>
             </div>
           )}
@@ -113,8 +114,8 @@ export function MedicationChatPanel() {
                 className={cn(
                   "max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-relaxed",
                   message.role === "user"
-                    ? "bg-info text-white rounded-br-md"
-                    : "bg-muted text-foreground rounded-bl-md"
+                    ? "bg-blue-500 text-white rounded-br-md"
+                    : "bg-slate-100 dark:bg-slate-800 text-foreground rounded-bl-md"
                 )}
               >
                 <p className="whitespace-pre-wrap">{message.content}</p>
@@ -133,12 +134,12 @@ export function MedicationChatPanel() {
 
           {isLoading && (
             <div className="flex justify-start">
-              <div className="bg-muted px-4 py-3 rounded-2xl rounded-bl-md">
+              <div className="bg-slate-100 dark:bg-slate-800 px-4 py-3 rounded-2xl rounded-bl-md">
                 <div className="flex items-center gap-2">
                   <div className="flex gap-1">
-                    <span className="w-2 h-2 bg-info rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                    <span className="w-2 h-2 bg-info rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                    <span className="w-2 h-2 bg-info rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
                   </div>
                   <span className="text-xs text-muted-foreground">분석 중...</span>
                 </div>
@@ -149,7 +150,7 @@ export function MedicationChatPanel() {
       </ScrollArea>
 
       {/* 입력 영역 */}
-      <div className="p-4 border-t border-border bg-muted/20">
+      <div className="p-4 border-t border-border bg-slate-50/50 dark:bg-slate-900/50">
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -161,15 +162,15 @@ export function MedicationChatPanel() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="약물, 체중, 식단에 대해 질문하세요..."
-            className="flex-1 rounded-xl bg-background border-border focus:border-info"
+            placeholder="위고비/마운자로 관련 질문을 입력하세요..."
+            className="flex-1 rounded-xl bg-background border-border focus:border-blue-500"
             disabled={isLoading}
           />
           <Button
             type="submit"
             size="icon"
             disabled={!input.trim() || isLoading}
-            className="rounded-xl bg-info hover:bg-info/90 disabled:opacity-50"
+            className="rounded-xl bg-blue-500 hover:bg-blue-600 disabled:opacity-50"
           >
             {isLoading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -179,7 +180,7 @@ export function MedicationChatPanel() {
           </Button>
         </form>
         <p className="text-[10px] text-muted-foreground mt-2 text-center">
-          의료 조언이 아닌 참고용 정보입니다. 중요한 결정은 전문의와 상담하세요.
+          식약처 허가정보 기반 참고용 정보입니다. 실제 치료는 담당 의사와 상담하세요.
         </p>
       </div>
     </div>

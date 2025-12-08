@@ -1,8 +1,16 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase, getCurrentUserId } from '@/lib/supabase';
+import OpenAI from 'openai';
+import { classifyMedicationIntent, type MedicationIntent } from '@/lib/ai/prompts';
 
 // RAG API endpoint (Python FastAPI backend)
-const RAG_API_URL = import.meta.env.VITE_RAG_API_URL || 'http://localhost:8000';
+const RAG_API_URL = import.meta.env.VITE_RAG_API_URL || 'http://localhost:8001';
+
+// OpenAI 클라이언트 (의도 분류용)
+const openai = new OpenAI({
+  apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+  dangerouslyAllowBrowser: true,
+});
 
 // Chat type for medication conversations
 const CHAT_TYPE = 'medication';
@@ -162,7 +170,7 @@ export function useMedicationChat() {
     loadMessages();
   }, []);
 
-  const sendMessage = useCallback(async (content: string, useRag: boolean = true) => {
+  const sendMessage = useCallback(async (content: string) => {
     if (!content.trim() || isLoading) return;
 
     const userId = getCurrentUserId();
@@ -195,10 +203,28 @@ export function useMedicationChat() {
     setIsLoading(true);
 
     try {
-      // 건강 데이터 컨텍스트 수집
-      const healthContext = await getUserHealthContext();
+      // [1단계] 의도 분류 (gpt-4o-mini, ~50 토큰)
+      console.log('[MedicationChat] Step 1: Classifying intent...');
+      const intent = await classifyMedicationIntent(openai, content);
+      console.log('[MedicationChat] Intent:', intent);
 
-      // RAG API 호출
+      // [2단계] 컨텍스트 수집 (chat 제외)
+      let healthContext = '';
+      if (intent !== 'chat') {
+        console.log('[MedicationChat] Step 2: Collecting health context...');
+        healthContext = await getUserHealthContext();
+      }
+
+      // RAG 사용 여부 결정
+      // - medication_info: RAG 필수 (약물 정보 검색)
+      // - analysis: RAG 필수 (약물+통계 종합 분석)
+      // - stats: RAG 불필요 (통계만 사용)
+      // - chat: RAG 불필요 (일반 대화)
+      const useRag = intent === 'medication_info' || intent === 'analysis';
+      console.log('[MedicationChat] Use RAG:', useRag);
+
+      // [3단계] Python RAG API 호출
+      console.log('[MedicationChat] Step 3: Calling RAG API...');
       const response = await fetch(`${RAG_API_URL}/ask`, {
         method: 'POST',
         headers: {
@@ -207,7 +233,8 @@ export function useMedicationChat() {
         body: JSON.stringify({
           query: content,
           user_context: healthContext,
-          use_rag: useRag,  // false면 RAG 스킵 (토큰 절약)
+          use_rag: useRag,
+          intent: intent,
         }),
       });
 
@@ -218,7 +245,12 @@ export function useMedicationChat() {
       const data = await response.json();
       const responseContent = data.response || '응답을 생성할 수 없습니다.';
 
-      // 2. AI 응답을 Supabase에 저장
+      // 응급 상황 경고 로깅
+      if (data.is_emergency) {
+        console.warn('[MedicationChat] Emergency detected!');
+      }
+
+      // AI 응답을 Supabase에 저장
       const { data: assistantMsgData, error: assistantError } = await supabase
         .from('chat_messages')
         .insert({
