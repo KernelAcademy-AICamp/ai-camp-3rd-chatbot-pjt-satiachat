@@ -66,11 +66,12 @@ medication-rag/
 │   ├── mounjaro_NB.txt        # 마운자로 주의사항
 │   └── manifest.json          # 문서 메타데이터
 │
-├── storage/                   # 벡터 인덱스 (LlamaIndex)
-│   ├── docstore.json          # 문서 저장소
-│   ├── index_store.json       # 인덱스 메타데이터
-│   ├── default__vector_store.json  # 벡터 저장소
-│   └── graph_store.json       # 그래프 저장소
+├── storage/                   # 벡터 인덱스 (LlamaIndex 자동 생성)
+│   ├── default__vector_store.json  # [932KB] 벡터 데이터 (1024차원 * 40개 청크)
+│   ├── docstore.json          # [233KB] 원본 텍스트 청크 저장소
+│   ├── index_store.json       # [4KB] 인덱스 메타데이터 (노드 ID 매핑)
+│   ├── graph_store.json       # [18B] 문서 관계 그래프 (미사용)
+│   └── image__vector_store.json  # [72B] 이미지 벡터 (미사용)
 │
 ├── fetch_documents.py         # 식약처에서 문서 수집
 ├── build_index.py             # 벡터 인덱스 빌드
