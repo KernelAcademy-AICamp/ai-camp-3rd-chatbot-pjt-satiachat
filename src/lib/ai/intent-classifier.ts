@@ -31,10 +31,16 @@ export function classifyIntent(message: string): ChatIntent {
     return 'meal_modify';
   }
 
-  // 3. 기록 의도 (음식 + 먹었다 표현)
-  // "먹을거야", "먹을래" 등 미래형도 포함 (음식 조언 요청)
-  const hasFoodMention = /먹었|섭취|먹음|먹을게|먹을거|먹을래|먹으려|kcal|칼로리|아침|점심|저녁|간식|야식/.test(msg);
-  const hasEatingAction = /먹|섭취|마셨|마심|들었/.test(msg);
+  // 3. 미래형 표현은 조언 요청 → casual_chat으로 분류
+  // "먹을거야", "먹을래", "먹으려고" 등은 아직 먹지 않은 것이므로 기록하지 않음
+  const isFutureTense = /먹을거|먹을래|먹으려|먹을까|먹어도|먹어볼/.test(msg);
+  if (isFutureTense && !/먹었/.test(msg)) {
+    return 'casual_chat'; // 조언 요청으로 처리
+  }
+
+  // 4. 기록 의도 (음식 + 과거형 먹었다 표현)
+  const hasFoodMention = /먹었|섭취|먹음|먹을게|kcal|칼로리|아침|점심|저녁|간식|야식/.test(msg);
+  const hasEatingAction = /먹었|섭취했|마셨|마심|들었/.test(msg);
 
   // 음식 키워드 (일반적인 음식들)
   const foodKeywords = /밥|국|찌개|고기|치킨|피자|라면|샐러드|김치|계란|빵|커피|우유|과일|사과|바나나|닭|돼지|소고기|떡볶이|족발|삼겹살|햄버거|파스타|초밥|회|볶음밥|비빔밥|냉면|짜장|짬뽕|탕수육|만두|김밥|떡|과자|아이스크림|케이크|주스|콜라|맥주|소주/;
@@ -55,6 +61,7 @@ export type CasualChatType =
   | 'advice_request'  // 조언 요청
   | 'motivation'      // 동기부여 요청
   | 'complaint'       // 불평/하소연
+  | 'weight_query'    // 체중 질문
   | 'general';        // 일반
 
 export function classifyCasualChat(message: string): CasualChatType {
@@ -63,6 +70,11 @@ export function classifyCasualChat(message: string): CasualChatType {
   // 인사
   if (/안녕|하이|헬로|반가|좋은\s*아침|좋은\s*저녁/.test(msg)) {
     return 'greeting';
+  }
+
+  // 체중 질문 (새로 추가)
+  if (/체중|몸무게|키로|kg|목표.*체중|현재.*체중|얼마나.*빠|몇.*빠졌/.test(msg)) {
+    return 'weight_query';
   }
 
   // 조언 요청

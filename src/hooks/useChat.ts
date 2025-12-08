@@ -836,9 +836,9 @@ export function useSendMessage() {
       const userContext = await fetchUserContext(userId);
       console.log('[ChatBot] User context:', userContext);
 
-      // 5. 상황 감지 (식단 기록 의도일 때)
+      // 5. 상황 감지 (모든 의도에서 실행 - 맥락 기반 응답용)
       let situation: SituationType = 'default';
-      if (intent === 'meal_logging' && userContext) {
+      if (userContext) {
         const currentHour = new Date().getHours();
         // 음식 키워드 추출 (간단히)
         const foodMentions = content.split(/[,\s]+/).filter(word => word.length > 1);
@@ -854,25 +854,31 @@ export function useSendMessage() {
         console.log('[ChatBot] Situation:', situation);
       }
 
-      // 6. Get recent messages for context
+      // 6. Get recent messages for context (의도에 따라 개수 조절)
+      // 일상 대화: 4개만 (토큰 절감)
+      // 식단 관련: 6개 (맥락 필요)
+      const historyLimit = intent === 'casual_chat' ? 4 : 6;
       const { data: recentMessages } = await supabase
         .from('chat_messages')
         .select('role, content')
         .eq('user_id', userId)
         .eq('chat_type', CHAT_TYPE)
         .order('created_at', { ascending: false })
-        .limit(10);
+        .limit(historyLimit);
 
       // 7. 동적 시스템 프롬프트 빌드 (토큰 효율화)
       const systemPrompt = buildSystemPrompt(persona, intent, situation, userContext);
       console.log('[ChatBot] System prompt length:', systemPrompt.length);
 
-      // 8. Build messages array for OpenAI
+      // 8. Build messages array for OpenAI (긴 메시지 자르기)
+      const MAX_MSG_LENGTH = 200; // 메시지당 최대 글자수
       const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
         { role: 'system', content: systemPrompt },
         ...(recentMessages || []).reverse().map((msg) => ({
           role: msg.role as 'user' | 'assistant',
-          content: msg.content,
+          content: msg.content.length > MAX_MSG_LENGTH
+            ? msg.content.slice(0, MAX_MSG_LENGTH) + '...'
+            : msg.content,
         })),
       ];
 
@@ -899,6 +905,9 @@ export function useSendMessage() {
       const responseMessage = completion.choices[0]?.message;
       let assistantContent = responseMessage?.content || '';
       let loggedFoods: string[] = [];
+
+      // AI가 생성한 텍스트 응답 (Function Calling과 함께 사용)
+      const aiTextResponse = responseMessage?.content || '';
 
       // 11. Handle Function Calling
       if (responseMessage?.tool_calls && responseMessage.tool_calls.length > 0) {
@@ -1061,8 +1070,11 @@ export function useSendMessage() {
               // 연속 기록 마일스톤 체크
               const streakComment = getStreakMilestoneResponse(persona, userContext?.consecutiveDays || 0);
 
-              // 최종 응답 조합
-              assistantContent = characterResponse + achievementComment + (streakComment ? '\n\n' + streakComment : '');
+              // 최종 응답 조합 (AI 텍스트 응답이 있으면 함께 포함)
+              const baseResponse = characterResponse + achievementComment;
+              assistantContent = aiTextResponse
+                ? `${baseResponse}\n\n${aiTextResponse}`
+                : baseResponse + (streakComment ? '\n\n' + streakComment : '');
             } else {
               assistantContent = logResult.message;
             }
