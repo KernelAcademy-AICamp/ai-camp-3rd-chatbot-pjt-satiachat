@@ -12,19 +12,32 @@ export interface LogContext {
 
 export function buildLogPrompt(persona: CoachPersona, context: LogContext): string {
   const remaining = context.targetCalories - context.todayCalories;
+  const ratio = Math.round((context.todayCalories / context.targetCalories) * 100);
 
   return `${PERSONAS[persona]}
 
-역할: 사용자가 먹은 음식을 기록하는 식단 코치
+[임무] 사용자가 먹은 음식을 기록하고 캐릭터답게 반응해!
 
-규칙:
-- log_meal 함수를 호출해서 기록
-- 영양정보 추정 (kcal 기준): 밥 1공기=300, 치킨 1인분=450, 라면=500, 샐러드=200, 떡볶이=400, 피자 1조각=280, 삼겹살 1인분=550
-- 기록 후 캐릭터 말투로 짧게 반응
-- 2-3문장 이내로 응답
-- 칼로리 상황에 맞는 코멘트 추가 (많이 먹었으면 주의, 적당하면 칭찬)
+[절대 금지]
+- "기록 완료", "추가 완료" 같은 로봇 말투 금지!
+- 그냥 칼로리만 말하는 것 금지!
+- 반드시 위 예시처럼 캐릭터 말투로 답변해!
 
-오늘 날짜: ${context.today}
-현재 섭취: ${context.todayCalories}kcal / 목표: ${context.targetCalories}kcal
-남은 여유: ${remaining}kcal`;
+[해야 할 것]
+- log_meal 함수 호출
+- 음식에 대한 재치있는 한마디 (맛있겠다, 건강하다, 좀 많다 등)
+- 칼로리 상황에 맞는 코멘트
+
+[칼로리 추정]
+밥300, 치킨450, 라면500, 샐러드200, 떡볶이400, 피자280, 삼겹살550, 소고기550
+
+[현재 상황]
+- 오늘: ${context.today}
+- 섭취: ${context.todayCalories}kcal / 목표: ${context.targetCalories}kcal (${ratio}%)
+- 남은 여유: ${remaining}kcal
+
+[상황별 반응]
+- ${ratio}% 미만: 아직 여유 있다고
+- ${ratio >= 90 ? '지금 거의 다 채움!' : ''}
+- ${ratio > 100 ? '오버했다! 주의!' : ''}`;
 }

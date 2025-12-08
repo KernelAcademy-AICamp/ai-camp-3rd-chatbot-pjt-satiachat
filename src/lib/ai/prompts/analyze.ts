@@ -4,6 +4,11 @@
 
 import { PERSONAS, type CoachPersona } from './personas';
 
+interface WeightRecord {
+  date: string;
+  weight: number;
+}
+
 export interface AnalyzeContext {
   targetCalories: number;
   todayCalories: number;
@@ -11,14 +16,48 @@ export interface AnalyzeContext {
   goalWeight: number | null;
   todayFoods: string[];
   consecutiveDays: number;
+  // 새로 추가
+  recentWeights: WeightRecord[];
+  weeklyAvgCalories: number;
+  weightTrend: 'up' | 'down' | 'stable' | 'unknown';
 }
 
 export function buildAnalyzePrompt(persona: CoachPersona, context: AnalyzeContext): string {
   const ratio = Math.round((context.todayCalories / context.targetCalories) * 100);
   const remaining = context.targetCalories - context.todayCalories;
 
+  // 체중 정보
   const weightInfo = context.currentWeight && context.goalWeight
     ? `체중: ${context.currentWeight}kg → 목표 ${context.goalWeight}kg`
+    : '';
+
+  // 체중 변화 분석
+  let weightChangeInfo = '';
+  if (context.recentWeights.length >= 2) {
+    const first = context.recentWeights[0];
+    const last = context.recentWeights[context.recentWeights.length - 1];
+    const diff = (last.weight - first.weight).toFixed(1);
+    const sign = parseFloat(diff) > 0 ? '+' : '';
+    weightChangeInfo = `최근 체중 변화: ${first.weight}kg → ${last.weight}kg (${sign}${diff}kg)`;
+  }
+
+  // 체중 추세
+  const trendText = {
+    up: '📈 증가 추세 (주의!)',
+    down: '📉 감소 추세 (잘하고 있어!)',
+    stable: '➡️ 유지 중',
+    unknown: '',
+  }[context.weightTrend];
+
+  // 주간 칼로리 분석
+  const weeklyCalInfo = context.weeklyAvgCalories > 0
+    ? `주간 평균 칼로리: ${context.weeklyAvgCalories}kcal/일`
+    : '';
+
+  const weeklyVsTarget = context.weeklyAvgCalories > 0
+    ? context.weeklyAvgCalories > context.targetCalories
+      ? `(목표 대비 +${context.weeklyAvgCalories - context.targetCalories}kcal 초과)`
+      : `(목표 대비 ${context.targetCalories - context.weeklyAvgCalories}kcal 여유)`
     : '';
 
   const foodList = context.todayFoods.length > 0
@@ -27,28 +66,40 @@ export function buildAnalyzePrompt(persona: CoachPersona, context: AnalyzeContex
 
   return `${PERSONAS[persona]}
 
-역할: 사용자의 식단을 분석하고 피드백/조언하는 코치
+[임무] 사용자의 식단과 체중 변화를 분석하고 캐릭터답게 피드백해!
 
-규칙:
-- 아래 데이터를 기반으로 평가
-- 피드백 요청: 잘한 점 + 개선점 균형있게
-- 조언 요청: 남은 칼로리에 맞는 음식 추천
-- 목표 달성률에 따라 반응 조절
-- 캐릭터 말투 유지
-- 3-4문장 이내로 응답
+[절대 금지]
+- 딱딱한 분석 보고서 말투 금지!
+- 반드시 위 예시처럼 캐릭터 말투로 답변해!
 
-[사용자 데이터]
-목표 칼로리: ${context.targetCalories}kcal
-오늘 섭취: ${context.todayCalories}kcal (달성률 ${ratio}%)
-남은 여유: ${remaining}kcal
-${weightInfo}
-오늘 식단: ${foodList}
-연속 기록: ${context.consecutiveDays}일째
+[해야 할 것]
+- 오늘 뭘 먹었는지 언급
+- 달성률에 맞는 피드백
+- 체중 변화 추세 언급 (데이터가 있으면)
+- 앞으로 뭘 먹으면 좋을지 추천 (요청시)
+- 3-4문장 이내
 
-[달성률 기준 반응]
-- 0-50%: 더 먹어도 됨
-- 50-90%: 적당히 잘하고 있음
-- 90-110%: 완벽함, 칭찬
-- 110-130%: 조금 오버, 주의
-- 130%+: 과식, 내일 조절 권유`;
+[오늘 현황]
+- 목표: ${context.targetCalories}kcal
+- 섭취: ${context.todayCalories}kcal (${ratio}%)
+- 남은 여유: ${remaining}kcal
+- 오늘 식단: ${foodList}
+- 연속 기록: ${context.consecutiveDays}일째
+
+[주간 트렌드]
+${weightInfo ? `- ${weightInfo}` : ''}
+${weightChangeInfo ? `- ${weightChangeInfo}` : ''}
+${trendText ? `- ${trendText}` : ''}
+${weeklyCalInfo ? `- ${weeklyCalInfo} ${weeklyVsTarget}` : ''}
+
+[달성률별 반응]
+- 0-50%: 아직 많이 먹어도 돼!
+- 50-90%: 잘하고 있어!
+- 90-110%: 완벽해! 칭찬!
+- 110%+: 오버했어! 내일 조절하자!
+
+[체중 추세별 반응]
+- 감소 추세: 칭찬! 이대로 유지!
+- 증가 추세: 살짝 주의, 식단 조절 권유
+- 유지 중: 안정적! 꾸준함 칭찬`;
 }

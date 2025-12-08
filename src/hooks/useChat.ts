@@ -5,7 +5,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase, getCurrentUserId } from '@/lib/supabase';
+import { supabase, getCurrentUserId, getToday, formatDate } from '@/lib/supabase';
 import type { ChatMessage, MealType } from '@/types/domain';
 import OpenAI from 'openai';
 
@@ -16,6 +16,7 @@ import {
   type CoachPersona,
   buildLogPrompt,
   buildQueryPrompt,
+  buildStatsPrompt,
   buildModifyPrompt,
   buildAnalyzePrompt,
   buildChatPrompt,
@@ -55,14 +56,6 @@ const chatKeys = {
 // 유틸리티 함수
 // ============================================
 
-function getToday(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
 function inferMealType(): MealType {
   const hour = new Date().getHours();
   if (hour >= 5 && hour < 10) return 'breakfast';
@@ -75,6 +68,16 @@ function inferMealType(): MealType {
 // 사용자 컨텍스트 조회
 // ============================================
 
+interface WeightRecord {
+  date: string;
+  weight: number;
+}
+
+interface DailyCalorieRecord {
+  date: string;
+  calories: number;
+}
+
 interface UserContext {
   todayCalories: number;
   targetCalories: number;
@@ -82,10 +85,21 @@ interface UserContext {
   currentWeight: number | null;
   goalWeight: number | null;
   todayFoods: string[];
+  // 체중 관련
+  recentWeights: WeightRecord[];      // 최근 7일 체중 기록
+  weightTrend: 'up' | 'down' | 'stable' | 'unknown';  // 체중 추세
+  // 칼로리 관련
+  weeklyAvgCalories: number;          // 주간 평균 칼로리
+  recentDailyCalories: DailyCalorieRecord[];  // 최근 7일 일별 칼로리
 }
 
 async function fetchUserContext(userId: string): Promise<UserContext> {
   const today = getToday();
+
+  // 최근 7일 (오늘 포함)
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+  const weekAgoStr = formatDate(sevenDaysAgo);
 
   // 1. 오늘 식단 조회
   const { data: todayMeals } = await supabase
@@ -121,10 +135,70 @@ async function fetchUserContext(userId: string): Promise<UserContext> {
     .single();
 
   const targetCalories = profile?.target_calories || 2000;
-  const currentWeight = profile?.current_weight_kg || null;
   const goalWeight = profile?.goal_weight_kg || null;
 
-  // 3. 연속 기록 일수 (간단히 - 최근 7일만 체크)
+  // 3. 최근 7일 체중 기록 조회 (progress_logs가 primary source)
+  const { data: weightLogs } = await supabase
+    .from('progress_logs')
+    .select('date, weight_kg')
+    .eq('user_id', userId)
+    .gte('date', weekAgoStr)
+    .lte('date', today)
+    .order('date', { ascending: true });
+
+  const recentWeights: WeightRecord[] = (weightLogs || []).map((log: any) => ({
+    date: log.date,
+    weight: log.weight_kg,
+  }));
+
+  // 4. 현재 체중 결정 (progress_logs 최신값 우선, 없으면 프로필 fallback)
+  // Dashboard.tsx와 동일한 로직으로 일관성 유지
+  const currentWeight = recentWeights.length > 0
+    ? recentWeights[recentWeights.length - 1].weight  // 최신 기록값
+    : profile?.current_weight_kg || null;              // fallback
+
+  // 5. 체중 추세 계산
+  let weightTrend: 'up' | 'down' | 'stable' | 'unknown' = 'unknown';
+  if (recentWeights.length >= 2) {
+    const firstWeight = recentWeights[0].weight;
+    const lastWeight = recentWeights[recentWeights.length - 1].weight;
+    const diff = lastWeight - firstWeight;
+    if (diff > 0.3) weightTrend = 'up';
+    else if (diff < -0.3) weightTrend = 'down';
+    else weightTrend = 'stable';
+  }
+
+  // 6. 최근 7일 평균 칼로리 조회 + 일별 칼로리 계산
+  const { data: weeklyMeals } = await supabase
+    .from('meals')
+    .select('date, total_calories')
+    .eq('user_id', userId)
+    .gte('date', weekAgoStr)
+    .lte('date', today);
+
+  let weeklyAvgCalories = 0;
+  const recentDailyCalories: DailyCalorieRecord[] = [];
+
+  if (weeklyMeals && weeklyMeals.length > 0) {
+    const dailyCalories: Record<string, number> = {};
+    weeklyMeals.forEach((meal: any) => {
+      if (!dailyCalories[meal.date]) dailyCalories[meal.date] = 0;
+      dailyCalories[meal.date] += meal.total_calories || 0;
+    });
+
+    // 일별 칼로리 배열 생성 (날짜순 정렬)
+    Object.entries(dailyCalories)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .forEach(([date, calories]) => {
+        recentDailyCalories.push({ date, calories });
+      });
+
+    const days = Object.keys(dailyCalories).length;
+    const totalCal = Object.values(dailyCalories).reduce((sum, cal) => sum + cal, 0);
+    weeklyAvgCalories = days > 0 ? Math.round(totalCal / days) : 0;
+  }
+
+  // 7. 연속 기록 일수 (최근 7일만 체크)
   let consecutiveDays = 0;
   const checkDate = new Date();
   checkDate.setDate(checkDate.getDate() - 1);
@@ -146,7 +220,18 @@ async function fetchUserContext(userId: string): Promise<UserContext> {
     }
   }
 
-  return { todayCalories, targetCalories, consecutiveDays, currentWeight, goalWeight, todayFoods };
+  return {
+    todayCalories,
+    targetCalories,
+    consecutiveDays,
+    currentWeight,
+    goalWeight,
+    todayFoods,
+    recentWeights,
+    weeklyAvgCalories,
+    weightTrend,
+    recentDailyCalories,
+  };
 }
 
 // ============================================
@@ -191,9 +276,28 @@ async function logMealDirectly(
 
   if (existingMeal) {
     mealId = existingMeal.id;
-    totalCalories = (existingMeal.total_calories || 0) + newItemsCalories;
 
-    const mealItems = processedFoods.map((f) => ({
+    // 기존 meal_items 조회하여 중복 체크
+    const { data: existingItems } = await supabase
+      .from('meal_items')
+      .select('name')
+      .eq('meal_id', mealId);
+
+    const existingNames = new Set((existingItems || []).map((item: any) => item.name.toLowerCase()));
+
+    // 중복되지 않은 음식만 필터링
+    const newFoods = processedFoods.filter((f) => !existingNames.has(f.name.toLowerCase()));
+
+    if (newFoods.length === 0) {
+      // 모든 음식이 이미 기록되어 있음
+      const foodNames = processedFoods.map((f) => f.name).join(', ');
+      return { success: true, message: `${foodNames}은(는) 이미 기록되어 있어요!` };
+    }
+
+    const newCalories = newFoods.reduce((sum, f) => sum + f.calories, 0);
+    totalCalories = (existingMeal.total_calories || 0) + newCalories;
+
+    const mealItems = newFoods.map((f) => ({
       meal_id: mealId,
       name: f.name,
       calories: f.calories,
@@ -205,7 +309,11 @@ async function logMealDirectly(
 
     await supabase.from('meal_items').insert(mealItems);
     await supabase.from('meals').update({ total_calories: totalCalories }).eq('id', mealId);
+
+    const foodNames = newFoods.map((f) => f.name).join(', ');
+    return { success: true, message: `${foodNames} (${newCalories}kcal) 기록 완료` };
   } else {
+    // 새로운 meal 생성
     totalCalories = newItemsCalories;
 
     const { data: mealData, error: mealError } = await supabase
@@ -228,10 +336,10 @@ async function logMealDirectly(
     }));
 
     await supabase.from('meal_items').insert(mealItems);
-  }
 
-  const foodNames = processedFoods.map((f) => f.name).join(', ');
-  return { success: true, message: `${foodNames} (${totalCalories}kcal) 기록 완료` };
+    const foodNames = processedFoods.map((f) => f.name).join(', ');
+    return { success: true, message: `${foodNames} (${totalCalories}kcal) 기록 완료` };
+  }
 }
 
 async function getMealsData(date: string, mealType: string) {
@@ -368,7 +476,8 @@ function getToolsForIntent(intent: ChatIntent): OpenAI.Chat.ChatCompletionTool[]
   switch (intent) {
     case 'log': return [logMealTool];
     case 'query': return [getMealsTool];
-    case 'modify': return [deleteMealTool, updateMealTool];
+    case 'stats': return [];  // 함수 호출 불필요, 컨텍스트만 사용
+    case 'modify': return [deleteMealTool, updateMealTool, logMealTool];
     case 'analyze': return [];
     case 'chat': return [];
     default: return [];
@@ -394,6 +503,24 @@ function buildPromptForIntent(
         today,
         currentWeight: context.currentWeight,
         goalWeight: context.goalWeight,
+        recentWeights: context.recentWeights,
+        weightTrend: context.weightTrend,
+        todayCalories: context.todayCalories,
+        targetCalories: context.targetCalories,
+        weeklyAvgCalories: context.weeklyAvgCalories,
+        recentDailyCalories: context.recentDailyCalories,
+      });
+    case 'stats':
+      return buildStatsPrompt(persona, {
+        today,
+        currentWeight: context.currentWeight,
+        goalWeight: context.goalWeight,
+        recentWeights: context.recentWeights,
+        weightTrend: context.weightTrend,
+        todayCalories: context.todayCalories,
+        targetCalories: context.targetCalories,
+        weeklyAvgCalories: context.weeklyAvgCalories,
+        recentDailyCalories: context.recentDailyCalories,
       });
     case 'modify':
       return buildModifyPrompt(persona, { today });
@@ -405,6 +532,9 @@ function buildPromptForIntent(
         goalWeight: context.goalWeight,
         todayFoods: context.todayFoods,
         consecutiveDays: context.consecutiveDays,
+        recentWeights: context.recentWeights,
+        weeklyAvgCalories: context.weeklyAvgCalories,
+        weightTrend: context.weightTrend,
       });
     case 'chat':
       return buildChatPrompt(persona);
@@ -469,9 +599,9 @@ export function useSendMessage() {
       });
 
       // 2. 1단계: 의도 분류
-      console.log('[Chat] Step 1: Classifying intent...');
+      console.log('[Chat] Step 1: Classifying intent for:', content);
       const intent = await classifyIntent(openai, content);
-      console.log('[Chat] Intent:', intent);
+      console.log('[Chat] Intent result:', intent, '| Tools will be:', intent === 'query' ? 'get_meals (forced)' : 'auto');
 
       // 3. 사용자 컨텍스트 조회 (chat 제외)
       let userContext: UserContext = {
@@ -481,6 +611,10 @@ export function useSendMessage() {
         currentWeight: null,
         goalWeight: null,
         todayFoods: [],
+        recentWeights: [],
+        weeklyAvgCalories: 0,
+        weightTrend: 'unknown',
+        recentDailyCalories: [],
       };
 
       if (intent !== 'chat') {
@@ -496,80 +630,135 @@ export function useSendMessage() {
       console.log('[Chat] Prompt length:', systemPrompt.length, 'Tools:', tools.length);
 
       // 5. OpenAI 호출
-      const completionParams: OpenAI.Chat.ChatCompletionCreateParamsNonStreaming = {
-        model: 'gpt-4o-mini',
+      const completionParams: any = {
+        model: 'gpt-4o-mini',  // 안정적인 모델 사용
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content },
         ],
         max_tokens: intent === 'chat' ? 150 : 500,
-        temperature: persona === 'cold' ? 0.3 : persona === 'strict' ? 0.5 : 0.7,
+        temperature: 0.7,
       };
 
       if (tools.length > 0) {
         completionParams.tools = tools;
-        completionParams.tool_choice = 'auto';
+        // query 의도는 반드시 get_meals 함수 호출 필요
+        if (intent === 'query') {
+          completionParams.tool_choice = { type: 'function', function: { name: 'get_meals' } };
+        } else {
+          completionParams.tool_choice = 'auto';
+        }
       }
 
       const completion = await openai.chat.completions.create(completionParams);
       const responseMessage = completion.choices[0]?.message;
       let assistantContent = responseMessage?.content || '';
 
-      // 6. Function Calling 처리
+      console.log('[Chat] API Response - content:', assistantContent?.substring(0, 100));
+      console.log('[Chat] API Response - tool_calls:', responseMessage?.tool_calls?.length || 0);
+      if (responseMessage?.tool_calls) {
+        responseMessage.tool_calls.forEach((tc, i) => {
+          console.log(`[Chat] tool_call[${i}]:`, tc.function.name, tc.function.arguments);
+        });
+      }
+
+      // 6. Function Calling 처리 (중복 방지 + 다중 tool_calls 지원)
       if (responseMessage?.tool_calls && responseMessage.tool_calls.length > 0) {
-        const toolCall = responseMessage.tool_calls[0];
-        const funcName = toolCall.function.name;
-        const funcArgs = toolCall.function.arguments;
+        // 각 tool_call에 대한 결과를 id와 함께 저장
+        const toolResultsWithIds: Array<{ id: string; result: string }> = [];
 
-        console.log('[Chat] Function call:', funcName);
+        // 중복 tool_call 방지: 같은 함수+인자 조합은 1번만 실행
+        const processedCalls = new Set<string>();
 
-        if (funcName === 'log_meal') {
-          const args = parseLogMealArgs(funcArgs);
-          if (args) {
-            const result = await logMealDirectly(
-              args.meal_type || inferMealType(),
-              args.date || getToday(),
-              args.foods.map((f) => ({
-                name: f.name,
-                quantity: f.quantity || 1,
-                calories: f.calories,
-                protein: f.protein,
-                carbs: f.carbs,
-                fat: f.fat,
-              }))
-            );
-            queryClient.invalidateQueries({ queryKey: ['meals'] });
-            queryClient.invalidateQueries({ queryKey: ['todayCalories'] });
+        for (const toolCall of responseMessage.tool_calls) {
+          const funcName = toolCall.function.name;
+          const funcArgs = toolCall.function.arguments;
 
-            // AI 응답이 있으면 사용, 없으면 결과 메시지 사용
-            assistantContent = assistantContent || result.message;
+          // 중복 체크용 키 생성
+          const callKey = `${funcName}:${funcArgs}`;
+          if (processedCalls.has(callKey)) {
+            console.log('[Chat] Skipping duplicate tool_call:', funcName);
+            // 중복된 호출도 결과는 반환해야 함 (OpenAI API 요구사항)
+            toolResultsWithIds.push({ id: toolCall.id, result: '(중복 호출 - 스킵됨)' });
+            continue;
           }
+          processedCalls.add(callKey);
+
+          let result = '';
+
+          console.log('[Chat] Function call:', funcName);
+
+          if (funcName === 'log_meal') {
+            const args = parseLogMealArgs(funcArgs);
+            if (args) {
+              const res = await logMealDirectly(
+                args.meal_type || inferMealType(),
+                args.date || getToday(),
+                args.foods.map((f) => ({
+                  name: f.name,
+                  quantity: f.quantity || 1,
+                  calories: f.calories,
+                  protein: f.protein,
+                  carbs: f.carbs,
+                  fat: f.fat,
+                }))
+              );
+              result = res.message;
+            }
+          }
+
+          if (funcName === 'get_meals') {
+            const args = parseGetMealsArgs(funcArgs);
+            const res = await getMealsData(args.date || getToday(), args.meal_type || 'all');
+            result = res.message;
+          }
+
+          if (funcName === 'delete_meal') {
+            const args = parseDeleteMealArgs(funcArgs);
+            if (args) {
+              const res = await deleteMealData(args.date, args.meal_type, args.food_name);
+              result = res.message;
+            }
+          }
+
+          if (funcName === 'update_meal') {
+            const args = parseUpdateMealArgs(funcArgs);
+            if (args) {
+              const res = await updateMealData(args.date, args.meal_type, args.old_food_name, args.new_food);
+              result = res.message;
+            }
+          }
+
+          // 각 tool_call_id에 대한 결과 저장
+          toolResultsWithIds.push({ id: toolCall.id, result: result || 'completed' });
         }
 
-        if (funcName === 'get_meals') {
-          const args = parseGetMealsArgs(funcArgs);
-          const result = await getMealsData(args.date || getToday(), args.meal_type || 'all');
-          assistantContent = assistantContent || result.message;
-        }
+        // 캐시 무효화 (한 번만)
+        queryClient.invalidateQueries({ queryKey: ['meals'] });
+        queryClient.invalidateQueries({ queryKey: ['todayCalories'] });
 
-        if (funcName === 'delete_meal') {
-          const args = parseDeleteMealArgs(funcArgs);
-          if (args) {
-            const result = await deleteMealData(args.date, args.meal_type, args.food_name);
-            queryClient.invalidateQueries({ queryKey: ['meals'] });
-            queryClient.invalidateQueries({ queryKey: ['todayCalories'] });
-            assistantContent = assistantContent || result.message;
-          }
-        }
+        // 도구 결과를 AI에게 전달하여 캐릭터답게 응답 생성
+        if (toolResultsWithIds.length > 0 && !assistantContent) {
+          // 각 tool_call에 대한 개별 tool 메시지 생성 (OpenAI API 요구사항)
+          const toolMessages = toolResultsWithIds.map(({ id, result }) => ({
+            role: 'tool' as const,
+            tool_call_id: id,
+            content: result,
+          }));
 
-        if (funcName === 'update_meal') {
-          const args = parseUpdateMealArgs(funcArgs);
-          if (args) {
-            const result = await updateMealData(args.date, args.meal_type, args.old_food_name, args.new_food);
-            queryClient.invalidateQueries({ queryKey: ['meals'] });
-            queryClient.invalidateQueries({ queryKey: ['todayCalories'] });
-            assistantContent = assistantContent || result.message;
-          }
+          const followUpResponse = await openai.chat.completions.create({
+            model: 'gpt-4o-mini',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content },
+              { role: 'assistant', content: null, tool_calls: responseMessage?.tool_calls },
+              ...toolMessages,  // 모든 tool 메시지 포함
+            ],
+            max_tokens: 300,
+            temperature: 0.7,
+          } as any);
+
+          assistantContent = followUpResponse.choices[0]?.message?.content || toolResultsWithIds.map(t => t.result).join('\n');
         }
       }
 

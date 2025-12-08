@@ -15,6 +15,7 @@ export { PERSONAS } from './personas';
 // 프롬프트 빌더
 export { buildLogPrompt, type LogContext } from './log';
 export { buildQueryPrompt, type QueryContext } from './query';
+export { buildStatsPrompt, type StatsContext } from './stats';
 export { buildModifyPrompt, type ModifyContext } from './modify';
 export { buildAnalyzePrompt, type AnalyzeContext } from './analyze';
 export { buildChatPrompt } from './chat';
