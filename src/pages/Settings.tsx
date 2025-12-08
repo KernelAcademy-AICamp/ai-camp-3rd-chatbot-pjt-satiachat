@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { User, Bell, Palette, Shield, Check, Loader2, Camera, Lock, X, AlertCircle } from "lucide-react";
+import { User, Bell, Palette, Shield, Check, Loader2, Camera, Lock, X, AlertCircle, Calculator, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { useProfile, useUpdateProfile, useUpdatePersona } from "@/hooks/useProfile";
+import { useProfile, useUpdateProfile, useUpdatePersona, calculateBMR, calculateTDEE, calculateTargetCalories } from "@/hooks/useProfile";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { useCheckNickname } from "@/hooks/useCheckNickname";
@@ -51,6 +51,8 @@ export default function Settings() {
   const [selectedPersona, setSelectedPersona] = useState<ChatPersona>("bright");
   const [nickname, setNickname] = useState("");
   const [isNicknameEditing, setIsNicknameEditing] = useState(false);
+  const [useCustomCalories, setUseCustomCalories] = useState(false);
+  const [showCalorieExplanation, setShowCalorieExplanation] = useState(false);
   // Pass user_id to exclude own nickname when checking
   const { status: nicknameStatus, message: nicknameMessage, checkNickname, reset: resetNicknameCheck } = useCheckNickname(profile?.user_id);
   const [notifications, setNotifications] = useState({
@@ -60,6 +62,49 @@ export default function Settings() {
     insights: true,
   });
 
+  // Calculate recommended calories based on profile
+  const getCalorieCalculation = () => {
+    if (!profile?.current_weight_kg || !profile?.height_cm || !profile?.birth_year || !profile?.gender || !profile?.activity_level) {
+      return null;
+    }
+
+    const bmr = calculateBMR(
+      profile.current_weight_kg,
+      profile.height_cm,
+      profile.birth_year,
+      profile.gender
+    );
+
+    const tdee = calculateTDEE(bmr, profile.activity_level);
+
+    const goalWeight = goalWeightKg ? parseFloat(goalWeightKg) : profile.goal_weight_kg;
+    const recommended = calculateTargetCalories(
+      profile.current_weight_kg,
+      goalWeight || profile.current_weight_kg,
+      profile.height_cm,
+      profile.birth_year,
+      profile.gender,
+      profile.activity_level
+    );
+
+    const currentYear = new Date().getFullYear();
+    const age = currentYear - profile.birth_year;
+
+    let adjustment = 0;
+    let adjustmentReason = "유지";
+    if (profile.current_weight_kg > (goalWeight || profile.current_weight_kg)) {
+      adjustment = -500;
+      adjustmentReason = "감량 (-500 kcal)";
+    } else if (profile.current_weight_kg < (goalWeight || profile.current_weight_kg)) {
+      adjustment = 300;
+      adjustmentReason = "증량 (+300 kcal)";
+    }
+
+    return { bmr: Math.round(bmr), tdee, recommended, age, adjustment, adjustmentReason };
+  };
+
+  const calorieCalc = getCalorieCalculation();
+
   // Initialize form with profile data
   useEffect(() => {
     if (profile) {
@@ -68,6 +113,10 @@ export default function Settings() {
       setTargetCalories(profile.target_calories?.toString() || "");
       setSelectedPersona(profile.coach_persona || "bright");
       setNickname(profile.nickname || "");
+      // Check if user has custom calories (different from calculated)
+      if (calorieCalc && profile.target_calories !== calorieCalc.recommended) {
+        setUseCustomCalories(true);
+      }
     }
   }, [profile]);
 
@@ -280,16 +329,89 @@ export default function Settings() {
           </div>
 
           {/* Target Calories */}
-          <div>
-            <Label htmlFor="targetCalories">목표 칼로리</Label>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="targetCalories">목표 칼로리</Label>
+              {calorieCalc && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowCalorieExplanation(!showCalorieExplanation)}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  <Info className="w-3 h-3 mr-1" />
+                  계산 방식 보기
+                </Button>
+              )}
+            </div>
+
+            {/* Calorie Explanation */}
+            {showCalorieExplanation && calorieCalc && (
+              <div className="bg-muted/50 rounded-xl p-4 text-sm space-y-2 border border-border">
+                <div className="flex items-center gap-2 text-primary font-medium mb-2">
+                  <Calculator className="w-4 h-4" />
+                  칼로리 계산 방식
+                </div>
+                <div className="space-y-1 text-muted-foreground">
+                  <p><span className="font-medium text-foreground">1. 기초대사량 (BMR):</span> {calorieCalc.bmr} kcal</p>
+                  <p className="text-xs pl-4">Mifflin-St Jeor 공식 사용 (체중, 키, 나이, 성별 기반)</p>
+                  <p><span className="font-medium text-foreground">2. 활동대사량 (TDEE):</span> {calorieCalc.tdee} kcal</p>
+                  <p className="text-xs pl-4">BMR × 활동계수 ({profile?.activity_level})</p>
+                  <p><span className="font-medium text-foreground">3. 목표 조정:</span> {calorieCalc.adjustmentReason}</p>
+                  {calorieCalc.adjustment !== 0 && (
+                    <p className="text-xs pl-4">
+                      {calorieCalc.adjustment < 0
+                        ? "체중 감량을 위해 하루 500kcal 적자 (주 0.5kg 감량)"
+                        : "체중 증량을 위해 하루 300kcal 잉여 (주 0.3kg 증량)"}
+                    </p>
+                  )}
+                </div>
+                <div className="pt-2 border-t border-border mt-2">
+                  <p className="font-medium text-foreground">
+                    권장 목표 칼로리: <span className="text-primary">{calorieCalc.recommended} kcal</span>
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Custom vs Calculated Toggle */}
+            <div className="flex items-center justify-between p-3 bg-muted/30 rounded-xl">
+              <div>
+                <p className="text-sm font-medium">직접 입력하기</p>
+                <p className="text-xs text-muted-foreground">
+                  {useCustomCalories ? "직접 설정한 값 사용" : `권장값: ${calorieCalc?.recommended || "-"} kcal`}
+                </p>
+              </div>
+              <Switch
+                checked={useCustomCalories}
+                onCheckedChange={(checked) => {
+                  setUseCustomCalories(checked);
+                  if (!checked && calorieCalc) {
+                    setTargetCalories(calorieCalc.recommended.toString());
+                  }
+                }}
+              />
+            </div>
+
+            {/* Calorie Input */}
             <Input
               id="targetCalories"
               type="number"
               value={targetCalories}
               onChange={(e) => setTargetCalories(e.target.value)}
               placeholder="1800"
-              className="rounded-xl mt-1.5"
+              disabled={!useCustomCalories}
+              className={cn(
+                "rounded-xl",
+                !useCustomCalories && "bg-muted/50 text-muted-foreground"
+              )}
             />
+            {!useCustomCalories && (
+              <p className="text-xs text-muted-foreground">
+                * 자동 계산된 권장 칼로리가 적용됩니다. 직접 입력하려면 위 토글을 켜세요.
+              </p>
+            )}
           </div>
         </div>
       </section>
