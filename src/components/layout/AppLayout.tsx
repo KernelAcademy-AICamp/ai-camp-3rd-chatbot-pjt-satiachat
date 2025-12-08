@@ -21,7 +21,7 @@ export function AppLayout() {
       <main
         className={cn(
           "min-h-screen transition-all duration-300 ease-in-out pb-20 md:pb-0",
-          sidebarCollapsed ? "md:ml-16" : "md:ml-64"
+          sidebarCollapsed ? "md:ml-16" : "md:ml-80"
         )}
       >
         <Outlet />

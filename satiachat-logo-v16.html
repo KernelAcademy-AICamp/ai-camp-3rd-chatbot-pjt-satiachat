@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SatiaChat Brand Identity</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --satia-blue: #577DFF; --soft-mint: #7FE7C4; --warm-ivory: #F7F4ED; --minimal-ink: #1D1D1F; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'DM Sans', -apple-system, sans-serif; background: var(--warm-ivory); color: var(--minimal-ink); min-height: 100vh; }
+    header { padding: 3rem 2rem; text-align: center; background: linear-gradient(180deg, rgba(127,231,196,0.08) 0%, transparent 100%); }
+    header h1 { font-size: 0.75rem; letter-spacing: 4px; text-transform: uppercase; opacity: 0.5; margin-bottom: 1rem; }
+    .brand-title { font-size: 2.5rem; font-weight: 700; letter-spacing: 0; }
+    .brand-title .satia { color: var(--soft-mint); }
+    .brand-title .chat { color: var(--satia-blue); }
+    .tagline { margin-top: 0.75rem; font-size: 1rem; opacity: 0.6; letter-spacing: 2px; }
+    main { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+    .logo-section { background: white; border-radius: 24px; padding: 4rem 3rem; margin-bottom: 2rem; box-shadow: 0 4px 40px rgba(127,231,196,0.12); display: flex; flex-direction: column; align-items: center; position: relative; overflow: hidden; }
+    .logo-section::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px; background: linear-gradient(90deg, var(--soft-mint), var(--satia-blue)); }
+    .section-label { font-size: 0.7rem; letter-spacing: 3px; text-transform: uppercase; opacity: 0.4; margin-bottom: 2.5rem; }
+    .primary-logo { display: flex; flex-direction: column; align-items: center; gap: 1.5rem; }
+    .logo-mark { width: 200px; height: 200px; animation: float 6s ease-in-out infinite; }
+    @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+    .logo-mark svg { width: 100%; height: 100%; filter: drop-shadow(0 8px 24px rgba(127,231,196,0.3)); }
+    .wordmark { font-size: 3rem; font-weight: 700; letter-spacing: 0; }
+    .wordmark .satia { color: var(--soft-mint); }
+    .wordmark .chat { color: var(--satia-blue); }
+    .sub-tagline { font-size: 0.75rem; letter-spacing: 3px; opacity: 0.45; margin-top: -0.5rem; text-align: center; }
+    .variations-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.5rem; margin-bottom: 2rem; }
+    .variation-card { background: white; border-radius: 20px; padding: 2.5rem 2rem; display: flex; flex-direction: column; align-items: center; gap: 1.5rem; box-shadow: 0 2px 20px rgba(127,231,196,0.1); transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+    .variation-card.wide { grid-column: span 2; }
+    .variation-card:hover { transform: translateY(-8px); box-shadow: 0 12px 40px rgba(127,231,196,0.2); }
+    .variation-card.dark { background: var(--minimal-ink); }
+    .variation-card.dark .section-label { color: white; }
+    .icon-box { width: 100px; height: 100px; border-radius: 22px; background: linear-gradient(135deg, var(--soft-mint) 0%, var(--soft-mint) 40%, #6CB8E0 75%, var(--satia-blue) 100%); display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 24px rgba(127,231,196,0.35); }
+    .icon-box svg { width: 80%; height: 80%; }
+    .minimal-mark svg { width: 100px; height: 100px; filter: drop-shadow(0 4px 12px rgba(127,231,196,0.25)); }
+    .horizontal-lockup { display: flex; align-items: center; }
+    .horizontal-lockup .logo-small { width: 55px; height: 55px; margin-right: -6px; }
+    .horizontal-lockup .wordmark-small { font-size: 1.75rem; font-weight: 600; letter-spacing: 0; }
+    .horizontal-lockup .wordmark-small .satia { color: var(--soft-mint); }
+    .horizontal-lockup .wordmark-small .chat { color: var(--satia-blue); }
+    .palette-section { background: white; border-radius: 24px; padding: 3rem; box-shadow: 0 4px 40px rgba(127,231,196,0.1); }
+    .palette-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem; margin-top: 2rem; }
+    .color-swatch { display: flex; flex-direction: column; gap: 1rem; }
+    .swatch-box { height: 100px; border-radius: 16px; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+    .swatch-box.ivory { border: 1px solid rgba(29,29,31,0.1); }
+    .swatch-info h4 { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .swatch-info code { font-size: 0.8rem; opacity: 0.6; font-family: 'SF Mono', Monaco, monospace; }
+    footer { text-align: center; padding: 3rem 2rem; opacity: 0.4; font-size: 0.85rem; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Brand Identity</h1>
+    <div class="brand-title"><span class="satia">Satia</span><span class="chat">Chat</span></div>
+    <p class="tagline">Feel Full · Live Light</p>
+  </header>
+
+  <main>
+    <section class="logo-section">
+      <span class="section-label">Primary Logo</span>
+      <div class="primary-logo">
+        <div class="logo-mark">
+          <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <defs><linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#7FE7C4"/><stop offset="40%" stop-color="#7FE7C4"/><stop offset="75%" stop-color="#6CB8E0"/><stop offset="100%" stop-color="#577DFF"/></linearGradient></defs>
+            <g transform="translate(100, 100)">
+              <path d="M -60 -20 C -60 -55, -40 -75, 0 -75 C 40 -75, 65 -55, 65 -20 C 65 15, 50 45, 5 50 C -15 52, -30 48, -38 42 L -42 38 L -62 55 L -52 35 C -60 25, -60 10, -60 -20 Z" fill="url(#g1)"/>
+              <g transform="translate(0, -10)">
+                <path d="M -33 4 C -33 15, -26 34, 0 36 C 26 34, 33 15, 33 4 C 20 -3, -20 -3, -33 4 Z" fill="#F7F4ED"/>
+                <ellipse cx="0" cy="4" rx="33" ry="8" fill="#F7F4ED"/>
+                <g transform="translate(-4, 0) rotate(20)">
+                  <path d="M 0 -46 C 12 -40, 15 -26, 11 -12 C 8 -5, 0 0, 0 0 C 0 0, -8 -5, -11 -12 C -15 -26, -12 -40, 0 -46 Z" fill="#F7F4ED"/>
+                  <line x1="0" y1="-2" x2="0" y2="-44" stroke="url(#g1)" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+                  <path d="M 0 -14 Q 5 -18 8 -24" fill="none" stroke="url(#g1)" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+                  <path d="M 0 -14 Q -5 -18 -8 -24" fill="none" stroke="url(#g1)" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+                  <path d="M 0 -26 Q 4 -30 6 -35" fill="none" stroke="url(#g1)" stroke-width="1.8" stroke-linecap="round" opacity="0.45"/>
+                  <path d="M 0 -26 Q -4 -30 -6 -35" fill="none" stroke="url(#g1)" stroke-width="1.8" stroke-linecap="round" opacity="0.45"/>
+                </g>
+              </g>
+              <circle cx="32" cy="-38" r="6" fill="#577DFF"/>
+            </g>
+          </svg>
+        </div>
+        <div class="wordmark"><span class="satia">Satia</span><span class="chat">Chat</span></div>
+        <span class="sub-tagline">FEEL FULL · LIVE LIGHT</span>
+      </div>
+    </section>
+
+    <div class="variations-grid">
+      <div class="variation-card">
+        <span class="section-label">App Icon</span>
+        <div class="icon-box">
+          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <defs><linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#7FE7C4"/><stop offset="40%" stop-color="#7FE7C4"/><stop offset="75%" stop-color="#6CB8E0"/><stop offset="100%" stop-color="#577DFF"/></linearGradient></defs>
+            <g transform="translate(50, 55)">
+              <path d="M -33 4 C -33 15, -26 34, 0 36 C 26 34, 33 15, 33 4 C 20 -3, -20 -3, -33 4 Z" fill="#F7F4ED"/>
+              <ellipse cx="0" cy="4" rx="33" ry="8" fill="#F7F4ED"/>
+              <g transform="translate(-4, 0) rotate(20)">
+                <path d="M 0 -44 C 11 -38, 14 -25, 10 -11 C 7 -4, 0 0, 0 0 C 0 0, -7 -4, -10 -11 C -14 -25, -11 -38, 0 -44 Z" fill="#F7F4ED"/>
+                <line x1="0" y1="-2" x2="0" y2="-42" stroke="url(#g2)" stroke-width="2.2" stroke-linecap="round" opacity="0.6"/>
+                <path d="M 0 -14 Q 5 -18 8 -23" fill="none" stroke="url(#g2)" stroke-width="1.8" stroke-linecap="round" opacity="0.5"/>
+                <path d="M 0 -14 Q -5 -18 -8 -23" fill="none" stroke="url(#g2)" stroke-width="1.8" stroke-linecap="round" opacity="0.5"/>
+                <path d="M 0 -25 Q 4 -29 6 -34" fill="none" stroke="url(#g2)" stroke-width="1.6" stroke-linecap="round" opacity="0.45"/>
+                <path d="M 0 -25 Q -4 -29 -6 -34" fill="none" stroke="url(#g2)" stroke-width="1.6" stroke-linecap="round" opacity="0.45"/>
+              </g>
+              <circle cx="32" cy="-28" r="6" fill="#577DFF"/>
+            </g>
+          </svg>
+        </div>
+      </div>
+
+      <div class="variation-card">
+        <span class="section-label">Minimal Mark</span>
+        <div class="minimal-mark">
+          <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+            <defs><linearGradient id="g3" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#7FE7C4"/><stop offset="40%" stop-color="#7FE7C4"/><stop offset="75%" stop-color="#6CB8E0"/><stop offset="100%" stop-color="#577DFF"/></linearGradient></defs>
+            <g transform="translate(100, 100)">
+              <path d="M -60 -20 C -60 -55, -40 -75, 0 -75 C 40 -75, 65 -55, 65 -20 C 65 15, 50 45, 5 50 C -15 52, -30 48, -38 42 L -42 38 L -62 55 L -52 35 C -60 25, -60 10, -60 -20 Z" fill="url(#g3)"/>
+              <g transform="translate(0, -10)">
+                <path d="M -33 4 C -33 15, -26 34, 0 36 C 26 34, 33 15, 33 4 C 20 -3, -20 -3, -33 4 Z" fill="#F7F4ED"/>
+                <ellipse cx="0" cy="4" rx="33" ry="8" fill="#F7F4ED"/>
+                <g transform="translate(-4, 0) rotate(20)">
+                  <path d="M 0 -46 C 12 -40, 15 -26, 11 -12 C 8 -5, 0 0, 0 0 C 0 0, -8 -5, -11 -12 C -15 -26, -12 -40, 0 -46 Z" fill="#F7F4ED"/>
+                  <line x1="0" y1="-2" x2="0" y2="-44" stroke="url(#g3)" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+                  <path d="M 0 -14 Q 5 -18 8 -24" fill="none" stroke="url(#g3)" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+                  <path d="M 0 -14 Q -5 -18 -8 -24" fill="none" stroke="url(#g3)" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+                  <path d="M 0 -26 Q 4 -30 6 -35" fill="none" stroke="url(#g3)" stroke-width="1.8" stroke-linecap="round" opacity="0.45"/>
+                  <path d="M 0 -26 Q -4 -30 -6 -35" fill="none" stroke="url(#g3)" stroke-width="1.8" stroke-linecap="round" opacity="0.45"/>
+                </g>
+              </g>
+              <circle cx="32" cy="-38" r="6" fill="#577DFF"/>
+            </g>
+          </svg>
+        </div>
+      </div>
+
+      <div class="variation-card wide">
+        <span class="section-label">Horizontal</span>
+        <svg viewBox="0 0 280 36" width="500" height="64" xmlns="http://www.w3.org/2000/svg">
+          <defs><linearGradient id="g4" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#7FE7C4"/><stop offset="40%" stop-color="#7FE7C4"/><stop offset="75%" stop-color="#6CB8E0"/><stop offset="100%" stop-color="#577DFF"/></linearGradient></defs>
+          <g transform="translate(21, 20) scale(0.22)">
+            <path d="M -60 -20 C -60 -55, -40 -75, 0 -75 C 40 -75, 65 -55, 65 -20 C 65 15, 50 45, 5 50 C -15 52, -30 48, -38 42 L -42 38 L -62 55 L -52 35 C -60 25, -60 10, -60 -20 Z" fill="url(#g4)"/>
+            <g transform="translate(0, -10)">
+              <path d="M -33 4 C -33 15, -26 34, 0 36 C 26 34, 33 15, 33 4 C 20 -3, -20 -3, -33 4 Z" fill="#F7F4ED"/>
+              <ellipse cx="0" cy="4" rx="33" ry="8" fill="#F7F4ED"/>
+              <g transform="translate(-4, 0) rotate(20)">
+                <path d="M 0 -46 C 12 -40, 15 -26, 11 -12 C 8 -5, 0 0, 0 0 C 0 0, -8 -5, -11 -12 C -15 -26, -12 -40, 0 -46 Z" fill="#F7F4ED"/>
+                <line x1="0" y1="-2" x2="0" y2="-44" stroke="url(#g4)" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+                <path d="M 0 -14 Q 5 -18 8 -24" fill="none" stroke="url(#g4)" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+                <path d="M 0 -14 Q -5 -18 -8 -24" fill="none" stroke="url(#g4)" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+                <path d="M 0 -26 Q 4 -30 6 -35" fill="none" stroke="url(#g4)" stroke-width="1.8" stroke-linecap="round" opacity="0.45"/>
+                <path d="M 0 -26 Q -4 -30 -6 -35" fill="none" stroke="url(#g4)" stroke-width="1.8" stroke-linecap="round" opacity="0.45"/>
+              </g>
+            </g>
+            <circle cx="32" cy="-38" r="6" fill="#577DFF"/>
+          </g>
+          <g transform="translate(42, 0)">
+            <text x="0" y="21" font-family="DM Sans, -apple-system, sans-serif" font-size="20" font-weight="700">
+              <tspan fill="#7FE7C4">Satia</tspan><tspan fill="#577DFF">Chat</tspan>
+            </text>
+            <text x="50" y="30" font-family="DM Sans, -apple-system, sans-serif" font-size="5.5" font-weight="500" fill="#1D1D1F" opacity="0.45" text-anchor="middle" letter-spacing="1">FEEL FULL · LIVE LIGHT</text>
+          </g>
+        </svg>
+      </div>
+
+      <div class="variation-card dark wide">
+        <span class="section-label">Dark Mode</span>
+        <svg viewBox="0 0 280 36" width="500" height="64" xmlns="http://www.w3.org/2000/svg">
+          <defs><linearGradient id="g5" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#7FE7C4"/><stop offset="40%" stop-color="#7FE7C4"/><stop offset="75%" stop-color="#6CB8E0"/><stop offset="100%" stop-color="#577DFF"/></linearGradient></defs>
+          <g transform="translate(21, 20) scale(0.22)">
+            <path d="M -60 -20 C -60 -55, -40 -75, 0 -75 C 40 -75, 65 -55, 65 -20 C 65 15, 50 45, 5 50 C -15 52, -30 48, -38 42 L -42 38 L -62 55 L -52 35 C -60 25, -60 10, -60 -20 Z" fill="url(#g5)"/>
+            <g transform="translate(0, -10)">
+              <path d="M -33 4 C -33 15, -26 34, 0 36 C 26 34, 33 15, 33 4 C 20 -3, -20 -3, -33 4 Z" fill="#1D1D1F"/>
+              <ellipse cx="0" cy="4" rx="33" ry="8" fill="#1D1D1F"/>
+              <g transform="translate(-4, 0) rotate(20)">
+                <path d="M 0 -46 C 12 -40, 15 -26, 11 -12 C 8 -5, 0 0, 0 0 C 0 0, -8 -5, -11 -12 C -15 -26, -12 -40, 0 -46 Z" fill="#1D1D1F"/>
+                <line x1="0" y1="-2" x2="0" y2="-44" stroke="#7FE7C4" stroke-width="2.5" stroke-linecap="round" opacity="0.5"/>
+                <path d="M 0 -14 Q 5 -18 8 -24" fill="none" stroke="#7FE7C4" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+                <path d="M 0 -14 Q -5 -18 -8 -24" fill="none" stroke="#7FE7C4" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+                <path d="M 0 -26 Q 4 -30 6 -35" fill="none" stroke="#7FE7C4" stroke-width="1.8" stroke-linecap="round" opacity="0.35"/>
+                <path d="M 0 -26 Q -4 -30 -6 -35" fill="none" stroke="#7FE7C4" stroke-width="1.8" stroke-linecap="round" opacity="0.35"/>
+              </g>
+            </g>
+            <circle cx="32" cy="-38" r="6" fill="#577DFF"/>
+          </g>
+          <g transform="translate(42, 0)">
+            <text x="0" y="21" font-family="DM Sans, -apple-system, sans-serif" font-size="20" font-weight="700">
+              <tspan fill="#7FE7C4">Satia</tspan><tspan fill="#577DFF">Chat</tspan>
+            </text>
+            <text x="50" y="30" font-family="DM Sans, -apple-system, sans-serif" font-size="5.5" font-weight="500" fill="#F7F4ED" opacity="0.5" text-anchor="middle" letter-spacing="1">FEEL FULL · LIVE LIGHT</text>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <section class="palette-section">
+      <span class="section-label">Color Palette</span>
+      <div class="palette-grid">
+        <div class="color-swatch"><div class="swatch-box" style="background: #7FE7C4;"></div><div class="swatch-info"><h4>Soft Mint (Primary)</h4><code>#7FE7C4</code></div></div>
+        <div class="color-swatch"><div class="swatch-box" style="background: #577DFF;"></div><div class="swatch-info"><h4>Satia Blue (Accent)</h4><code>#577DFF</code></div></div>
+        <div class="color-swatch"><div class="swatch-box ivory" style="background: #F7F4ED;"></div><div class="swatch-info"><h4>Warm Ivory</h4><code>#F7F4ED</code></div></div>
+        <div class="color-swatch"><div class="swatch-box" style="background: #1D1D1F;"></div><div class="swatch-info"><h4>Minimal Ink</h4><code>#1D1D1F</code></div></div>
+      </div>
+    </section>
+  </main>
+
+  <footer><p>SatiaChat Brand Identity · "포만감과 균형을 설계하는 AI 코치"</p></footer>
+</body>
+</html>

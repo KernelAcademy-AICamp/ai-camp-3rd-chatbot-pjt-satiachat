@@ -10,13 +10,13 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Sparkles,
   LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { SatiaChatLogo, SatiaChatHorizontalLogo } from "@/components/ui/satiachat-logo";
 
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
@@ -64,22 +64,18 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     <aside
       className={cn(
         "fixed left-0 top-0 z-40 h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-in-out flex flex-col",
-        collapsed ? "w-16" : "w-64"
+        collapsed ? "w-16" : "w-80"
       )}
     >
       {/* Logo */}
-      <div className="flex items-center h-16 px-4 border-b border-sidebar-border">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary-glow flex items-center justify-center shadow-glow">
-            <Sparkles className="w-5 h-5 text-primary-foreground" />
+      <div className="flex items-center justify-center h-[100px] border-b border-sidebar-border">
+        {collapsed ? (
+          <SatiaChatLogo size="md" showWordmark={false} />
+        ) : (
+          <div className="w-full flex justify-center pl-[252px]">
+            <SatiaChatHorizontalLogo size="3xl" />
           </div>
-          {!collapsed && (
-            <div className="animate-fade-in">
-              <h1 className="font-bold text-lg text-sidebar-foreground">DietRx</h1>
-              <p className="text-xs text-muted-foreground -mt-0.5">Coach</p>
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
       {/* Navigation */}
