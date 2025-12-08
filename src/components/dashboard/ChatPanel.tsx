@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useChatMessages, useSendMessage, useClearChat, CoachPersona } from "@/hooks/useChat";
-import { useProfile, useUpdatePersona } from "@/hooks/useProfile";
+import { useProfile } from "@/hooks/useProfile";
 import type { ChatMessage } from "@/types/domain";
 
 const personaConfig: Record<CoachPersona, { icon: string; label: string; image: string }> = {
@@ -26,17 +26,9 @@ export function ChatPanel() {
 
   // Get user profile to load saved persona preference
   const { data: profile } = useProfile();
-  const updatePersona = useUpdatePersona();
 
-  // Initialize persona from profile, fallback to 'bright'
-  const [persona, setPersona] = useState<CoachPersona>("bright");
-
-  // Sync persona state when profile loads
-  useEffect(() => {
-    if (profile?.coach_persona) {
-      setPersona(profile.coach_persona);
-    }
-  }, [profile?.coach_persona]);
+  // Get persona from profile (Settings에서만 변경 가능)
+  const persona: CoachPersona = profile?.coach_persona || "bright";
 
   // React Query hooks
   const { data: messages = [], isLoading: isLoadingMessages } = useChatMessages();
@@ -78,17 +70,6 @@ export function ChatPanel() {
     }
   };
 
-  const handlePersonaChange = async (newPersona: CoachPersona) => {
-    setPersona(newPersona);
-
-    // Save persona preference to profile
-    try {
-      await updatePersona.mutateAsync(newPersona);
-    } catch (error) {
-      console.error('Failed to update persona preference:', error);
-    }
-  };
-
   // Display messages with welcome message if empty
   const displayMessages: Array<ChatMessage | { id: string; role: 'assistant'; content: string; created_at: string }> =
     messages.length > 0
@@ -108,26 +89,7 @@ export function ChatPanel() {
         </div>
         <div className="flex-1">
           <h3 className="font-semibold text-foreground">{currentPersona.label}</h3>
-          <div className="flex items-center gap-2">
-            {(Object.keys(personaConfig) as CoachPersona[]).map((p) => {
-              const config = personaConfig[p];
-              return (
-                <button
-                  key={p}
-                  onClick={() => handlePersonaChange(p)}
-                  className={cn(
-                    "flex items-center gap-1 text-xs px-2 py-0.5 rounded-full transition-colors",
-                    persona === p
-                      ? "bg-background/50"
-                      : "hover:bg-background/30 opacity-50"
-                  )}
-                >
-                  <span>{config.icon}</span>
-                  {persona === p && <span className="text-muted-foreground">{config.label}</span>}
-                </button>
-              );
-            })}
-          </div>
+          <p className="text-xs text-muted-foreground">식단 기록 · AI 코칭</p>
         </div>
         <div className="flex items-center gap-2">
           {messages.length > 0 && (

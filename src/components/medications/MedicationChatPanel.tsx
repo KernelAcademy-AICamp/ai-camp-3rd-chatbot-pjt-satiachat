@@ -15,18 +15,18 @@ const quickActions = [
 
 export function MedicationChatPanel() {
   const [input, setInput] = useState("");
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const { messages, sendMessage, isLoading, clearMessages } = useMedicationChat();
 
-  // 새 메시지가 오면 스크롤 (맨 아래로)
+  // 새 메시지가 오면 스크롤 (맨 아래로) - Dashboard와 동일한 방식
   useEffect(() => {
-    // 약간의 딜레이를 주어 DOM 업데이트 후 스크롤
-    const timer = setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, 100);
-    return () => clearTimeout(timer);
+    if (scrollRef.current) {
+      const scrollContainer = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      }
+    }
   }, [messages, isLoading]);
 
   const handleSend = async (messageText?: string, useRag: boolean = true) => {
@@ -83,7 +83,7 @@ export function MedicationChatPanel() {
       </div>
 
       {/* 메시지 영역 */}
-      <ScrollArea className="flex-1 p-4 min-h-0" ref={scrollAreaRef}>
+      <ScrollArea className="flex-1 p-4 min-h-0" ref={scrollRef}>
         <div className="space-y-4">
           {messages.length === 0 && (
             <div className="text-center py-8">
@@ -145,8 +145,6 @@ export function MedicationChatPanel() {
               </div>
             </div>
           )}
-          {/* 스크롤 앵커 */}
-          <div ref={messagesEndRef} />
         </div>
       </ScrollArea>
 
