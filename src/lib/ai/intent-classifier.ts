@@ -32,7 +32,8 @@ export function classifyIntent(message: string): ChatIntent {
   }
 
   // 3. 기록 의도 (음식 + 먹었다 표현)
-  const hasFoodMention = /먹었|섭취|먹음|먹을게|kcal|칼로리|아침|점심|저녁|간식|야식/.test(msg);
+  // "먹을거야", "먹을래" 등 미래형도 포함 (음식 조언 요청)
+  const hasFoodMention = /먹었|섭취|먹음|먹을게|먹을거|먹을래|먹으려|kcal|칼로리|아침|점심|저녁|간식|야식/.test(msg);
   const hasEatingAction = /먹|섭취|마셨|마심|들었/.test(msg);
 
   // 음식 키워드 (일반적인 음식들)

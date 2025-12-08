@@ -25,10 +25,17 @@ export type CoachPersona = 'cold' | 'bright' | 'strict';
 // 모듈화된 프롬프트 시스템
 // ============================================
 
-// 핵심 규칙 (압축, 항상 포함) - 오늘 날짜 명시!
-const CORE_RULES = `당신은 식단 관리 AI 코치입니다.
-한국어로 2-3문장 이내 응답. 캐릭터 말투 필수 유지.
-중요: 날짜 미언급시 무조건 오늘 날짜 사용.`;
+// 핵심 규칙 (압축, 항상 포함) - 다이어트 코치 역할 명시!
+const CORE_RULES = `당신은 다이어트/체중 관리 AI 코치입니다.
+사용자의 체중 감량 목표를 돕고, 건강한 식습관을 유도합니다.
+
+핵심 원칙:
+- 목표 칼로리를 초과하지 않도록 안내
+- 고칼로리 음식은 주의를 주되, 비난하지 않음
+- 건강한 선택을 칭찬하고 격려
+- 한국어로 2-3문장 이내 간결하게 응답
+- 캐릭터 말투 필수 유지
+- 날짜 미언급시 오늘 날짜 사용`;
 
 // 페르소나별 프롬프트 (압축 + 예시)
 const PERSONA_PROMPTS: Record<CoachPersona, string> = {
@@ -58,12 +65,22 @@ const PROMPT_MODULES = {
   goal_achieved: `목표 달성! 크게 축하.`,
 };
 
+// 사용자 컨텍스트 타입
+interface UserContext {
+  todayCalories: number;
+  targetCalories: number;
+  consecutiveDays: number;
+  currentWeight: number | null;
+  goalWeight: number | null;
+  todayFoods: string[];
+}
+
 // 동적 시스템 프롬프트 빌더
 function buildSystemPrompt(
   persona: CoachPersona,
   intent: ChatIntent,
   situation?: SituationType,
-  userContext?: { todayCalories: number; targetCalories: number }
+  userContext?: UserContext
 ): string {
   // 오늘 날짜를 항상 명시!
   const todayDate = getToday();
@@ -91,13 +108,37 @@ function buildSystemPrompt(
     }
   }
 
-  // 사용자 컨텍스트 (식단 관련 의도일 때만)
-  if (userContext && intent !== 'casual_chat') {
+  // 사용자 컨텍스트 추가 (항상 포함 - 일상 대화에서도 맥락 필요)
+  if (userContext) {
+    const contextParts: string[] = ['[사용자 현재 상황]'];
+
+    // 체중 정보
+    if (userContext.currentWeight && userContext.goalWeight) {
+      const weightDiff = userContext.currentWeight - userContext.goalWeight;
+      contextParts.push(`체중: ${userContext.currentWeight}kg (목표: ${userContext.goalWeight}kg, ${weightDiff > 0 ? weightDiff.toFixed(1) + 'kg 감량 필요' : '목표 달성!'})`);
+    } else if (userContext.currentWeight) {
+      contextParts.push(`현재 체중: ${userContext.currentWeight}kg`);
+    }
+
+    // 칼로리 정보
     const ratio = Math.round((userContext.todayCalories / userContext.targetCalories) * 100);
-    parts.push(`현재 상황: 오늘 ${userContext.todayCalories}kcal / 목표 ${userContext.targetCalories}kcal (${ratio}%)`);
+    const remaining = userContext.targetCalories - userContext.todayCalories;
+    contextParts.push(`오늘 칼로리: ${userContext.todayCalories}kcal / ${userContext.targetCalories}kcal (${ratio}%, 남은 여유: ${remaining}kcal)`);
+
+    // 오늘 먹은 음식 (간략히)
+    if (userContext.todayFoods.length > 0) {
+      contextParts.push(`오늘 식단: ${userContext.todayFoods.join(', ')}`);
+    }
+
+    // 연속 기록
+    if (userContext.consecutiveDays > 0) {
+      contextParts.push(`연속 기록: ${userContext.consecutiveDays}일째`);
+    }
+
+    parts.push(contextParts.join('\n'));
   }
 
-  return parts.join('\n');
+  return parts.join('\n\n');
 }
 
 // 기존 전체 프롬프트 (하위 호환성)
@@ -670,18 +711,27 @@ export function useChatMessages(limit: number = 50) {
  * - 오늘 총 섭취 칼로리
  * - 목표 칼로리
  * - 연속 기록 일수
+ * - 현재 체중, 목표 체중
+ * - 오늘 먹은 음식 목록
  */
 async function fetchUserContext(userId: string): Promise<{
   todayCalories: number;
   targetCalories: number;
   consecutiveDays: number;
+  currentWeight: number | null;
+  goalWeight: number | null;
+  todayFoods: string[];
 }> {
   const today = getToday();
 
-  // 1. 오늘 총 칼로리 조회
+  // 1. 오늘 식단 조회 (칼로리 + 음식명)
   const { data: todayMeals } = await supabase
     .from('meals')
-    .select('total_calories')
+    .select(`
+      total_calories,
+      meal_type,
+      meal_items (name)
+    `)
     .eq('user_id', userId)
     .eq('date', today);
 
@@ -690,14 +740,31 @@ async function fetchUserContext(userId: string): Promise<{
     0
   );
 
-  // 2. 목표 칼로리 조회
+  // 오늘 먹은 음식 목록 추출
+  const todayFoods: string[] = [];
+  (todayMeals || []).forEach((meal: any) => {
+    const mealTypeKr: Record<string, string> = {
+      breakfast: '아침',
+      lunch: '점심',
+      dinner: '저녁',
+      snack: '간식',
+    };
+    const items = meal.meal_items || [];
+    items.forEach((item: any) => {
+      todayFoods.push(`${mealTypeKr[meal.meal_type] || ''}:${item.name}`);
+    });
+  });
+
+  // 2. 프로필 조회 (목표 칼로리 + 체중 정보)
   const { data: profile } = await supabase
     .from('user_profiles')
-    .select('target_calories')
+    .select('target_calories, current_weight_kg, goal_weight_kg')
     .eq('user_id', userId)
     .single();
 
   const targetCalories = profile?.target_calories || 2000;
+  const currentWeight = profile?.current_weight_kg || null;
+  const goalWeight = profile?.goal_weight_kg || null;
 
   // 3. 연속 기록 일수 계산
   let consecutiveDays = 0;
@@ -726,7 +793,7 @@ async function fetchUserContext(userId: string): Promise<{
     }
   }
 
-  return { todayCalories, targetCalories, consecutiveDays };
+  return { todayCalories, targetCalories, consecutiveDays, currentWeight, goalWeight, todayFoods };
 }
 
 // Send message and get AI response
@@ -765,13 +832,9 @@ export function useSendMessage() {
         return old ? [...old, userMsg] : [userMsg];
       });
 
-      // 4. 조건부 사용자 컨텍스트 조회 (식단 관련 의도일 때만)
-      let userContext: { todayCalories: number; targetCalories: number; consecutiveDays: number } | undefined;
-
-      if (intent !== 'casual_chat') {
-        userContext = await fetchUserContext(userId);
-        console.log('[ChatBot] User context:', userContext);
-      }
+      // 4. 사용자 컨텍스트 조회 (항상 - 일상 대화에서도 맥락 필요)
+      const userContext = await fetchUserContext(userId);
+      console.log('[ChatBot] User context:', userContext);
 
       // 5. 상황 감지 (식단 기록 의도일 때)
       let situation: SituationType = 'default';
