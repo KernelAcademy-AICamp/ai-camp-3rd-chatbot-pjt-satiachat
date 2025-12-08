@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Scale } from 'lucide-react';
 import {
   Dialog,
@@ -35,11 +35,22 @@ export function WeightLogForm({
   const createProgress = useCreateProgress();
   const upsertToday = useUpsertTodayProgress();
 
-  const [date, setDate] = useState(editLog?.date || getToday());
-  const [weightKg, setWeightKg] = useState(editLog?.weight_kg?.toString() || '');
-  const [bodyFatPercent, setBodyFatPercent] = useState(editLog?.body_fat_percent?.toString() || '');
-  const [muscleMassKg, setMuscleMassKg] = useState(editLog?.muscle_mass_kg?.toString() || '');
-  const [notes, setNotes] = useState(editLog?.notes || '');
+  const [date, setDate] = useState(getToday());
+  const [weightKg, setWeightKg] = useState('');
+  const [bodyFatPercent, setBodyFatPercent] = useState('');
+  const [muscleMassKg, setMuscleMassKg] = useState('');
+  const [notes, setNotes] = useState('');
+
+  // 다이얼로그가 열릴 때마다 오늘 날짜로 초기화
+  useEffect(() => {
+    if (open) {
+      setDate(editLog?.date || getToday());
+      setWeightKg(editLog?.weight_kg?.toString() || '');
+      setBodyFatPercent(editLog?.body_fat_percent?.toString() || '');
+      setMuscleMassKg(editLog?.muscle_mass_kg?.toString() || '');
+      setNotes(editLog?.notes || '');
+    }
+  }, [open, editLog]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

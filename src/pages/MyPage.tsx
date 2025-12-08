@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { format, startOfMonth, endOfMonth, subDays, addDays, subMonths, addMonths } from "date-fns";
+import { format, startOfMonth, endOfMonth, subDays, addDays, subMonths, addMonths, startOfDay, isAfter } from "date-fns";
 import { ko } from "date-fns/locale";
 import {
   TrendingDown,
@@ -77,8 +77,24 @@ export default function MyPage() {
     }
   }, [chartViewMode, chartBaseDate]);
 
+  // 오늘 날짜 (시간 제외)
+  const today = startOfDay(new Date());
+
+  // 다음 기간이 미래인지 확인
+  const isNextDisabled = useMemo(() => {
+    if (chartViewMode === 'weekly') {
+      const nextDate = addDays(chartBaseDate, 7);
+      return isAfter(startOfDay(nextDate), today);
+    } else {
+      const nextMonth = addMonths(chartBaseDate, 1);
+      return isAfter(startOfMonth(nextMonth), today);
+    }
+  }, [chartViewMode, chartBaseDate, today]);
+
   // 차트 기간 이동 (주간: 7일 단위로 이동)
   const navigateChart = (direction: 'prev' | 'next') => {
+    if (direction === 'next' && isNextDisabled) return;
+
     if (chartViewMode === 'weekly') {
       setChartBaseDate(prev => direction === 'prev' ? subDays(prev, 7) : addDays(prev, 7));
     } else {
@@ -416,7 +432,7 @@ export default function MyPage() {
                     size="icon"
                     onClick={() => navigateChart('next')}
                     className="h-7 w-7 sm:h-8 sm:w-8 rounded-lg"
-                    disabled={chartBaseDate >= new Date()}
+                    disabled={isNextDisabled}
                   >
                     <ChevronRight className="h-4 w-4" />
                   </Button>
