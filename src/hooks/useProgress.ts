@@ -10,6 +10,7 @@ export const progressKeys = {
   list: (from: string, to: string) => [...progressKeys.lists(), from, to] as const,
   latest: () => [...progressKeys.all, 'latest'] as const,
   weekly: () => [...progressKeys.all, 'weekly'] as const,
+  byDate: (date: string) => [...progressKeys.all, 'date', date] as const,
 };
 
 // Fetch progress logs for a date range
@@ -120,6 +121,35 @@ export function useWeeklyStats() {
   };
 }
 
+// Fetch progress for a specific date
+export function useProgressByDate(date: string) {
+  const userId = getCurrentUserId();
+
+  return useQuery({
+    queryKey: progressKeys.byDate(date),
+    queryFn: async (): Promise<ProgressLog | null> => {
+      if (!date) return null;
+
+      const { data, error } = await supabase
+        .from('progress_logs')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('date', date)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No rows returned
+          return null;
+        }
+        throw error;
+      }
+      return data;
+    },
+    enabled: !!date,
+  });
+}
+
 // Create a new progress log
 export function useCreateProgress() {
   const queryClient = useQueryClient();
@@ -137,6 +167,40 @@ export function useCreateProgress() {
           muscle_mass_kg: request.muscle_mass_kg,
           notes: request.notes,
         })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: progressKeys.all });
+    },
+  });
+}
+
+// Upsert progress for any date (create or update)
+export function useUpsertProgress() {
+  const queryClient = useQueryClient();
+  const userId = getCurrentUserId();
+
+  return useMutation({
+    mutationFn: async (request: CreateProgressRequest): Promise<ProgressLog> => {
+      const { data, error } = await supabase
+        .from('progress_logs')
+        .upsert(
+          {
+            user_id: userId,
+            date: request.date,
+            weight_kg: request.weight_kg,
+            body_fat_percent: request.body_fat_percent,
+            muscle_mass_kg: request.muscle_mass_kg,
+            notes: request.notes,
+          },
+          {
+            onConflict: 'user_id,date',
+          }
+        )
         .select()
         .single();
 
