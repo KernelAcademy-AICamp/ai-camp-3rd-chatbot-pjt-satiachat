@@ -223,7 +223,7 @@ export function useDeleteMeal() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (mealId: string): Promise<void> => {
+    mutationFn: async (mealId: string): Promise<{ date: string }> => {
       // Get meal to know the date before deleting
       const { data: meal, error: fetchError } = await supabase
         .from('meals')
@@ -242,9 +242,11 @@ export function useDeleteMeal() {
       if (error) throw error;
 
       // Return the date for cache invalidation
-      return;
+      return { date: meal.date };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Invalidate specific date and all meal lists
+      queryClient.invalidateQueries({ queryKey: mealKeys.list(data.date) });
       queryClient.invalidateQueries({ queryKey: mealKeys.lists() });
       // Also invalidate calorie chart data
       queryClient.invalidateQueries({ queryKey: ['calories', 'weekly'] });

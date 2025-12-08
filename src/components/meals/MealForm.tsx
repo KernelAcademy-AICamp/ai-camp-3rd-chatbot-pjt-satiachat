@@ -77,6 +77,8 @@ export function MealForm({
     return available || 'breakfast';
   };
 
+  // 폼 초기화는 open 상태가 true로 변경될 때만 실행
+  // editMeal?.id가 변경되거나 existingMealTypes가 변경되어도 초기화하지 않음
   useEffect(() => {
     if (open) {
       if (editMeal) {
@@ -100,7 +102,8 @@ export function MealForm({
         setItems([]);
       }
     }
-  }, [open, editMeal?.id, defaultDate, defaultMealType, existingMealTypes]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const handleAddItem = () => {
     setItems([...items, { name: '', calories: 0 }]);
@@ -307,8 +310,11 @@ export function MealForm({
                         type="button"
                         variant="ghost"
                         size="icon"
-                        onClick={() => handleRemoveItem(index)}
-                        className="absolute top-2 right-2 h-6 w-6 rounded-full text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveItem(index);
+                        }}
+                        className="absolute top-2 right-2 h-6 w-6 rounded-full text-muted-foreground opacity-60 hover:opacity-100 transition-opacity hover:bg-destructive/10 hover:text-destructive"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>

@@ -109,7 +109,7 @@ export default function Dashboard() {
       </div>
 
       {/* Chat Panel - Desktop */}
-      <div className="hidden lg:block w-[420px] border-l border-border p-4 bg-muted/20">
+      <div className="hidden lg:block w-[420px] border-l border-border p-4 bg-muted/20 relative z-0">
         <div className="h-[calc(100vh-2rem)] sticky top-4">
           <ChatPanel />
         </div>
