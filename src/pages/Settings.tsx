@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { User, Bell, Palette, Shield, Snowflake, Sun, Flame, Check, Loader2, Camera, Lock, X, AlertCircle } from "lucide-react";
+import { User, Bell, Palette, Shield, Check, Loader2, Camera, Lock, X, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -13,24 +13,27 @@ import { AvatarUpload } from "@/components/profile/AvatarUpload";
 import { PasswordChange } from "@/components/profile/PasswordChange";
 import type { ChatPersona } from "@/types/domain";
 
-const personas: { id: ChatPersona; icon: typeof Snowflake; label: string; description: string }[] = [
+const personas: { id: ChatPersona; icon: string; label: string; description: string; image: string }[] = [
   {
     id: "cold",
-    icon: Snowflake,
-    label: "Cool & Factual",
-    description: "Minimal emotions, short & direct responses",
+    icon: "🐱",
+    label: "냥이 코치",
+    description: "도도하고 팩트 중심. 필요한 말만 딱딱 해주는 고양이.",
+    image: "/coaches/cat.png",
   },
   {
     id: "bright",
-    icon: Sun,
-    label: "Warm & Supportive",
-    description: "Encouraging, positive feedback with emojis",
+    icon: "🐕",
+    label: "댕댕이 코치",
+    description: "언제나 열정 가득! 꼬리 흔들며 응원하는 강아지.",
+    image: "/coaches/dog.png",
   },
   {
     id: "strict",
-    icon: Flame,
-    label: "Direct & Focused",
-    description: "No-nonsense, straightforward coaching",
+    icon: "🐷",
+    label: "꿀꿀이 코치",
+    description: "먹는 것에 진심인 돼지. 칼로리엔 엄격해요.",
+    image: "/coaches/pig.png",
   },
 ];
 
@@ -305,7 +308,6 @@ export default function Settings() {
 
         <div className="space-y-3">
           {personas.map((persona) => {
-            const Icon = persona.icon;
             const isSelected = selectedPersona === persona.id;
 
             return (
@@ -319,16 +321,18 @@ export default function Settings() {
                     : "border-border hover:border-primary/30 hover:bg-muted/50"
                 )}
               >
-                <div
-                  className={cn(
-                    "w-10 h-10 rounded-lg flex items-center justify-center",
-                    isSelected ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                  )}
-                >
-                  <Icon className="w-5 h-5" />
+                <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0 bg-muted">
+                  <img
+                    src={persona.image}
+                    alt={persona.label}
+                    className="w-full h-full object-cover"
+                  />
                 </div>
                 <div className="flex-1">
-                  <p className="font-medium text-foreground">{persona.label}</p>
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{persona.icon}</span>
+                    <p className="font-medium text-foreground">{persona.label}</p>
+                  </div>
                   <p className="text-xs text-muted-foreground">{persona.description}</p>
                 </div>
                 {isSelected && (

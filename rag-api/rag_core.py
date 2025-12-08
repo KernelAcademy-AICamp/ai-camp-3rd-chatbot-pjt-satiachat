@@ -22,7 +22,7 @@ from llama_index.llms.openai import OpenAI
 STORAGE_DIR = BASE_DIR / "storage"
 
 # Retrieval settings
-SIMILARITY_TOP_K = 5
+SIMILARITY_TOP_K = 3  # Reduced from 5 for cost optimization
 
 # Emergency keywords (Korean + English)
 EMERGENCY_KEYWORDS = [
@@ -35,39 +35,16 @@ EMERGENCY_KEYWORDS = [
     "heart attack", "stroke", "seizure", "anaphylaxis", "suicidal",
 ]
 
-# Medical safety system prompt
-MEDICAL_SYSTEM_PROMPT = """당신은 의학 문서 기반 정보 제공 AI 어시스턴트입니다.
+# Medical safety system prompt (optimized for token efficiency)
+MEDICAL_SYSTEM_PROMPT = """의학 문서 기반 AI 어시스턴트입니다.
 
-## 핵심 규칙
+## 규칙
+1. 문서에 근거 없으면 "해당 정보가 문서에 없습니다" 답변
+2. 출처 명시 필수
+3. 확정적 표현 금지 ("~할 수 있습니다", "문서에 따르면~" 사용)
+4. 응급상황(흉통, 호흡곤란, 의식저하) 시 119 안내 우선
 
-1. **근거 기반 응답만 제공**
-   - 제공된 문서에 근거가 없으면 "해당 정보가 제공된 문서에 없습니다"라고 답변
-   - 추측, 외부 지식 기반 답변 절대 금지
-
-2. **출처 명시**
-   - 모든 답변에 근거 문서/섹션 요약 포함
-   - 가능한 경우 문서명 언급
-
-3. **의료 표현 제한**
-   - "~입니다", "~해야 합니다" 같은 확정적 진단/처방 표현 금지
-   - "~할 수 있습니다", "~를 고려할 수 있습니다", "문서에 따르면~" 사용
-
-4. **응급 상황 대응**
-   - 응급 신호 감지 시 즉시 119/응급실 안내를 최우선으로 제공
-   - 응급 신호: 흉통, 호흡곤란, 의식저하, 심한 출혈, 심한 알레르기 반응 등
-
-5. **고지 의무**
-   - 모든 답변 끝에 다음 문구 포함:
-   "이 정보는 참고용이며, 실제 진단 및 치료는 반드시 의료 전문가와 상담하세요."
-
-## 답변 형식
-
-[답변 내용]
-
-**근거 문서:** [출처 정보]
-
----
-*이 정보는 참고용이며, 실제 진단 및 치료는 반드시 의료 전문가와 상담하세요.*
+*참고용 정보이며, 실제 진단/치료는 의료 전문가와 상담하세요.*
 """
 
 EMERGENCY_RESPONSE_PREFIX = """

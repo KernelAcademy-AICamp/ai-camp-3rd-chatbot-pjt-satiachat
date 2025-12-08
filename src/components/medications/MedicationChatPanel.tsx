@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, Stethoscope, Scale, Flame, Pill, TrendingDown, Loader2 } from "lucide-react";
+import { Send, Scale, Flame, Pill, TrendingDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -45,8 +45,12 @@ export function MedicationChatPanel() {
     <div className="flex flex-col h-full bg-card rounded-3xl border border-border/50 shadow-lg overflow-hidden">
       {/* 헤더 */}
       <div className="flex items-center gap-3 p-4 border-b border-border bg-gradient-to-r from-info/10 to-info/5">
-        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-info to-info/70 flex items-center justify-center shadow-md">
-          <Stethoscope className="w-5 h-5 text-white" />
+        <div className="w-11 h-11 rounded-xl overflow-hidden shadow-md bg-muted">
+          <img
+            src="/coaches/doctor.png"
+            alt="AI 약물 상담"
+            className="w-full h-full object-cover"
+          />
         </div>
         <div className="flex-1">
           <h3 className="font-semibold text-foreground">AI 약물 상담</h3>
@@ -80,8 +84,12 @@ export function MedicationChatPanel() {
         <div className="space-y-4">
           {messages.length === 0 && (
             <div className="text-center py-8">
-              <div className="w-16 h-16 rounded-2xl bg-info/10 flex items-center justify-center mx-auto mb-4">
-                <Stethoscope className="w-8 h-8 text-info" />
+              <div className="w-16 h-16 rounded-2xl overflow-hidden mx-auto mb-4 bg-muted">
+                <img
+                  src="/coaches/doctor.png"
+                  alt="AI 약물 상담"
+                  className="w-full h-full object-cover"
+                />
               </div>
               <h4 className="font-semibold text-foreground mb-2">약물 상담을 시작하세요</h4>
               <p className="text-sm text-muted-foreground max-w-[280px] mx-auto">

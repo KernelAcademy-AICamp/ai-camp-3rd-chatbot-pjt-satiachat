@@ -45,14 +45,19 @@ export function CoachSelectionStep({ control, errors }: StepProps) {
                   }}
                 >
                   <div className="p-5 flex items-start gap-4">
-                    {/* Icon */}
-                    <div className="text-4xl flex-shrink-0" aria-hidden="true">
-                      {persona.icon}
+                    {/* Character Image */}
+                    <div className="w-16 h-16 rounded-xl overflow-hidden flex-shrink-0 bg-muted">
+                      <img
+                        src={persona.image}
+                        alt={persona.name}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
 
                     {/* Content */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xl">{persona.icon}</span>
                         <h3 className="font-semibold text-foreground">
                           {persona.name}
                         </h3>

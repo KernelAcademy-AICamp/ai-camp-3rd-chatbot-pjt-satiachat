@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, Sparkles, Snowflake, Sun, Flame, Trash2 } from "lucide-react";
+import { Send, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -8,16 +8,16 @@ import { useChatMessages, useSendMessage, useClearChat, CoachPersona } from "@/h
 import { useProfile, useUpdatePersona } from "@/hooks/useProfile";
 import type { ChatMessage } from "@/types/domain";
 
-const personaConfig: Record<CoachPersona, { icon: typeof Snowflake; label: string; color: string }> = {
-  cold: { icon: Snowflake, label: "Cool & Factual", color: "text-info" },
-  bright: { icon: Sun, label: "Warm & Supportive", color: "text-warning" },
-  strict: { icon: Flame, label: "Direct & Focused", color: "text-destructive" },
+const personaConfig: Record<CoachPersona, { icon: string; label: string; image: string }> = {
+  cold: { icon: "🐱", label: "냥이 코치", image: "/coaches/cat.png" },
+  bright: { icon: "🐕", label: "댕댕이 코치", image: "/coaches/dog.png" },
+  strict: { icon: "🐷", label: "꿀꿀이 코치", image: "/coaches/pig.png" },
 };
 
 const welcomeMessages: Record<CoachPersona, string> = {
-  cold: "안녕하세요. 오늘 식사 기록을 도와드리겠습니다. 무엇을 드셨나요?",
-  bright: "안녕하세요! 오늘 식사 기록을 도와드릴게요. 뭘 드셨는지 편하게 말씀해주세요 😊",
-  strict: "안녕하세요. 오늘 식단을 기록하겠습니다. 무엇을 먹었습니까?",
+  cold: "냐아. 오늘 뭘 먹었는지 말해봐. 정확하게.",
+  bright: "멍멍! 반가워요! 오늘 뭐 드셨어요? 같이 기록해봐요! 🐾",
+  strict: "꿀꿀! 오늘 뭘 먹었어? 솔직하게 다 말해!",
 };
 
 export function ChatPanel() {
@@ -43,7 +43,7 @@ export function ChatPanel() {
   const sendMessage = useSendMessage();
   const clearChat = useClearChat();
 
-  const PersonaIcon = personaConfig[persona].icon;
+  const currentPersona = personaConfig[persona];
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -99,15 +99,18 @@ export function ChatPanel() {
     <div className="flex flex-col h-full bg-card rounded-3xl border border-border/50 shadow-lg overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-3 p-4 border-b border-border bg-gradient-to-r from-primary/10 to-primary/5">
-        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-md">
-          <Sparkles className="w-5 h-5 text-white" />
+        <div className="w-11 h-11 rounded-xl overflow-hidden shadow-md bg-muted">
+          <img
+            src={currentPersona.image}
+            alt={currentPersona.label}
+            className="w-full h-full object-cover"
+          />
         </div>
         <div className="flex-1">
-          <h3 className="font-semibold text-foreground">AI 식단 코치</h3>
+          <h3 className="font-semibold text-foreground">{currentPersona.label}</h3>
           <div className="flex items-center gap-2">
             {(Object.keys(personaConfig) as CoachPersona[]).map((p) => {
               const config = personaConfig[p];
-              const Icon = config.icon;
               return (
                 <button
                   key={p}
@@ -119,7 +122,7 @@ export function ChatPanel() {
                       : "hover:bg-background/30 opacity-50"
                   )}
                 >
-                  <Icon className={cn("w-3 h-3", config.color)} />
+                  <span>{config.icon}</span>
                   {persona === p && <span className="text-muted-foreground">{config.label}</span>}
                 </button>
               );

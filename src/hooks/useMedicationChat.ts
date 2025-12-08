@@ -78,77 +78,46 @@ async function getUserHealthContext(): Promise<string> {
     .eq('user_id', userId)
     .eq('is_active', true);
 
-  // 컨텍스트 문자열 생성
-  let context = '## 현재 사용자 건강 데이터\n\n';
+  // 컨텍스트 문자열 생성 (토큰 최적화)
+  let context = '## 건강 데이터\n';
 
-  // 프로필
+  // 프로필 (간결하게)
   if (profile) {
-    context += '### 기본 정보\n';
-    context += `- 현재 체중: ${profile.current_weight_kg || '미등록'}kg\n`;
-    context += `- 목표 체중: ${profile.goal_weight_kg || '미등록'}kg\n`;
-    context += `- 일일 목표 칼로리: ${profile.target_calories || 2000}kcal\n`;
-    context += `- 활동 수준: ${profile.activity_level || '보통'}\n\n`;
+    context += `체중: ${profile.current_weight_kg || '?'}kg → 목표: ${profile.goal_weight_kg || '?'}kg | 칼로리목표: ${profile.target_calories || 2000}kcal\n`;
   }
 
-  // 체중 변화 (30일)
-  context += '### 최근 30일 체중 변화\n';
+  // 체중 변화 (30일) - 핵심만
   if (weightLogs && weightLogs.length > 0) {
     const firstWeight = weightLogs[0].weight_kg;
     const lastWeight = weightLogs[weightLogs.length - 1].weight_kg;
     const monthlyChange = lastWeight - firstWeight;
-
-    // 주요 기록만 표시 (처음, 중간, 마지막)
-    if (weightLogs.length >= 3) {
-      const midIndex = Math.floor(weightLogs.length / 2);
-      context += `- ${weightLogs[0].date}: ${weightLogs[0].weight_kg}kg (시작)\n`;
-      context += `- ${weightLogs[midIndex].date}: ${weightLogs[midIndex].weight_kg}kg (중간)\n`;
-      context += `- ${weightLogs[weightLogs.length - 1].date}: ${lastWeight}kg (현재)\n`;
-    } else {
-      weightLogs.forEach((log) => {
-        context += `- ${log.date}: ${log.weight_kg}kg\n`;
-      });
-    }
-    context += `- **월간 변화: ${monthlyChange > 0 ? '+' : ''}${monthlyChange.toFixed(1)}kg**\n\n`;
-  } else {
-    context += '- 기록 없음\n\n';
+    context += `\n체중변화(30일): ${firstWeight}→${lastWeight}kg (${monthlyChange > 0 ? '+' : ''}${monthlyChange.toFixed(1)}kg)\n`;
   }
 
-  // 칼로리 (7일)
-  context += '### 최근 7일 칼로리 섭취\n';
+  // 칼로리 (7일) - 평균만
   if (meals && meals.length > 0) {
     const dailyCalories: Record<string, number> = {};
     meals.forEach((meal) => {
       if (!dailyCalories[meal.date]) dailyCalories[meal.date] = 0;
       dailyCalories[meal.date] += meal.total_calories || 0;
     });
-
     const calories = Object.values(dailyCalories);
     const avgCalories = Math.round(calories.reduce((a, b) => a + b, 0) / calories.length);
     const targetCalories = profile?.target_calories || 2000;
-
-    Object.entries(dailyCalories).slice(-5).forEach(([date, cal]) => {
-      context += `- ${date}: ${cal}kcal\n`;
-    });
-    context += `- **일 평균: ${avgCalories}kcal (목표 대비 ${Math.round((avgCalories / targetCalories) * 100)}%)**\n\n`;
-  } else {
-    context += '- 기록 없음\n\n';
+    context += `칼로리(7일평균): ${avgCalories}kcal (목표의 ${Math.round((avgCalories / targetCalories) * 100)}%)\n`;
   }
 
-  // 약물 복용
-  context += '### 복용 중인 약물\n';
+  // 약물 - 이름과 복용률만
   if (medications && medications.length > 0) {
-    medications.forEach((med) => {
+    context += '\n약물: ';
+    const medSummary = medications.map((med) => {
       const logs = (med.medication_logs as any[]) || [];
       const recentLogs = logs.slice(-7);
       const takenCount = recentLogs.filter((l) => l.status === 'taken').length;
-
-      context += `- **${med.name}** ${med.dosage || ''}\n`;
-      context += `  - 복용 주기: ${med.frequency === 'daily' ? '매일' : med.frequency === 'weekly' ? '주 1회' : '필요시'}\n`;
-      context += `  - 복용 시간: ${med.time_of_day || '미정'}\n`;
-      context += `  - 최근 7일 복용률: ${recentLogs.length > 0 ? Math.round((takenCount / recentLogs.length) * 100) : 0}%\n`;
+      const rate = recentLogs.length > 0 ? Math.round((takenCount / recentLogs.length) * 100) : 0;
+      return `${med.name}(${rate}%)`;
     });
-  } else {
-    context += '- 등록된 약물 없음\n';
+    context += medSummary.join(', ');
   }
 
   // 캐시 저장

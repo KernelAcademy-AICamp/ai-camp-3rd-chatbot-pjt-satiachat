@@ -22,10 +22,10 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS for React localhost
+# CORS for React localhost (any port)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8080", "http://127.0.0.1:8080"],
+    allow_origins=["*"],  # Allow all origins for development
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -12,29 +12,33 @@ export interface CoachPersona {
   description: string;
   tagline: string;
   icon: string;
+  image: string;
 }
 
 export const COACH_PERSONAS: CoachPersona[] = [
   {
     id: 'cold',
-    name: '차분한 분석가',
-    description: '데이터 기반의 팩트 중심 코칭. 감정보다 과학.',
-    tagline: '사실에 집중',
-    icon: '❄️',
+    name: '냥이 코치',
+    description: '도도하고 팩트 중심. 필요한 말만 딱딱 해주는 고양이.',
+    tagline: '냉정한 분석',
+    icon: '🐱',
+    image: '/coaches/cat.png',
   },
   {
     id: 'bright',
-    name: '따뜻한 응원단',
-    description: '격려와 응원으로 함께하는 코칭. 작은 성과도 축하해요.',
-    tagline: '함께 해낼 수 있어요!',
-    icon: '☀️',
+    name: '댕댕이 코치',
+    description: '언제나 열정 가득! 꼬리 흔들며 응원하는 강아지.',
+    tagline: '멍멍! 잘하고 있어!',
+    icon: '🐕',
+    image: '/coaches/dog.png',
   },
   {
     id: 'strict',
-    name: '엄격한 트레이너',
-    description: '직설적이고 목표 지향적인 코칭. 변명은 NO.',
-    tagline: '핑계 금지',
-    icon: '🔥',
+    name: '꿀꿀이 코치',
+    description: '먹는 것에 진심인 돼지. 칼로리엔 엄격해요.',
+    tagline: '꿀꿀! 핑계 금지!',
+    icon: '🐷',
+    image: '/coaches/pig.png',
   },
 ];
 
