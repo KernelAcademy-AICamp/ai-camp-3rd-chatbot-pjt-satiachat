@@ -10,7 +10,6 @@ import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import MyPage from "./pages/MyPage";
 import Medications from "./pages/Medications";
-import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import Board from "./pages/Board";
 import Login from "./pages/Login";
@@ -39,7 +38,6 @@ const App = () => (
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/my-page" element={<MyPage />} />
               <Route path="/medications" element={<Medications />} />
-              <Route path="/reports" element={<Reports />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/board" element={<Board />} />
               <Route path="/board/write" element={<Board />} />

@@ -4,7 +4,6 @@ import {
   LayoutDashboard,
   User,
   Pill,
-  BarChart3,
   MessageSquare,
   Settings,
 } from "lucide-react";
@@ -14,7 +13,6 @@ const mobileNavItems = [
   { title: "홈", url: "/dashboard", icon: LayoutDashboard },
   { title: "내정보", url: "/my-page", icon: User },
   { title: "약물", url: "/medications", icon: Pill },
-  { title: "리포트", url: "/reports", icon: BarChart3 },
   { title: "게시판", url: "/board", icon: MessageSquare },
   { title: "설정", url: "/settings", icon: Settings },
 ];

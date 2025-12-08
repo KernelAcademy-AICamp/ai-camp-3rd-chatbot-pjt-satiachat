@@ -5,7 +5,6 @@ import {
   LayoutDashboard,
   User,
   Pill,
-  FileText,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -22,7 +21,6 @@ const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "My Page", url: "/my-page", icon: User },
   { title: "Medications", url: "/medications", icon: Pill },
-  { title: "Reports", url: "/reports", icon: FileText },
   { title: "Board", url: "/board", icon: MessageSquare },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
