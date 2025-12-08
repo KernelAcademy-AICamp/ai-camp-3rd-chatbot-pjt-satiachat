@@ -228,7 +228,7 @@ export default function Medications() {
                     <div className="flex-1">
                       <p className="font-medium text-foreground">알림 설정</p>
                       <p className="text-sm text-muted-foreground">
-                        복용 시간에 맞춰 알림을 받으세요
+                        곧 추가될 기능입니다
                       </p>
                     </div>
                     <Button variant="outline" size="sm" className="rounded-xl border-info/30 text-info hover:bg-info/10">

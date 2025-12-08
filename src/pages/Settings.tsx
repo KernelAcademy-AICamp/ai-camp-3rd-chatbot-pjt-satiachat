@@ -352,7 +352,7 @@ export default function Settings() {
           <div className="w-10 h-10 rounded-xl bg-info/10 flex items-center justify-center">
             <Bell className="w-5 h-5 text-info" />
           </div>
-          <h2 className="font-semibold text-foreground">Notifications</h2>
+          <h2 className="font-semibold text-foreground">Notifications(곧 추가될 기능)</h2>
         </div>
 
         <div className="space-y-4">
