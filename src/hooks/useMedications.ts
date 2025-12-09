@@ -266,6 +266,7 @@ export interface MonthlyLogsData {
   monthStats: {
     totalDays: number;
     recordedDays: number;
+    countableDays: number;    // 계산 대상 일수 (오늘까지)
     fullComplianceDays: number;
     averageRate: number;
   };
@@ -336,28 +337,47 @@ export function useMedicationLogsForMonth(year: number, month: number) {
         }
       });
 
-      // 상태 결정
-      let recordedDays = 0;
+      // 상태 결정 (오늘까지의 날짜만 계산)
+      const today = new Date();
+      const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+      let recordedDays = 0;      // 로그가 있는 날
+      let countableDays = 0;     // 계산 대상 날 (오늘까지)
       let fullComplianceDays = 0;
       let totalRateSum = 0;
 
       dailySummary.forEach((summary) => {
+        // 미래 날짜는 계산에서 제외
+        if (summary.date > todayStr) return;
+
         const totalLogged = summary.takenCount + summary.skippedCount;
-        if (totalLogged > 0) {
-          recordedDays++;
-          if (summary.takenCount >= totalMeds && totalMeds > 0) {
-            summary.status = 'full';
-            fullComplianceDays++;
-          } else if (summary.takenCount > 0) {
-            summary.status = 'partial';
+
+        // 약물이 등록되어 있고 오늘 이전 날짜면 계산 대상
+        if (totalMeds > 0) {
+          countableDays++;
+
+          if (totalLogged > 0) {
+            recordedDays++;
+            if (summary.takenCount >= totalMeds) {
+              summary.status = 'full';
+              fullComplianceDays++;
+            } else if (summary.takenCount > 0) {
+              summary.status = 'partial';
+            } else {
+              summary.status = 'missed';
+            }
+            // 해당 날의 복용률
+            totalRateSum += (summary.takenCount / totalMeds) * 100;
           } else {
-            summary.status = 'missed';
+            // 로그가 없는 날은 0%로 계산
+            summary.status = 'none';
+            totalRateSum += 0;
           }
-          totalRateSum += totalMeds > 0 ? (summary.takenCount / totalMeds) * 100 : 0;
         }
       });
 
-      const averageRate = recordedDays > 0 ? Math.round(totalRateSum / recordedDays) : 0;
+      // 계산 대상 날짜 기준 평균 복용률
+      const averageRate = countableDays > 0 ? Math.round(totalRateSum / countableDays) : 0;
 
       return {
         logs: logs || [],
@@ -365,6 +385,7 @@ export function useMedicationLogsForMonth(year: number, month: number) {
         monthStats: {
           totalDays: daysInMonth,
           recordedDays,
+          countableDays,    // 계산 대상 일수 (오늘까지)
           fullComplianceDays,
           averageRate,
         },

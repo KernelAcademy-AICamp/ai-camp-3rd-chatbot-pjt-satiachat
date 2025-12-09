@@ -101,7 +101,7 @@ export function MedicationCalendar({ medications }: MedicationCalendarProps) {
                     {monthData.monthStats.averageRate}%
                   </span>
                   <span className="text-sm text-muted-foreground">
-                    ({monthData.monthStats.fullComplianceDays}/{monthData.monthStats.recordedDays}일 완벽 복용)
+                    ({monthData.monthStats.fullComplianceDays}/{monthData.monthStats.countableDays}일 완벽 복용)
                   </span>
                 </div>
               </div>
