@@ -117,7 +117,7 @@ OpenAI API 호출이 Supabase Edge Function으로 이전됨:
 
 ### Supabase Configuration
 
-- **Project URL**: `https://fsdvksqflxfgirhvgybn.supabase.co`
+- **Project URL**: `https://your-project-ref.supabase.co`
 - **Email Confirmation**: Disabled (for MVP)
 - **Tables**: users, user_profiles, meals, meal_items, medications, medication_logs, progress_logs, chat_messages
 
@@ -146,7 +146,7 @@ npm install -g supabase
 ```bash
 cd mini_project_test/ai-coach-companion
 supabase login
-supabase link --project-ref fsdvksqflxfgirhvgybn
+supabase link --project-ref your-project-ref
 ```
 
 ### 3. 환경 변수 설정 (Supabase Dashboard)
@@ -166,7 +166,7 @@ supabase functions deploy chat
 ### 5. 테스트
 
 ```bash
-curl -X POST 'https://fsdvksqflxfgirhvgybn.supabase.co/functions/v1/chat' \
+curl -X POST 'https://your-project-ref.supabase.co/functions/v1/chat' \
   -H 'Authorization: Bearer YOUR_ANON_KEY' \
   -H 'Content-Type: application/json' \
   -d '{"content": "안녕", "persona": "bright", "userId": "test-user-id"}'

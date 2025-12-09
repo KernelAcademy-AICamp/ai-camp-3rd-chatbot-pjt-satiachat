@@ -41,3 +41,10 @@ server/logs/
 docs/DietRx_Coach_Overview.pptx
 docs/RLS_PRODUCTION_CHECKLIST.md
 docs/SUPABASE_RLS_DEBUGGING.md
+
+# Claude Code local settings (contains sensitive tokens)
+.claude/settings.local.json
+.claude/settings.local.json.bak
+
+# RAG cache
+medication-rag/__pycache__/
