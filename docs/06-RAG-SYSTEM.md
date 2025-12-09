@@ -45,6 +45,11 @@ LlamaIndex를 사용한 RAG(Retrieval-Augmented Generation) 시스템으로, 식
 
 ### 수집 대상
 
+[위고비프리필드펜1.0 (세마글루타이드) — 의약품정보](https://nedrug.mfds.go.kr/pbp/CCBBB01/getItemDetailCache?cacheSeq=202301386aupdateTs2024-07-09+09%3A45%3A43.250267b)
+
+[마운자로프리필드펜주 2.5 mg (티르제파타이드) — 의약품정보](https://nedrug.mfds.go.kr/pbp/CCBBB01/getItemDetailCache?cacheSeq=202301983aupdateTs2025-07-22+09%3A05%3A22.239066b)
+
+
 식약처 의약품안전나라에서 다음 정보를 수집합니다:
 
 | 약물 | 문서 종류 | 파일명 |
