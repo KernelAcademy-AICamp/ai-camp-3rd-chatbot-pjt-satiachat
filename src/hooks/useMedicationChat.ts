@@ -72,20 +72,28 @@ async function getUserHealthContext(): Promise<string> {
     .gte('date', sevenDaysAgoStr)
     .order('date', { ascending: true });
 
-  // 4. 약물 목록
+  // 4. 활성 약물 목록
   const { data: medications } = await supabase
     .from('medications')
     .select('id, name, dosage, frequency, time_of_day')
     .eq('user_id', userId)
     .eq('is_active', true);
 
-  // 5. 최근 30일 복용 기록 (상세)
-  const { data: medicationLogs } = await supabase
-    .from('medication_logs')
-    .select('medication_id, taken_at, status')
-    .eq('user_id', userId)
-    .gte('taken_at', thirtyDaysAgoStr)
-    .order('taken_at', { ascending: false });
+  // 5. 활성 약물의 최근 30일 복용 기록만 조회
+  const activeMedIds = medications?.map(m => m.id) || [];
+  let medicationLogs: any[] = [];
+
+  if (activeMedIds.length > 0) {
+    const { data: logsData } = await supabase
+      .from('medication_logs')
+      .select('medication_id, taken_at, status')
+      .eq('user_id', userId)
+      .in('medication_id', activeMedIds)
+      .gte('taken_at', thirtyDaysAgoStr)
+      .order('taken_at', { ascending: false });
+
+    medicationLogs = logsData || [];
+  }
 
   // 컨텍스트 문자열 생성 (토큰 최적화)
   let context = '## 건강 데이터\n';
@@ -125,7 +133,7 @@ async function getUserHealthContext(): Promise<string> {
 
     medications.forEach((med) => {
       // 해당 약물의 로그만 필터링
-      const logs = (medicationLogs || []).filter(log => log.medication_id === med.id);
+      const logs = medicationLogs.filter(log => log.medication_id === med.id);
 
       // 최근 7일 복용 현황
       const last7Days: string[] = [];
