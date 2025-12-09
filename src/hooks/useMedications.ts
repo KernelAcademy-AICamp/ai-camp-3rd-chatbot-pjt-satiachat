@@ -286,18 +286,7 @@ export function useMedicationLogsForMonth(year: number, month: number) {
       const startStr = `${year}-${String(month).padStart(2, '0')}-01T00:00:00`;
       const endStr = `${year}-${String(month).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}T23:59:59`;
 
-      // 1. 해당 월의 모든 로그 조회
-      const { data: logs, error: logError } = await supabase
-        .from('medication_logs')
-        .select('*')
-        .eq('user_id', userId)
-        .gte('taken_at', startStr)
-        .lte('taken_at', endStr)
-        .order('taken_at', { ascending: true });
-
-      if (logError) throw logError;
-
-      // 2. 활성 약물 수 조회 (현재 기준)
+      // 1. 활성 약물 ID 먼저 조회
       const { data: medications, error: medError } = await supabase
         .from('medications')
         .select('id')
@@ -306,7 +295,24 @@ export function useMedicationLogsForMonth(year: number, month: number) {
 
       if (medError) throw medError;
 
-      const totalMeds = medications?.length || 0;
+      const activeMedIds = medications?.map(m => m.id) || [];
+      const totalMeds = activeMedIds.length;
+
+      // 2. 활성 약물의 로그만 조회 (삭제된 약물의 로그 제외)
+      let logs: any[] = [];
+      if (activeMedIds.length > 0) {
+        const { data: logsData, error: logError } = await supabase
+          .from('medication_logs')
+          .select('*')
+          .eq('user_id', userId)
+          .in('medication_id', activeMedIds)
+          .gte('taken_at', startStr)
+          .lte('taken_at', endStr)
+          .order('taken_at', { ascending: true });
+
+        if (logError) throw logError;
+        logs = logsData || [];
+      }
 
       // 3. 일별 요약 계산
       const dailySummary = new Map<string, DayLogSummary>();
@@ -325,7 +331,7 @@ export function useMedicationLogsForMonth(year: number, month: number) {
       }
 
       // 로그 데이터로 일별 요약 업데이트
-      (logs || []).forEach(log => {
+      logs.forEach(log => {
         const dateStr = log.taken_at.split('T')[0];
         const summary = dailySummary.get(dateStr);
         if (summary) {
