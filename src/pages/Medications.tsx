@@ -1,15 +1,9 @@
 import { useState } from "react";
 import {
   Pill, Plus, Calendar, History,
-  Bell, Loader2, X, Info
+  Bell, Loader2, X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { MedicationCard } from "@/components/medications/MedicationCard";
 import { MedicationForm } from "@/components/medications/MedicationForm";
@@ -25,7 +19,6 @@ export default function Medications() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [activeView, setActiveView] = useState<ViewTab>("today");
   const [showMobileChat, setShowMobileChat] = useState(false);
-  const [showDosageGuide, setShowDosageGuide] = useState(false);
 
   const { total, taken, percentage, medications, isLoading, error } = useTodayMedicationStats();
 
@@ -50,23 +43,13 @@ export default function Medications() {
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowDosageGuide(true)}
-                  className="gap-2 rounded-2xl border-info/30 text-info hover:bg-info/10"
-                >
-                  <Info className="w-4 h-4" />
-                  <span className="hidden sm:inline">용량 가이드</span>
-                </Button>
-                <Button
-                  onClick={() => setShowAddForm(true)}
-                  className="gap-2 rounded-2xl bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/20 px-6"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span className="hidden sm:inline">약물 추가</span>
-                </Button>
-              </div>
+              <Button
+                onClick={() => setShowAddForm(true)}
+                className="gap-2 rounded-2xl bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/20 px-6"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="hidden sm:inline">약물 추가</span>
+              </Button>
             </div>
           </div>
 
@@ -306,117 +289,6 @@ export default function Medications() {
         open={showAddForm}
         onOpenChange={setShowAddForm}
       />
-
-      {/* 용량 가이드 다이얼로그 */}
-      <Dialog open={showDosageGuide} onOpenChange={setShowDosageGuide}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Pill className="w-5 h-5 text-primary" />
-              GLP-1 약물 용량 가이드
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-6 py-4">
-            {/* 위고비 */}
-            <div>
-              <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-primary" />
-                위고비 (Wegovy) - 세마글루티드
-              </h4>
-              <div className="bg-muted/50 rounded-xl overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border/50">
-                      <th className="text-left p-3 font-medium text-muted-foreground">기간</th>
-                      <th className="text-right p-3 font-medium text-muted-foreground">주 1회 용량</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-b border-border/30">
-                      <td className="p-3">1–4주</td>
-                      <td className="p-3 text-right font-medium">0.25 mg</td>
-                    </tr>
-                    <tr className="border-b border-border/30">
-                      <td className="p-3">5–8주</td>
-                      <td className="p-3 text-right font-medium">0.5 mg</td>
-                    </tr>
-                    <tr className="border-b border-border/30">
-                      <td className="p-3">9–12주</td>
-                      <td className="p-3 text-right font-medium">1.0 mg</td>
-                    </tr>
-                    <tr className="border-b border-border/30">
-                      <td className="p-3">13–16주</td>
-                      <td className="p-3 text-right font-medium">1.7 mg</td>
-                    </tr>
-                    <tr className="bg-primary/5">
-                      <td className="p-3 font-medium text-primary">17주 이후 (유지)</td>
-                      <td className="p-3 text-right font-medium text-primary">2.4 mg (권장)</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                * 부작용 시 1.7 mg 유지 가능
-              </p>
-            </div>
-
-            {/* 마운자로 */}
-            <div>
-              <h4 className="font-semibold text-foreground mb-3 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-warning" />
-                마운자로 (Mounjaro) - 터제파타이드
-              </h4>
-              <div className="bg-muted/50 rounded-xl overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border/50">
-                      <th className="text-left p-3 font-medium text-muted-foreground">기간</th>
-                      <th className="text-right p-3 font-medium text-muted-foreground">주 1회 용량</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-b border-border/30">
-                      <td className="p-3">1–4주</td>
-                      <td className="p-3 text-right font-medium">2.5 mg</td>
-                    </tr>
-                    <tr className="border-b border-border/30">
-                      <td className="p-3">5–8주</td>
-                      <td className="p-3 text-right font-medium">5 mg</td>
-                    </tr>
-                    <tr className="border-b border-border/30">
-                      <td className="p-3">9–12주</td>
-                      <td className="p-3 text-right font-medium">7.5 mg</td>
-                    </tr>
-                    <tr className="border-b border-border/30">
-                      <td className="p-3">13–16주</td>
-                      <td className="p-3 text-right font-medium">10 mg</td>
-                    </tr>
-                    <tr className="border-b border-border/30">
-                      <td className="p-3">17–20주</td>
-                      <td className="p-3 text-right font-medium">12.5 mg</td>
-                    </tr>
-                    <tr className="bg-warning/10">
-                      <td className="p-3 font-medium text-warning">21주 이후 (유지)</td>
-                      <td className="p-3 text-right font-medium text-warning">15 mg (최대)</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                * 개인 반응에 따라 용량 조절 가능
-              </p>
-            </div>
-
-            <div className="p-3 bg-info/10 rounded-xl text-sm text-info">
-              <p className="font-medium mb-1">안내사항</p>
-              <p className="text-info/80">
-                용량 조절은 반드시 담당 의사와 상담 후 진행하세요.
-                위 정보는 일반적인 가이드라인입니다.
-              </p>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
