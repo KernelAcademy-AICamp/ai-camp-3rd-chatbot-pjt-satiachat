@@ -167,7 +167,7 @@ export function SatiaChatHorizontalLogo({ className, size = "md" }: { className?
             <tspan fill="#577DFF">Chat</tspan>
           </text>
           <text
-            x="50"
+            x="43"
             y="30"
             fontFamily="DM Sans, -apple-system, sans-serif"
             fontSize="5.5"
