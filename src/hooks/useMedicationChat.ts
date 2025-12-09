@@ -72,19 +72,20 @@ async function getUserHealthContext(): Promise<string> {
     .gte('date', sevenDaysAgoStr)
     .order('date', { ascending: true });
 
-  // 4. 약물 목록 및 최근 복용 기록
+  // 4. 약물 목록
   const { data: medications } = await supabase
     .from('medications')
-    .select(`
-      id,
-      name,
-      dosage,
-      frequency,
-      time_of_day,
-      medication_logs (taken_at, status)
-    `)
+    .select('id, name, dosage, frequency, time_of_day')
     .eq('user_id', userId)
     .eq('is_active', true);
+
+  // 5. 최근 30일 복용 기록 (상세)
+  const { data: medicationLogs } = await supabase
+    .from('medication_logs')
+    .select('medication_id, taken_at, status')
+    .eq('user_id', userId)
+    .gte('taken_at', thirtyDaysAgoStr)
+    .order('taken_at', { ascending: false });
 
   // 컨텍스트 문자열 생성 (토큰 최적화)
   let context = '## 건강 데이터\n';
@@ -115,17 +116,68 @@ async function getUserHealthContext(): Promise<string> {
     context += `칼로리(7일평균): ${avgCalories}kcal (목표의 ${Math.round((avgCalories / targetCalories) * 100)}%)\n`;
   }
 
-  // 약물 - 이름과 복용률만
+  // 약물 복용 기록 (상세)
   if (medications && medications.length > 0) {
-    context += '\n약물: ';
-    const medSummary = medications.map((med) => {
-      const logs = (med.medication_logs as any[]) || [];
-      const recentLogs = logs.slice(-7);
-      const takenCount = recentLogs.filter((l) => l.status === 'taken').length;
-      const rate = recentLogs.length > 0 ? Math.round((takenCount / recentLogs.length) * 100) : 0;
-      return `${med.name}(${rate}%)`;
+    context += '\n## 약물 복용 현황\n';
+
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+
+    medications.forEach((med) => {
+      // 해당 약물의 로그만 필터링
+      const logs = (medicationLogs || []).filter(log => log.medication_id === med.id);
+
+      // 최근 7일 복용 현황
+      const last7Days: string[] = [];
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().split('T')[0];
+        const dayLog = logs.find(l => l.taken_at.startsWith(dateStr));
+        if (dayLog?.status === 'taken') {
+          last7Days.push('O');
+        } else if (dayLog?.status === 'skipped') {
+          last7Days.push('X');
+        } else {
+          last7Days.push('-');
+        }
+      }
+
+      // 30일 복용률 계산
+      const last30DaysLogs = logs.filter(l => l.status === 'taken');
+      const rate30d = logs.length > 0 ? Math.round((last30DaysLogs.length / 30) * 100) : 0;
+
+      // 마지막 복용 정보
+      const lastTaken = logs.find(l => l.status === 'taken');
+      let lastTakenStr = '기록없음';
+      if (lastTaken) {
+        const lastDate = lastTaken.taken_at.split('T')[0];
+        if (lastDate === todayStr) {
+          lastTakenStr = '오늘 ' + lastTaken.taken_at.split('T')[1].slice(0, 5);
+        } else {
+          const daysAgo = Math.floor((today.getTime() - new Date(lastDate).getTime()) / (1000 * 60 * 60 * 24));
+          lastTakenStr = `${daysAgo}일 전`;
+        }
+      }
+
+      // 연속 복용 일수 계산
+      let consecutiveDays = 0;
+      for (let i = 0; i < 30; i++) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().split('T')[0];
+        const dayLog = logs.find(l => l.taken_at.startsWith(dateStr) && l.status === 'taken');
+        if (dayLog) {
+          consecutiveDays++;
+        } else {
+          break;
+        }
+      }
+
+      context += `\n${med.name} (${med.dosage})\n`;
+      context += `- 최근7일: [${last7Days.join('')}] (O=복용, X=건너뜀, -=미기록)\n`;
+      context += `- 30일복용률: ${rate30d}% | 연속: ${consecutiveDays}일 | 마지막복용: ${lastTakenStr}\n`;
     });
-    context += medSummary.join(', ');
   }
 
   // 캐시 저장
