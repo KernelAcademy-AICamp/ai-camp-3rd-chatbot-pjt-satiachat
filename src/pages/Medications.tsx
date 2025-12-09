@@ -80,7 +80,7 @@ export default function Medications() {
                 className="gap-2 rounded-2xl bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/20 px-6"
               >
                 <Plus className="w-4 h-4" />
-                <span className="hidden sm:inline">약물 추가</span>
+                <span className="hidden sm:inline">추가</span>
               </Button>
             </div>
           </div>

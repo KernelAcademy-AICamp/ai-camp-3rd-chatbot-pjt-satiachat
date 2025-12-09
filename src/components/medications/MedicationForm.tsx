@@ -111,13 +111,13 @@ export function MedicationForm({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Pill className="h-5 w-5 text-primary" />
-            {editMedication ? '약물 수정' : '약물 추가'}
+            {editMedication ? '수정' : '추가'}
           </DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">약물명 *</Label>
+            <Label htmlFor="name">종류</Label>
             <Input
               id="name"
               placeholder="예: 위고비, 마운자로"
