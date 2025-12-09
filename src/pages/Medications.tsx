@@ -12,8 +12,19 @@ import { HealthSummaryCard } from "@/components/medications/HealthSummaryCard";
 import { MedicationChatPanel } from "@/components/medications/MedicationChatPanel";
 import { FloatingChatButton } from "@/components/ui/FloatingChatButton";
 import { useTodayMedicationStats } from "@/hooks/useMedications";
+import type { DayOfWeek } from "@/types/domain";
 
 type ViewTab = "today" | "history";
+
+const DAY_LABELS: Record<DayOfWeek, string> = {
+  0: '일',
+  1: '월',
+  2: '화',
+  3: '수',
+  4: '목',
+  5: '금',
+  6: '토',
+};
 
 export default function Medications() {
   const [showAddForm, setShowAddForm] = useState(false);
@@ -22,8 +33,29 @@ export default function Medications() {
 
   const { total, taken, percentage, medications, isLoading, error } = useTodayMedicationStats();
 
-  const pendingMeds = medications.filter((m) => !m.medication_logs?.length);
-  const completedMeds = medications.filter((m) => m.medication_logs?.length > 0);
+  // 오늘 요일
+  const todayDayOfWeek = new Date().getDay() as DayOfWeek;
+
+  // 오늘 복용 예정 약물 (dose_day === 오늘 요일)
+  const todayMeds = medications.filter((m) => {
+    const doseDay = m.dose_day as DayOfWeek | undefined;
+    return doseDay === undefined || doseDay === todayDayOfWeek;
+  });
+
+  // 다른 날 예정 약물 (dose_day !== 오늘 요일)
+  const scheduledMeds = medications.filter((m) => {
+    const doseDay = m.dose_day as DayOfWeek | undefined;
+    return doseDay !== undefined && doseDay !== todayDayOfWeek;
+  });
+
+  // 오늘 복용 대기/완료 분류
+  const pendingTodayMeds = todayMeds.filter((m) => !m.medication_logs?.length);
+  const completedTodayMeds = todayMeds.filter((m) => m.medication_logs?.length > 0);
+
+  // 통계는 오늘 복용 예정 약물 기준
+  const todayTotal = todayMeds.length;
+  const todayTaken = completedTodayMeds.length;
+  const todayPercentage = todayTotal > 0 ? Math.round((todayTaken / todayTotal) * 100) : 100;
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen">
@@ -39,7 +71,7 @@ export default function Medications() {
                   </div>
                   <div>
                     <h1 className="text-2xl md:text-3xl font-bold text-foreground">Medications</h1>
-                    <p className="text-muted-foreground text-sm">오늘의 복용 현황을 확인하세요</p>
+                    <p className="text-muted-foreground text-sm">주간 복용 현황을 확인하세요</p>
                   </div>
                 </div>
               </div>
@@ -101,10 +133,12 @@ export default function Medications() {
                     <div className="md:col-span-2 bg-gradient-to-br from-card to-card/80 rounded-3xl border border-border/50 p-6 shadow-lg">
                       <div className="flex items-center justify-between mb-6">
                         <div>
-                          <p className="text-sm text-muted-foreground mb-1">오늘의 복용 현황</p>
+                          <p className="text-sm text-muted-foreground mb-1">
+                            오늘의 복용 현황 ({DAY_LABELS[todayDayOfWeek]}요일)
+                          </p>
                           <div className="flex items-baseline gap-2">
-                            <span className="text-4xl font-bold text-foreground">{taken}</span>
-                            <span className="text-xl text-muted-foreground">/ {total}</span>
+                            <span className="text-4xl font-bold text-foreground">{todayTaken}</span>
+                            <span className="text-xl text-muted-foreground">/ {todayTotal}</span>
                           </div>
                         </div>
                         {/* 원형 프로그레스 */}
@@ -126,41 +160,49 @@ export default function Medications() {
                               stroke="hsl(var(--primary))"
                               strokeWidth="12"
                               strokeLinecap="round"
-                              strokeDasharray={`${total > 0 ? (taken / total) * 251.2 : 0} 251.2`}
+                              strokeDasharray={`${todayTotal > 0 ? (todayTaken / todayTotal) * 251.2 : 251.2} 251.2`}
                               className="transition-all duration-500"
                             />
                           </svg>
                           <div className="absolute inset-0 flex items-center justify-center">
                             <span className="text-lg font-bold text-primary">
-                              {percentage}%
+                              {todayPercentage}%
                             </span>
                           </div>
                         </div>
                       </div>
 
                       {/* 프로그레스 바 */}
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">복용 완료</span>
-                          <span className="text-success font-medium">{completedMeds.length}개</span>
+                      {todayTotal > 0 && (
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">복용 완료</span>
+                            <span className="text-success font-medium">{completedTodayMeds.length}개</span>
+                          </div>
+                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-success to-success/70 rounded-full transition-all duration-500"
+                              style={{ width: todayTotal > 0 ? `${(completedTodayMeds.length / todayTotal) * 100}%` : "0%" }}
+                            />
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground">대기 중</span>
+                            <span className="text-warning font-medium">{pendingTodayMeds.length}개</span>
+                          </div>
+                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-warning to-warning/70 rounded-full transition-all duration-500"
+                              style={{ width: todayTotal > 0 ? `${(pendingTodayMeds.length / todayTotal) * 100}%` : "0%" }}
+                            />
+                          </div>
                         </div>
-                        <div className="h-2 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-gradient-to-r from-success to-success/70 rounded-full transition-all duration-500"
-                            style={{ width: total > 0 ? `${(completedMeds.length / total) * 100}%` : "0%" }}
-                          />
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-muted-foreground">대기 중</span>
-                          <span className="text-warning font-medium">{pendingMeds.length}개</span>
-                        </div>
-                        <div className="h-2 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-gradient-to-r from-warning to-warning/70 rounded-full transition-all duration-500"
-                            style={{ width: total > 0 ? `${(pendingMeds.length / total) * 100}%` : "0%" }}
-                          />
-                        </div>
-                      </div>
+                      )}
+
+                      {todayTotal === 0 && medications.length > 0 && (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                          오늘은 복용 예정인 약물이 없습니다
+                        </p>
+                      )}
                     </div>
 
                     {/* 건강 요약 (체중/칼로리) */}
@@ -178,41 +220,64 @@ export default function Medications() {
                     </div>
                   )}
 
-                  {/* 복용 대기 */}
-                  {pendingMeds.length > 0 && (
+                  {/* 복용 대기 (오늘) */}
+                  {pendingTodayMeds.length > 0 && (
                     <div className="mb-6">
                       <div className="flex items-center gap-2 mb-4">
                         <div className="w-2 h-2 rounded-full bg-warning animate-pulse" />
                         <h2 className="text-lg font-semibold text-foreground">복용 대기</h2>
-                        <span className="text-sm text-muted-foreground">({pendingMeds.length})</span>
+                        <span className="text-sm text-muted-foreground">({pendingTodayMeds.length})</span>
                       </div>
                       <div className="space-y-3">
-                        {pendingMeds.map((med, index) => (
+                        {pendingTodayMeds.map((med, index) => (
                           <MedicationCard
                             key={med.id}
                             medication={med}
                             animationDelay={index * 0.1}
+                            isScheduledToday={true}
                           />
                         ))}
                       </div>
                     </div>
                   )}
 
-                  {/* 복용 완료 */}
-                  {completedMeds.length > 0 && (
+                  {/* 복용 완료 (오늘) */}
+                  {completedTodayMeds.length > 0 && (
                     <div className="mb-6">
                       <div className="flex items-center gap-2 mb-4">
                         <div className="w-2 h-2 rounded-full bg-success" />
                         <h2 className="text-lg font-semibold text-foreground">복용 완료</h2>
-                        <span className="text-sm text-muted-foreground">({completedMeds.length})</span>
+                        <span className="text-sm text-muted-foreground">({completedTodayMeds.length})</span>
                       </div>
                       <div className="space-y-3">
-                        {completedMeds.map((med, index) => (
+                        {completedTodayMeds.map((med, index) => (
                           <MedicationCard
                             key={med.id}
                             medication={med}
                             animationDelay={index * 0.1}
                             completed
+                            isScheduledToday={true}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 예정된 약물 (다른 요일) */}
+                  {scheduledMeds.length > 0 && (
+                    <div className="mb-6">
+                      <div className="flex items-center gap-2 mb-4">
+                        <div className="w-2 h-2 rounded-full bg-info" />
+                        <h2 className="text-lg font-semibold text-foreground">예정된 복용</h2>
+                        <span className="text-sm text-muted-foreground">({scheduledMeds.length})</span>
+                      </div>
+                      <div className="space-y-3">
+                        {scheduledMeds.map((med, index) => (
+                          <MedicationCard
+                            key={med.id}
+                            medication={med}
+                            animationDelay={index * 0.1}
+                            isScheduledToday={false}
                           />
                         ))}
                       </div>

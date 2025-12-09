@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Check, Clock, MoreVertical, Pencil, Trash2, Undo2, Pill, Flame, ChevronRight } from 'lucide-react';
+import { Check, Clock, MoreVertical, Pencil, Trash2, Undo2, Pill, Calendar, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -20,21 +20,31 @@ import {
 import { MedicationForm } from './MedicationForm';
 import { useLogMedication, useUnlogMedication, useDeleteMedication } from '@/hooks/useMedications';
 import { cn } from '@/lib/utils';
-import type { MedicationWithLogs, MedicationFrequency } from '@/types/domain';
+import type { MedicationWithLogs, DayOfWeek } from '@/types/domain';
 
 interface MedicationCardProps {
   medication: MedicationWithLogs;
   animationDelay?: number;
   completed?: boolean;
+  isScheduledToday?: boolean; // 오늘이 복용 예정일인지
 }
 
-const frequencyLabels: Record<MedicationFrequency, string> = {
-  daily: '매일',
-  weekly: '주간',
-  as_needed: '필요시',
+const DAY_LABELS: Record<DayOfWeek, string> = {
+  0: '일',
+  1: '월',
+  2: '화',
+  3: '수',
+  4: '목',
+  5: '금',
+  6: '토',
 };
 
-export function MedicationCard({ medication, animationDelay = 0, completed }: MedicationCardProps) {
+export function MedicationCard({
+  medication,
+  animationDelay = 0,
+  completed,
+  isScheduledToday = true
+}: MedicationCardProps) {
   const [showEditForm, setShowEditForm] = useState(false);
   const [showDeleteAlert, setShowDeleteAlert] = useState(false);
 
@@ -44,6 +54,7 @@ export function MedicationCard({ medication, animationDelay = 0, completed }: Me
 
   const isTaken = medication.medication_logs && medication.medication_logs.length > 0;
   const takenLog = medication.medication_logs?.[0];
+  const doseDay = medication.dose_day as DayOfWeek | undefined;
 
   const handleToggleTaken = async () => {
     try {
@@ -68,6 +79,110 @@ export function MedicationCard({ medication, animationDelay = 0, completed }: Me
 
   const isLoading = logMedication.isPending || unlogMedication.isPending;
 
+  // 예정된 약물 (오늘이 복용일이 아닌 경우)
+  if (!isScheduledToday) {
+    return (
+      <>
+        <div
+          className="group relative bg-card rounded-2xl border border-border/30 p-4 transition-all duration-300 animate-slide-up opacity-60"
+          style={{ animationDelay: `${animationDelay}s` }}
+        >
+          <div className="flex items-center gap-4">
+            {/* 아이콘 */}
+            <div className="w-14 h-14 rounded-2xl bg-muted/50 flex items-center justify-center">
+              <Calendar className="w-7 h-7 text-muted-foreground" />
+            </div>
+
+            {/* 약물 정보 */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <h3 className="font-semibold text-lg text-muted-foreground">
+                  {medication.name}
+                </h3>
+                {medication.dosage && (
+                  <span className="text-xs px-2 py-0.5 rounded-full font-medium bg-muted text-muted-foreground">
+                    {medication.dosage}
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <span className="flex items-center gap-1.5">
+                  <Calendar className="w-3.5 h-3.5" />
+                  매주 {doseDay !== undefined ? DAY_LABELS[doseDay] : '?'}요일
+                </span>
+                {medication.time_of_day && (
+                  <>
+                    <span className="text-muted-foreground/50">•</span>
+                    <span>{medication.time_of_day}</span>
+                  </>
+                )}
+              </div>
+
+              <p className="text-xs text-info mt-2 flex items-center gap-1">
+                <Clock className="w-3 h-3" />
+                다음 복용 예정
+              </p>
+            </div>
+
+            {/* 액션 버튼 */}
+            <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setShowEditForm(true)}>
+                    <Pencil className="h-4 w-4 mr-2" />
+                    수정
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => setShowDeleteAlert(true)}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    삭제
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        </div>
+
+        {/* 수정 폼 다이얼로그 */}
+        <MedicationForm
+          open={showEditForm}
+          onOpenChange={setShowEditForm}
+          editMedication={medication}
+        />
+
+        {/* 삭제 확인 다이얼로그 */}
+        <AlertDialog open={showDeleteAlert} onOpenChange={setShowDeleteAlert}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>약물 삭제</AlertDialogTitle>
+              <AlertDialogDescription>
+                "{medication.name}"을(를) 삭제하시겠습니까? 복용 기록도 함께 삭제됩니다.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>취소</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDelete}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleteMedication.isPending ? '삭제 중...' : '삭제'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </>
+    );
+  }
+
+  // 오늘이 복용일인 경우 (기존 로직)
   return (
     <>
       <div
@@ -121,11 +236,18 @@ export function MedicationCard({ medication, animationDelay = 0, completed }: Me
 
             <div className="flex items-center gap-4 text-sm text-muted-foreground">
               <span className="flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5" />
-                {medication.time_of_day || "시간 미정"}
+                <Calendar className="w-3.5 h-3.5" />
+                매주 {doseDay !== undefined ? DAY_LABELS[doseDay] : '?'}요일
               </span>
-              <span className="text-muted-foreground/50">•</span>
-              <span>{frequencyLabels[medication.frequency || "daily"]}</span>
+              {medication.time_of_day && (
+                <>
+                  <span className="text-muted-foreground/50">•</span>
+                  <span className="flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5" />
+                    {medication.time_of_day}
+                  </span>
+                </>
+              )}
             </div>
 
             {isTaken && takenLog && (

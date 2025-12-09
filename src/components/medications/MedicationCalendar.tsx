@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useMedicationLogsForMonth, type DayLogSummary } from "@/hooks/useMedications";
 import { MedicationDayDetail } from "./MedicationDayDetail";
-import type { MedicationWithLogs } from "@/types/domain";
+import type { MedicationWithLogs, DayOfWeek } from "@/types/domain";
 
 interface MedicationCalendarProps {
   medications: MedicationWithLogs[];
@@ -22,6 +22,23 @@ export function MedicationCalendar({ medications }: MedicationCalendarProps) {
   const month = currentDate.getMonth() + 1;
 
   const { data: monthData, isLoading } = useMedicationLogsForMonth(year, month);
+
+  // 모든 약물의 복용 요일 수집
+  const scheduledDaysOfWeek = useMemo(() => {
+    const days = new Set<DayOfWeek>();
+    medications.forEach(med => {
+      if (med.dose_day !== undefined) {
+        days.add(med.dose_day as DayOfWeek);
+      }
+    });
+    return days;
+  }, [medications]);
+
+  // 특정 날짜가 복용 예정일인지 확인
+  const isScheduledDate = (date: Date): boolean => {
+    const dayOfWeek = date.getDay() as DayOfWeek;
+    return scheduledDaysOfWeek.has(dayOfWeek);
+  };
 
   // 달력에 표시할 날짜 배열 생성
   const calendarDays = useMemo(() => {
@@ -45,29 +62,27 @@ export function MedicationCalendar({ medications }: MedicationCalendarProps) {
     setCurrentDate(new Date(year, month, 1));
   };
 
-  // 날짜별 상태 가져오기
+  // 날짜별 상태 가져오기 (복용 예정일에만)
   const getDayStatus = (date: Date): DayLogSummary | null => {
     if (!monthData) return null;
+
+    // 복용 예정일이 아니면 상태 없음
+    if (!isScheduledDate(date)) return null;
+
     const dateStr = format(date, "yyyy-MM-dd");
     return monthData.dailySummary.get(dateStr) || null;
   };
 
-  // 상태에 따른 스타일
-  const getStatusStyle = (status: string | undefined) => {
-    switch (status) {
-      case "full":
-        return "bg-success text-success-foreground";
-      case "partial":
-        return "bg-warning text-warning-foreground";
-      case "missed":
-        return "bg-destructive/20 text-destructive";
-      default:
-        return "";
-    }
-  };
+  // 상태 인디케이터 (복용 예정일에만)
+  const getStatusIndicator = (date: Date, status: string | undefined) => {
+    // 복용 예정일이 아니면 표시 안 함
+    if (!isScheduledDate(date)) return null;
 
-  // 상태 인디케이터
-  const getStatusIndicator = (status: string | undefined) => {
+    // 미래 날짜면 예정 표시
+    if (isFuture(date)) {
+      return <div className="w-1.5 h-1.5 rounded-full bg-info/50" />;
+    }
+
     switch (status) {
       case "full":
         return <div className="w-1.5 h-1.5 rounded-full bg-success" />;
@@ -76,16 +91,65 @@ export function MedicationCalendar({ medications }: MedicationCalendarProps) {
       case "missed":
         return <div className="w-1.5 h-1.5 rounded-full bg-destructive" />;
       default:
-        return null;
+        // 과거 복용 예정일에 기록 없으면 미복용
+        return <div className="w-1.5 h-1.5 rounded-full bg-destructive" />;
     }
   };
+
+  // 월별 통계 재계산 (복용 예정일 기준)
+  const monthStats = useMemo(() => {
+    if (!monthData) return null;
+
+    const start = startOfMonth(currentDate);
+    const end = endOfMonth(currentDate);
+    const today = new Date();
+    const days = eachDayOfInterval({ start, end });
+
+    let scheduledDays = 0;
+    let fullComplianceDays = 0;
+    let totalTaken = 0;
+    let totalExpected = 0;
+
+    days.forEach(date => {
+      // 미래는 제외, 복용 예정일만 포함
+      if (isFuture(date) || !isScheduledDate(date)) return;
+
+      scheduledDays++;
+      const dateStr = format(date, "yyyy-MM-dd");
+      const dayData = monthData.dailySummary.get(dateStr);
+
+      if (dayData) {
+        totalTaken += dayData.takenCount;
+        totalExpected += dayData.totalMeds;
+        if (dayData.status === "full") {
+          fullComplianceDays++;
+        }
+      } else {
+        // 기록 없으면 미복용으로 간주 (약물 수만큼)
+        totalExpected += medications.filter(m => {
+          const doseDay = m.dose_day as DayOfWeek | undefined;
+          return doseDay === date.getDay();
+        }).length;
+      }
+    });
+
+    const averageRate = totalExpected > 0
+      ? Math.round((totalTaken / totalExpected) * 100)
+      : 100;
+
+    return {
+      scheduledDays,
+      fullComplianceDays,
+      averageRate,
+    };
+  }, [monthData, currentDate, medications, isScheduledDate]);
 
   const selectedDateStr = selectedDate ? format(selectedDate, "yyyy-MM-dd") : null;
 
   return (
     <div className="space-y-6">
       {/* 월별 통계 카드 */}
-      {monthData && (
+      {monthStats && (
         <div className="bg-gradient-to-br from-primary/10 to-primary/5 rounded-3xl border border-primary/20 p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -98,10 +162,10 @@ export function MedicationCalendar({ medications }: MedicationCalendarProps) {
                 </p>
                 <div className="flex items-baseline gap-2">
                   <span className="text-3xl font-bold text-primary">
-                    {monthData.monthStats.averageRate}%
+                    {monthStats.averageRate}%
                   </span>
                   <span className="text-sm text-muted-foreground">
-                    ({monthData.monthStats.fullComplianceDays}/{monthData.monthStats.countableDays}일 완벽 복용)
+                    ({monthStats.fullComplianceDays}/{monthStats.scheduledDays}일 완벽 복용)
                   </span>
                 </div>
               </div>
@@ -109,15 +173,15 @@ export function MedicationCalendar({ medications }: MedicationCalendarProps) {
             <div className="hidden sm:flex gap-4 text-sm">
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-success" />
-                <span className="text-muted-foreground">전체 복용</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-warning" />
-                <span className="text-muted-foreground">일부 복용</span>
+                <span className="text-muted-foreground">복용 완료</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-destructive" />
                 <span className="text-muted-foreground">미복용</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-info/50" />
+                <span className="text-muted-foreground">예정</span>
               </div>
             </div>
           </div>
@@ -183,18 +247,18 @@ export function MedicationCalendar({ medications }: MedicationCalendarProps) {
                   const isTodayDate = isToday(date);
                   const isFutureDate = isFuture(date);
                   const dayOfWeek = date.getDay();
+                  const isScheduled = isScheduledDate(date);
 
                   return (
                     <button
                       key={date.toISOString()}
                       onClick={() => setSelectedDate(date)}
-                      disabled={isFutureDate}
                       className={cn(
                         "aspect-square rounded-xl flex flex-col items-center justify-center gap-0.5 transition-all text-sm",
                         "hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/50",
                         isSelected && "ring-2 ring-primary bg-primary/10",
                         isTodayDate && !isSelected && "bg-accent",
-                        isFutureDate && "opacity-30 cursor-not-allowed",
+                        !isScheduled && "opacity-40",
                         dayOfWeek === 0 && "text-destructive"
                       )}
                     >
@@ -206,7 +270,7 @@ export function MedicationCalendar({ medications }: MedicationCalendarProps) {
                       >
                         {format(date, "d")}
                       </span>
-                      {!isFutureDate && getStatusIndicator(dayStatus?.status)}
+                      {getStatusIndicator(date, dayStatus?.status)}
                     </button>
                   );
                 })}
@@ -218,15 +282,15 @@ export function MedicationCalendar({ medications }: MedicationCalendarProps) {
           <div className="flex sm:hidden justify-center gap-4 mt-4 pt-4 border-t border-border/50 text-xs">
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 rounded-full bg-success" />
-              <span className="text-muted-foreground">완료</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <div className="w-2 h-2 rounded-full bg-warning" />
-              <span className="text-muted-foreground">일부</span>
+              <span className="text-muted-foreground">복용</span>
             </div>
             <div className="flex items-center gap-1">
               <div className="w-2 h-2 rounded-full bg-destructive" />
               <span className="text-muted-foreground">미복용</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 rounded-full bg-info/50" />
+              <span className="text-muted-foreground">예정</span>
             </div>
           </div>
         </div>

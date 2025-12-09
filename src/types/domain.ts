@@ -66,8 +66,9 @@ export interface ProgressLog {
 }
 
 // ============ Medications ============
-export type MedicationFrequency = 'daily' | 'weekly' | 'as_needed';
+export type MedicationFrequency = 'weekly'; // 위고비/마운자로는 주 1회 복용
 export type MedicationLogStatus = 'taken' | 'skipped' | 'delayed';
+export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0=일, 1=월, ..., 6=토
 
 export interface Medication {
   id: string;
@@ -75,6 +76,7 @@ export interface Medication {
   name: string;
   dosage?: string;
   frequency?: MedicationFrequency;
+  dose_day?: DayOfWeek; // 복용 요일 (0=일요일, 6=토요일)
   time_of_day?: string;
   notes?: string;
   is_active: boolean;
@@ -144,6 +146,7 @@ export interface CreateMedicationRequest {
   name: string;
   dosage?: string;
   frequency?: MedicationFrequency;
+  dose_day?: DayOfWeek;
   time_of_day?: string;
   notes?: string;
 }
@@ -152,6 +155,7 @@ export interface UpdateMedicationRequest {
   name?: string;
   dosage?: string;
   frequency?: MedicationFrequency;
+  dose_day?: DayOfWeek;
   time_of_day?: string;
   notes?: string;
   is_active?: boolean;
