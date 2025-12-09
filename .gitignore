@@ -17,6 +17,7 @@ dist-ssr
 !.vscode/extensions.json
 .idea
 .DS_Store
+~$*
 *.suo
 *.ntvs*
 *.njsproj
@@ -34,3 +35,4 @@ venv/
 # Server
 server/.env
 server/__pycache__/
+server/logs/

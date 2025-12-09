@@ -14,19 +14,25 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from core.config import settings
+from core.logging import setup_logging, get_logger
+from core.exceptions import setup_exception_handlers
 from api.v1.router import router as api_v1_router
+
+# Initialize logging
+setup_logging()
+logger = get_logger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events"""
     # Startup
-    print(f"Starting DietRx Coach API server...")
-    print(f"Debug mode: {settings.DEBUG}")
-    print(f"CORS origins: {settings.cors_origins_list}")
+    logger.info("Starting DietRx Coach API server...")
+    logger.info(f"Debug mode: {settings.DEBUG}")
+    logger.info(f"CORS origins: {settings.cors_origins_list}")
     yield
     # Shutdown
-    print("Shutting down server...")
+    logger.info("Shutting down server...")
 
 
 # Create FastAPI application
@@ -47,6 +53,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Setup exception handlers
+setup_exception_handlers(app)
 
 # Include API routers
 app.include_router(api_v1_router)
