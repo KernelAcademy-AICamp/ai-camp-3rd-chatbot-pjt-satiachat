@@ -117,6 +117,9 @@
 - **프레임워크:** [FastAPI 공식 문서](https://fastapi.tiangolo.com/), [React 공식 문서](https://react.dev/)
 - **RAG 시스템:** [LlamaIndex Documentation](https://docs.llamaindex.ai/)
 - **UI 컴포넌트:** [shadcn/ui](https://ui.shadcn.com/)
+- [위고비프리필드펜1.0 (세마글루타이드) — 의약품정보](https://nedrug.mfds.go.kr/pbp/CCBBB01/getItemDetailCache?cacheSeq=202301386aupdateTs2024-07-09+09%3A45%3A43.250267b)
+- [마운자로프리필드펜주 2.5 mg (티르제파타이드) — 의약품정보](https://nedrug.mfds.go.kr/pbp/CCBBB01/getItemDetailCache?cacheSeq=202301983aupdateTs2025-07-22+09%3A05%3A22.239066b)
+
 
 ### **7.2 설치 및 실행 방법**
 1.  **Repository 클론:**
