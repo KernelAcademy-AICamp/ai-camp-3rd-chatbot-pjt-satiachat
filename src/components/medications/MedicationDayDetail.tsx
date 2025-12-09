@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { format, isToday, isFuture, parseISO } from "date-fns";
 import { ko } from "date-fns/locale";
 import { Check, X, Clock, Loader2, Pill, Undo2 } from "lucide-react";
@@ -8,7 +9,7 @@ import {
   useLogMedicationForDate,
   useDeleteMedicationLog,
 } from "@/hooks/useMedications";
-import type { MedicationWithLogs } from "@/types/domain";
+import type { MedicationWithLogs, DayOfWeek } from "@/types/domain";
 
 interface MedicationDayDetailProps {
   date: string; // YYYY-MM-DD
@@ -19,8 +20,19 @@ export function MedicationDayDetail({ date }: MedicationDayDetailProps) {
   const dateObj = parseISO(date);
   const isTodayDate = isToday(dateObj);
   const isFutureDate = isFuture(dateObj);
+  const dayOfWeek = dateObj.getDay() as DayOfWeek;
 
   const { data: dayData, isLoading } = useMedicationLogsForDate(date);
+
+  // 선택한 날짜의 요일에 해당하는 약물만 필터링
+  const filteredMedications = useMemo(() => {
+    if (!dayData?.medications) return [];
+    return dayData.medications.filter((med) => {
+      const doseDay = med.dose_day as DayOfWeek | undefined;
+      // dose_day가 없으면 모든 요일에 표시, 있으면 해당 요일에만 표시
+      return doseDay === undefined || doseDay === dayOfWeek;
+    });
+  }, [dayData?.medications, dayOfWeek]);
   const logMutation = useLogMedicationForDate();
   const deleteMutation = useDeleteMedicationLog();
 
@@ -61,13 +73,13 @@ export function MedicationDayDetail({ date }: MedicationDayDetailProps) {
 
       {/* 복용 기록 목록 */}
       <div className="flex-1 space-y-3 overflow-y-auto">
-        {dayData?.medications.length === 0 ? (
+        {filteredMedications.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <Pill className="w-10 h-10 mx-auto mb-3 opacity-50" />
-            <p>등록된 약물이 없습니다</p>
+            <p>이 날짜에 복용 예정인 약물이 없습니다</p>
           </div>
         ) : (
-          dayData?.medications.map((med) => {
+          filteredMedications.map((med) => {
             const log = med.medication_logs?.[0];
             const hasTaken = log?.status === "taken";
             const hasSkipped = log?.status === "skipped";
