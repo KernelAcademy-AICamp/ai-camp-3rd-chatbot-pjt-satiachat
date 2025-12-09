@@ -121,7 +121,7 @@
 ### **7.2 설치 및 실행 방법**
 1.  **Repository 클론:**
     ```bash
-    git clone https://github.com/EHW99/mini_project.git
+    git clone https://github.com/KernelAcademy-AICamp/ai-camp-3rd-chatbot-pjt-satiachat?tab=readme-ov-file
     cd mini_project
     ```
 
