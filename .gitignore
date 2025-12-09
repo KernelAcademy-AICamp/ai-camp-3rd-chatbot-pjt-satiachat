@@ -36,3 +36,8 @@ venv/
 server/.env
 server/__pycache__/
 server/logs/
+
+# Internal docs (not for public repo)
+docs/DietRx_Coach_Overview.pptx
+docs/RLS_PRODUCTION_CHECKLIST.md
+docs/SUPABASE_RLS_DEBUGGING.md

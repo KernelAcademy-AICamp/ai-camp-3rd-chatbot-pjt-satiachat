@@ -19,9 +19,15 @@ LOG_MEAL_TOOL = {
     "function": {
         "name": "log_meal",
         "description": """사용자가 먹은 음식을 기록합니다.
-"~먹었어", "~섭취했어" 등 음식 섭취 언급 시 호출하세요.
 
-칼로리 추정: 밥300, 국/찌개100-200, 치킨1/4마리450, 라면500""",
+[음식 구분 규칙 - 매우 중요!]
+- 콤마(,)나 "이랑/하고/랑"으로 구분된 경우에만 여러 음식!
+- 콤마 없이 붙어있으면 무조건 1개 음식!
+- "달걀 샐러드" → 1개 (콤마 없음)
+- "비빔밥, 된장찌개" → 2개 (콤마 있음)
+- "비빔밥이랑 된장찌개" → 2개 (이랑으로 구분)
+
+칼로리 추정: 밥300, 국/찌개150, 치킨450, 라면500, 샐러드류200-300""",
         "parameters": {
             "type": "object",
             "properties": {
@@ -172,6 +178,36 @@ def get_tools_for_intent(intent: ChatIntent) -> list[dict]:
 
 
 # Argument parsing functions
+def deduplicate_foods(foods: list[dict]) -> list[dict]:
+    """
+    Remove duplicate/subset foods from the list.
+    If one food name contains another (e.g., "닭가슴살 샐러드" contains "닭가슴살"),
+    keep only the longer (more specific) one.
+    """
+    if len(foods) <= 1:
+        return foods
+
+    # Sort by name length descending (longer names first)
+    sorted_foods = sorted(foods, key=lambda f: len(f.get("name", "")), reverse=True)
+    result = []
+
+    for food in sorted_foods:
+        food_name = food.get("name", "").replace(" ", "")
+        is_subset = False
+
+        # Check if this food name is contained in any already-added food
+        for existing in result:
+            existing_name = existing.get("name", "").replace(" ", "")
+            if food_name in existing_name:
+                is_subset = True
+                break
+
+        if not is_subset:
+            result.append(food)
+
+    return result
+
+
 def parse_log_meal_args(args_string: str) -> Optional[dict]:
     """Parse log_meal function arguments"""
     try:
@@ -184,7 +220,7 @@ def parse_log_meal_args(args_string: str) -> Optional[dict]:
             args["date"] = get_today_local()
 
         # Set defaults for each food
-        args["foods"] = [
+        foods = [
             {
                 "name": food.get("name", ""),
                 "quantity": food.get("quantity", 1),
@@ -195,6 +231,9 @@ def parse_log_meal_args(args_string: str) -> Optional[dict]:
             }
             for food in args["foods"]
         ]
+
+        # Remove duplicate/subset foods
+        args["foods"] = deduplicate_foods(foods)
 
         return args
     except Exception:
