@@ -1,8 +1,11 @@
-import { Flame, Scale, Pill, Target } from "lucide-react";
+import { useState } from "react";
+import { Flame, Scale, Pill, Target, X } from "lucide-react";
 import { SummaryCard } from "@/components/dashboard/SummaryCard";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { ChatPanel } from "@/components/dashboard/ChatPanel";
 import { TodayMeals } from "@/components/dashboard/TodayMeals";
+import { FloatingChatButton } from "@/components/ui/FloatingChatButton";
+import { Button } from "@/components/ui/button";
 import { useTodayCalories } from "@/hooks/useMeals";
 import { useLatestProgress } from "@/hooks/useProgress";
 import { useTodayMedicationStats } from "@/hooks/useMedications";
@@ -14,6 +17,8 @@ const FALLBACK_GOAL_WEIGHT = 68;
 const FALLBACK_START_WEIGHT = 78;
 
 export default function Dashboard() {
+  const [showMobileChat, setShowMobileChat] = useState(false);
+
   const today = new Date().toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",
@@ -77,7 +82,7 @@ export default function Dashboard() {
           <SummaryCard
             title="Weight"
             value={isLoadingWeight ? "..." : currentWeight.toFixed(1)}
-            subtitle={latestProgress ? "kg • Updated" : "kg • No data"}
+            subtitle={latestProgress ? "kg ??Updated" : "kg ??No data"}
             icon={Scale}
             variant="success"
           />
@@ -104,13 +109,42 @@ export default function Dashboard() {
       </div>
 
       {/* Chat Panel - Desktop */}
-      <div className="hidden lg:block w-96 border-l border-border p-4 bg-muted/20">
+      <div className="hidden lg:block w-[420px] border-l border-border p-4 bg-muted/20 relative z-0">
         <div className="h-[calc(100vh-2rem)] sticky top-4">
           <ChatPanel />
         </div>
       </div>
 
-      {/* Chat Panel - Mobile (simplified floating button would go here) */}
+      {/* Chat Panel - Mobile */}
+      <FloatingChatButton
+        isOpen={showMobileChat}
+        onClick={() => setShowMobileChat(!showMobileChat)}
+      />
+
+      {/* Mobile Chat Modal */}
+      {showMobileChat && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setShowMobileChat(false)}
+          />
+          {/* Chat Panel */}
+          <div className="absolute top-4 left-4 right-4 bottom-20 md:top-8 md:left-8 md:right-8 md:bottom-8 bg-background rounded-3xl shadow-2xl flex flex-col overflow-hidden">
+            <div className="relative flex-1 flex flex-col min-h-0">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-3 top-3 z-10 rounded-xl"
+                onClick={() => setShowMobileChat(false)}
+              >
+                <X className="w-5 h-5" />
+              </Button>
+              <ChatPanel />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -45,8 +45,11 @@ export function useTodayCalories() {
   const { data: meals, isLoading, error } = useTodayMeals();
 
   const totalCalories = meals?.reduce((sum, meal) => sum + (meal.total_calories || 0), 0) || 0;
+  // 방어적 처리: 같은 meal_type이 여러 개 있을 경우 첫 번째 것 사용
   const mealsByType = meals?.reduce((acc, meal) => {
-    acc[meal.meal_type] = meal;
+    if (!acc[meal.meal_type]) {
+      acc[meal.meal_type] = meal;
+    }
     return acc;
   }, {} as Record<MealType, MealWithItems>) || {};
 
@@ -105,6 +108,11 @@ export function useCreateMeal() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: mealKeys.list(data.date) });
       queryClient.invalidateQueries({ queryKey: mealKeys.today() });
+      // Also invalidate calorie chart data
+      queryClient.invalidateQueries({ queryKey: ['calories', 'weekly'] });
+      queryClient.invalidateQueries({ queryKey: ['calories', 'range'] });
+      // Invalidate monthly data
+      queryClient.invalidateQueries({ queryKey: ['meals', 'monthly'] });
     },
   });
 }
@@ -201,6 +209,11 @@ export function useUpdateMeal() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: mealKeys.list(data.date) });
       queryClient.invalidateQueries({ queryKey: mealKeys.today() });
+      // Also invalidate calorie chart data
+      queryClient.invalidateQueries({ queryKey: ['calories', 'weekly'] });
+      queryClient.invalidateQueries({ queryKey: ['calories', 'range'] });
+      // Invalidate monthly data
+      queryClient.invalidateQueries({ queryKey: ['meals', 'monthly'] });
     },
   });
 }
@@ -210,7 +223,7 @@ export function useDeleteMeal() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (mealId: string): Promise<void> => {
+    mutationFn: async (mealId: string): Promise<{ date: string }> => {
       // Get meal to know the date before deleting
       const { data: meal, error: fetchError } = await supabase
         .from('meals')
@@ -229,10 +242,17 @@ export function useDeleteMeal() {
       if (error) throw error;
 
       // Return the date for cache invalidation
-      return;
+      return { date: meal.date };
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Invalidate specific date and all meal lists
+      queryClient.invalidateQueries({ queryKey: mealKeys.list(data.date) });
       queryClient.invalidateQueries({ queryKey: mealKeys.lists() });
+      // Also invalidate calorie chart data
+      queryClient.invalidateQueries({ queryKey: ['calories', 'weekly'] });
+      queryClient.invalidateQueries({ queryKey: ['calories', 'range'] });
+      // Invalidate monthly data
+      queryClient.invalidateQueries({ queryKey: ['meals', 'monthly'] });
     },
   });
 }
@@ -279,6 +299,11 @@ export function useAddMealItem() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: mealKeys.lists() });
+      // Also invalidate calorie chart data
+      queryClient.invalidateQueries({ queryKey: ['calories', 'weekly'] });
+      queryClient.invalidateQueries({ queryKey: ['calories', 'range'] });
+      // Invalidate monthly data
+      queryClient.invalidateQueries({ queryKey: ['meals', 'monthly'] });
     },
   });
 }
@@ -321,6 +346,11 @@ export function useRemoveMealItem() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: mealKeys.lists() });
+      // Also invalidate calorie chart data
+      queryClient.invalidateQueries({ queryKey: ['calories', 'weekly'] });
+      queryClient.invalidateQueries({ queryKey: ['calories', 'range'] });
+      // Invalidate monthly data
+      queryClient.invalidateQueries({ queryKey: ['meals', 'monthly'] });
     },
   });
 }

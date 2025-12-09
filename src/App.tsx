@@ -6,13 +6,13 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
-import Meals from "./pages/Meals";
 import MyPage from "./pages/MyPage";
 import Medications from "./pages/Medications";
-import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
+import Board from "./pages/Board";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import Onboarding from "./pages/Onboarding";
@@ -21,7 +21,8 @@ import NotFound from "./pages/NotFound";
 const queryClient = new QueryClient();
 
 const App = () => (
-  <QueryClientProvider client={queryClient}>
+  <ErrorBoundary>
+    <QueryClientProvider client={queryClient}>
     <AuthProvider>
       <TooltipProvider>
         <Toaster />
@@ -37,11 +38,13 @@ const App = () => (
             {/* Protected routes - require authentication */}
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/meals" element={<Meals />} />
               <Route path="/my-page" element={<MyPage />} />
               <Route path="/medications" element={<Medications />} />
-              <Route path="/reports" element={<Reports />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/board" element={<Board />} />
+              <Route path="/board/write" element={<Board />} />
+              <Route path="/board/:id" element={<Board />} />
+              <Route path="/board/:id/edit" element={<Board />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
@@ -50,6 +53,7 @@ const App = () => (
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>
+  </ErrorBoundary>
 );
 
 export default App;

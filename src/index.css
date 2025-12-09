@@ -1,15 +1,18 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
-
 @layer base {
   :root {
-    /* SatiaChat Brand Palette */
-    /* Warm Ivory background: #F7F4ED */
-    --background: 40 33% 95%;
-    /* Minimal Ink foreground: #1D1D1F */
+    /* SatiaChat Brand Colors */
+    /* Soft Mint: #7FE7C4 → HSL(156, 68%, 70%) */
+    /* Satia Blue: #577DFF → HSL(226, 100%, 67%) */
+    /* Warm Ivory: #F7F4ED → HSL(42, 38%, 95%) */
+    /* Minimal Ink: #1D1D1F → HSL(240, 3%, 12%) */
+
+    --background: 42 38% 95%;
     --foreground: 240 3% 12%;
 
     --card: 0 0% 100%;
@@ -18,113 +21,111 @@
     --popover: 0 0% 100%;
     --popover-foreground: 240 3% 12%;
 
-    /* Soft Mint primary: #7FE7C4 */
+    /* Soft Mint primary - 포만감, 건강 */
     --primary: 156 68% 70%;
     --primary-foreground: 240 3% 12%;
     --primary-glow: 156 68% 75%;
 
-    /* Satia Blue secondary/accent: #577DFF */
-    --secondary: 227 100% 67%;
+    /* Satia Blue secondary - AI, 신뢰 */
+    --secondary: 226 100% 67%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 40 20% 92%;
+    --muted: 42 20% 90%;
     --muted-foreground: 240 3% 45%;
 
-    --accent: 156 50% 92%;
+    --accent: 156 50% 90%;
     --accent-foreground: 156 68% 40%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 40 20% 88%;
-    --input: 40 20% 88%;
+    --border: 42 20% 88%;
+    --input: 42 20% 88%;
     --ring: 156 68% 70%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
 
     /* Custom colors */
-    --success: 156 68% 50%;
+    --success: 156 68% 55%;
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 55%;
     --warning-foreground: 0 0% 100%;
-    --info: 227 100% 67%;
+    --info: 226 100% 67%;
     --info-foreground: 0 0% 100%;
 
     /* SatiaChat Gradients */
     --gradient-primary: linear-gradient(135deg, #7FE7C4 0%, #7FE7C4 40%, #6CB8E0 75%, #577DFF 100%);
     --gradient-secondary: linear-gradient(135deg, #577DFF, #6CB8E0);
-    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(40 33% 95%));
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(42 38% 95%));
     --gradient-hero: linear-gradient(135deg, #7FE7C4 0%, #6CB8E0 50%, #577DFF 100%);
 
-    /* Shadows - with mint glow */
-    --shadow-sm: 0 1px 3px hsl(240 3% 12% / 0.05);
-    --shadow-md: 0 4px 12px hsl(240 3% 12% / 0.08);
-    --shadow-lg: 0 8px 24px hsl(156 68% 70% / 0.12);
-    --shadow-glow: 0 8px 24px rgba(127, 231, 196, 0.3);
+    /* SatiaChat Shadows - mint tinted */
+    --shadow-sm: 0 1px 3px rgba(127, 231, 196, 0.08);
+    --shadow-md: 0 4px 12px rgba(127, 231, 196, 0.12);
+    --shadow-lg: 0 8px 24px rgba(127, 231, 196, 0.18);
+    --shadow-glow: 0 4px 40px rgba(127, 231, 196, 0.25);
 
     /* Sidebar */
-    --sidebar-background: 40 30% 97%;
-    --sidebar-foreground: 240 3% 20%;
+    --sidebar-background: 42 30% 97%;
+    --sidebar-foreground: 240 3% 25%;
     --sidebar-primary: 156 68% 70%;
     --sidebar-primary-foreground: 240 3% 12%;
     --sidebar-accent: 156 50% 92%;
-    --sidebar-accent-foreground: 156 68% 40%;
-    --sidebar-border: 40 20% 90%;
+    --sidebar-accent-foreground: 156 68% 35%;
+    --sidebar-border: 42 20% 90%;
     --sidebar-ring: 156 68% 70%;
 
     /* Chat */
     --chat-user: 156 68% 70%;
-    --chat-assistant: 40 20% 93%;
+    --chat-assistant: 42 20% 93%;
   }
 
   .dark {
-    /* Dark mode with SatiaChat colors */
-    --background: 240 3% 8%;
-    --foreground: 40 20% 95%;
+    /* SatiaChat Dark Mode */
+    --background: 240 3% 10%;
+    --foreground: 42 38% 95%;
 
-    --card: 240 3% 12%;
-    --card-foreground: 40 20% 95%;
+    --card: 240 3% 14%;
+    --card-foreground: 42 38% 95%;
 
-    --popover: 240 3% 12%;
-    --popover-foreground: 40 20% 95%;
+    --popover: 240 3% 14%;
+    --popover-foreground: 42 38% 95%;
 
-    /* Soft Mint primary - slightly brighter for dark mode */
     --primary: 156 68% 65%;
-    --primary-foreground: 240 3% 8%;
+    --primary-foreground: 240 3% 10%;
     --primary-glow: 156 68% 70%;
 
-    /* Satia Blue secondary */
-    --secondary: 227 100% 70%;
-    --secondary-foreground: 240 3% 8%;
+    --secondary: 226 100% 70%;
+    --secondary-foreground: 240 3% 10%;
 
-    --muted: 240 3% 18%;
-    --muted-foreground: 40 15% 60%;
+    --muted: 240 3% 20%;
+    --muted-foreground: 42 20% 65%;
 
-    --accent: 156 40% 20%;
-    --accent-foreground: 156 65% 70%;
+    --accent: 156 40% 22%;
+    --accent-foreground: 156 68% 75%;
 
-    --destructive: 0 70% 45%;
+    --destructive: 0 70% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 240 3% 20%;
-    --input: 240 3% 20%;
+    --border: 240 3% 22%;
+    --input: 240 3% 22%;
     --ring: 156 68% 65%;
 
     --success: 156 60% 45%;
-    --warning: 38 85% 50%;
-    --info: 227 90% 65%;
+    --warning: 38 85% 55%;
+    --info: 226 100% 70%;
 
-    --sidebar-background: 240 3% 10%;
-    --sidebar-foreground: 40 15% 85%;
+    --sidebar-background: 240 3% 12%;
+    --sidebar-foreground: 42 20% 85%;
     --sidebar-primary: 156 68% 65%;
-    --sidebar-primary-foreground: 240 3% 8%;
-    --sidebar-accent: 156 35% 18%;
-    --sidebar-accent-foreground: 156 65% 70%;
-    --sidebar-border: 240 3% 18%;
+    --sidebar-primary-foreground: 240 3% 10%;
+    --sidebar-accent: 156 35% 20%;
+    --sidebar-accent-foreground: 156 68% 75%;
+    --sidebar-border: 240 3% 20%;
     --sidebar-ring: 156 68% 65%;
 
-    --chat-user: 156 65% 55%;
-    --chat-assistant: 240 3% 18%;
+    --chat-user: 156 68% 55%;
+    --chat-assistant: 240 3% 20%;
   }
 }
 
@@ -135,7 +136,7 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'DM Sans', system-ui, sans-serif;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
   }
 
   /* Scale font size 1.5x for main content, excluding sidebar */
@@ -152,6 +153,10 @@
   .gradient-text {
     @apply bg-clip-text text-transparent;
     background-image: var(--gradient-hero);
+  }
+
+  .shadow-glow {
+    box-shadow: var(--shadow-glow);
   }
 }
 
@@ -170,6 +175,21 @@
 
   .animate-pulse-soft {
     animation: pulseSoft 2s ease-in-out infinite;
+  }
+
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Hide scrollbar for IE, Edge and Firefox */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
   }
 }
 
@@ -210,5 +230,14 @@
   }
   50% {
     opacity: 0.7;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
   }
 }

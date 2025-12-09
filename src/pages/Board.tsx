@@ -1,0 +1,1379 @@
+import { useState, useEffect, useMemo } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { format } from "date-fns";
+import { ko } from "date-fns/locale";
+import {
+  MessageSquare,
+  HelpCircle,
+  Lightbulb,
+  Plus,
+  ThumbsDown,
+  MessageCircle,
+  Eye,
+  Search,
+  ChevronLeft,
+  X,
+  Send,
+  MoreVertical,
+  Pencil,
+  Trash2,
+  Sparkles,
+  Users,
+  Clock,
+  Star,
+  Heart,
+  Flame,
+  Loader2,
+  Share2,
+  Bookmark,
+  BookOpen,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { useToast } from "@/hooks/use-toast";
+import {
+  usePosts,
+  usePost,
+  useCreatePost,
+  useUpdatePost,
+  useDeletePost,
+  useToggleReaction,
+  useCreateComment,
+  useUpdateComment,
+  useDeleteComment,
+  useIncrementViews,
+  isHotPost,
+  PAGE_SIZE,
+} from "@/hooks/usePosts";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
+import { AvatarDisplay } from "@/components/ui/avatar-display";
+import type { Post, PostTab, PostComment as CommentType } from "@/types/domain";
+
+// Tab configuration
+const tabConfig: Record<PostTab, {
+  label: string;
+  icon: typeof HelpCircle;
+  description: string;
+  gradient: string;
+  activeGradient: string;
+  iconBg: string;
+  accentColor: string;
+}> = {
+  qna: {
+    label: "Q&A",
+    icon: HelpCircle,
+    description: "궁금한 점을 질문하세요",
+    gradient: "from-primary/5 via-primary/10 to-transparent",
+    activeGradient: "from-primary to-primary-glow",
+    iconBg: "bg-primary/20",
+    accentColor: "text-primary",
+  },
+  free: {
+    label: "자유게시판",
+    icon: MessageSquare,
+    description: "자유롭게 이야기 나눠요",
+    gradient: "from-secondary/5 via-secondary/10 to-transparent",
+    activeGradient: "from-secondary to-coral-glow",
+    iconBg: "bg-secondary/20",
+    accentColor: "text-secondary",
+  },
+  info: {
+    label: "다이어트 정보",
+    icon: Lightbulb,
+    description: "유용한 정보를 공유해요",
+    gradient: "from-amber-500/5 via-amber-500/10 to-transparent",
+    activeGradient: "from-amber-500 to-orange-400",
+    iconBg: "bg-amber-500/20",
+    accentColor: "text-amber-600",
+  },
+};
+
+type ViewMode = "list" | "detail" | "write" | "edit";
+
+export default function Board() {
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { id: urlPostId } = useParams<{ id: string }>();
+
+  // URL 기반으로 viewMode 결정
+  const viewMode = useMemo<ViewMode>(() => {
+    const path = location.pathname;
+    if (path === "/board/write") return "write";
+    if (path.endsWith("/edit")) return "edit";
+    if (urlPostId && urlPostId !== "write") return "detail";
+    return "list";
+  }, [location.pathname, urlPostId]);
+
+  // URL에서 postId 가져오기
+  const selectedPostId = viewMode === "detail" || viewMode === "edit" ? urlPostId || null : null;
+
+  const [activeTab, setActiveTab] = useState<PostTab>("qna");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // Form state
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [editingPostId, setEditingPostId] = useState<string | null>(null);
+
+  // Comment state
+  const [newComment, setNewComment] = useState("");
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editCommentContent, setEditCommentContent] = useState("");
+  const [deleteCommentId, setDeleteCommentId] = useState<string | null>(null);
+  const [deletePostId, setDeletePostId] = useState<string | null>(null);
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Reset page when tab or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, debouncedSearch]);
+
+  // Edit 모드일 때 게시글 데이터 로드
+  useEffect(() => {
+    if (viewMode === "edit" && selectedPostId && !editingPostId) {
+      setEditingPostId(selectedPostId);
+    }
+  }, [viewMode, selectedPostId, editingPostId]);
+
+  // Queries
+  const { data: postsData, isLoading: postsLoading } = usePosts(activeTab, currentPage, debouncedSearch || undefined);
+  const posts = postsData?.posts ?? [];
+  const totalPages = postsData?.totalPages ?? 0;
+  const totalCount = postsData?.totalCount ?? 0;
+  const { data: selectedPost, isLoading: postLoading } = usePost(selectedPostId);
+
+  // selectedPost가 로드되면 edit 폼에 데이터 채우기
+  useEffect(() => {
+    if (viewMode === "edit" && selectedPost && editTitle === "" && editContent === "") {
+      setEditTitle(selectedPost.title);
+      setEditContent(selectedPost.content);
+      setActiveTab(selectedPost.tab);
+    }
+  }, [viewMode, selectedPost, editTitle, editContent]);
+
+  // Mutations
+  const createPost = useCreatePost();
+  const updatePost = useUpdatePost();
+  const deletePost = useDeletePost();
+  const toggleReaction = useToggleReaction();
+  const createComment = useCreateComment();
+  const updateComment = useUpdateComment();
+  const deleteComment = useDeleteComment();
+  const incrementViews = useIncrementViews();
+
+  const currentTabConfig = tabConfig[activeTab];
+
+  // Helper to get author display name
+  const getAuthorName = (post: Post) => {
+    return post.author?.nickname || '익명';
+  };
+
+  const getCommentAuthorName = (comment: CommentType) => {
+    return comment.author?.nickname || '익명';
+  };
+
+  // View post detail
+  const handleViewPost = (post: Post) => {
+    navigate(`/board/${post.id}`);
+    incrementViews.mutate(post.id);
+  };
+
+  // Start writing
+  const handleStartWrite = () => {
+    setEditTitle("");
+    setEditContent("");
+    setEditingPostId(null);
+    navigate("/board/write");
+  };
+
+  // Start editing
+  const handleStartEdit = (post: Post) => {
+    setEditTitle(post.title);
+    setEditContent(post.content);
+    setEditingPostId(post.id);
+    navigate(`/board/${post.id}/edit`);
+  };
+
+  // Save post (create/update)
+  const handleSavePost = async () => {
+    if (!editTitle.trim() || !editContent.trim()) return;
+
+    try {
+      if (editingPostId) {
+        await updatePost.mutateAsync({
+          id: editingPostId,
+          title: editTitle,
+          content: editContent,
+        });
+        toast({ title: "수정 완료", description: "게시글이 수정되었습니다." });
+        navigate(`/board/${editingPostId}`);
+      } else {
+        const newPost = await createPost.mutateAsync({
+          tab: activeTab,
+          title: editTitle,
+          content: editContent,
+        });
+        toast({ title: "등록 완료", description: "게시글이 등록되었습니다." });
+        navigate(`/board/${newPost.id}`);
+      }
+    } catch (error) {
+      toast({
+        title: "오류",
+        description: "게시글 저장에 실패했습니다.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Delete post
+  const handleDeletePost = async (postId: string) => {
+    try {
+      await deletePost.mutateAsync(postId);
+      toast({ title: "삭제 완료", description: "게시글이 삭제되었습니다." });
+      navigate("/board");
+    } catch (error) {
+      toast({
+        title: "오류",
+        description: "게시글 삭제에 실패했습니다.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Like/Dislike
+  const handleLike = async (postId: string, isLike: boolean) => {
+    console.log('[Board.handleLike] Called with postId:', postId, 'isLike:', isLike);
+    try {
+      const result = await toggleReaction.mutateAsync({
+        postId,
+        reactionType: isLike ? 'like' : 'dislike',
+      });
+      console.log('[Board.handleLike] Success:', result);
+    } catch (error) {
+      console.error('[Board.handleLike] Error:', error);
+      toast({
+        title: "오류",
+        description: "반응 처리에 실패했습니다.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Add comment
+  const handleAddComment = async () => {
+    if (!newComment.trim() || !selectedPostId) return;
+
+    try {
+      await createComment.mutateAsync({
+        post_id: selectedPostId,
+        content: newComment,
+      });
+      setNewComment("");
+    } catch (error) {
+      toast({
+        title: "오류",
+        description: "댓글 등록에 실패했습니다.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Update comment
+  const handleUpdateComment = async (commentId: string) => {
+    if (!editCommentContent.trim() || !selectedPostId) return;
+
+    try {
+      await updateComment.mutateAsync({
+        commentId,
+        postId: selectedPostId,
+        content: editCommentContent,
+      });
+      setEditingCommentId(null);
+      setEditCommentContent("");
+      toast({
+        title: "수정 완료",
+        description: "댓글이 수정되었습니다.",
+      });
+    } catch (error) {
+      toast({
+        title: "오류",
+        description: "댓글 수정에 실패했습니다.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Start editing comment
+  const startEditComment = (comment: CommentType) => {
+    setEditingCommentId(comment.id);
+    setEditCommentContent(comment.content);
+  };
+
+  // Cancel editing comment
+  const cancelEditComment = () => {
+    setEditingCommentId(null);
+    setEditCommentContent("");
+  };
+
+  // Delete comment
+  const handleDeleteComment = async (commentId: string) => {
+    console.log('[Board.handleDeleteComment] Called with commentId:', commentId, 'selectedPostId:', selectedPostId);
+    if (!selectedPostId) return;
+
+    try {
+      const result = await deleteComment.mutateAsync({
+        commentId,
+        postId: selectedPostId,
+      });
+      console.log('[Board.handleDeleteComment] Success:', result);
+    } catch (error) {
+      console.error('[Board.handleDeleteComment] Error:', error);
+      toast({
+        title: "오류",
+        description: "댓글 삭제에 실패했습니다.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Back to list
+  const handleBack = () => {
+    setEditingPostId(null);
+    navigate("/board");
+  };
+
+
+  return (
+    <div className="min-h-screen">
+      {/* Hero Section - only show in list view */}
+      {viewMode === "list" && (
+        <div className="bg-background border-b border-border/50">
+          <div className="max-w-7xl mx-auto px-4 md:px-6 lg:px-8 py-6">
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Users className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-foreground">
+                  Board
+                </h1>
+                <p className="text-muted-foreground text-sm">
+                  함께 나누고, 함께 성장해요
+                </p>
+              </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex flex-wrap gap-3">
+              {(Object.keys(tabConfig) as PostTab[]).map((tab) => {
+                const config = tabConfig[tab];
+                const Icon = config.icon;
+                const isActive = activeTab === tab;
+
+                return (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={cn(
+                      "group relative flex items-center gap-2 px-3 py-2 sm:gap-3 sm:px-5 sm:py-3.5 rounded-xl sm:rounded-2xl font-medium text-sm transition-all duration-300",
+                      isActive
+                        ? "bg-white dark:bg-card shadow-lg border border-border/50"
+                        : "bg-white/50 dark:bg-card/50 hover:bg-white dark:hover:bg-card border border-transparent hover:border-border/50 hover:shadow-md"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300",
+                      isActive
+                        ? "bg-primary shadow-md"
+                        : config.iconBg
+                    )}>
+                      <Icon className={cn(
+                        "w-5 h-5 transition-colors",
+                        isActive ? "text-white" : config.accentColor
+                      )} />
+                    </div>
+                    <div className="text-left">
+                      <span className={cn(
+                        "font-semibold transition-colors",
+                        isActive ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"
+                      )}>
+                        {config.label}
+                      </span>
+                      <p className="text-xs text-muted-foreground hidden md:block">
+                        {config.description}
+                      </p>
+                    </div>
+                    {isActive && (
+                      <div className="absolute -bottom-px left-1/2 -translate-x-1/2 w-12 h-1 bg-primary rounded-full" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Content Area */}
+      <div className={cn(
+        "max-w-7xl mx-auto px-4 md:px-6 lg:px-8",
+        viewMode === "list" ? "py-6" : "py-4"
+      )}>
+        {/* List View */}
+        {viewMode === "list" && (
+          <>
+            {/* Search & Write */}
+            <div className="flex gap-4 mb-6">
+              <div className="relative flex-1">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+                <Input
+                  placeholder="검색어를 입력하세요..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-12 h-12 rounded-2xl bg-white dark:bg-card border-border/50 shadow-sm focus:shadow-md transition-shadow text-base"
+                />
+              </div>
+              <Button
+                onClick={handleStartWrite}
+                size="lg"
+                className="gap-2 rounded-2xl h-12 px-6 shadow-md hover:shadow-lg transition-all bg-primary hover:bg-primary/90"
+              >
+                <Plus className="w-5 h-5" />
+                <span className="font-semibold">글쓰기</span>
+              </Button>
+            </div>
+
+            {/* Post List */}
+            <div className="space-y-2">
+              {postsLoading ? (
+                <div className="text-center py-20 bg-white dark:bg-card rounded-3xl border border-border/50 shadow-sm">
+                  <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+                  <p className="text-muted-foreground">게시글을 불러오는 중...</p>
+                </div>
+              ) : posts.length === 0 ? (
+                <div className="text-center py-20 bg-white dark:bg-card rounded-3xl border border-border/50 shadow-sm">
+                  <div className={cn(
+                    "w-20 h-20 rounded-2xl mx-auto mb-4 flex items-center justify-center",
+                    currentTabConfig.iconBg
+                  )}>
+                    <MessageSquare className={cn("w-10 h-10", currentTabConfig.accentColor)} />
+                  </div>
+                  <p className="text-xl font-semibold text-foreground mb-2">아직 게시글이 없어요</p>
+                  <p className="text-muted-foreground mb-6">첫 번째 글을 작성해보세요!</p>
+                  <Button
+                    onClick={handleStartWrite}
+                    className="gap-2 rounded-xl bg-primary hover:bg-primary/90"
+                  >
+                    <Plus className="w-4 h-4" />
+                    글쓰기
+                  </Button>
+                </div>
+              ) : (
+                posts.map((post) => {
+                  const postIsHot = isHotPost(post);
+                  return (
+                    <button
+                      key={post.id}
+                      onClick={() => handleViewPost(post)}
+                      className={cn(
+                        "group w-full text-left bg-white dark:bg-card rounded-xl border border-border/50 shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 overflow-hidden",
+                        post.is_pinned && "ring-1 ring-primary/30"
+                      )}
+                    >
+                      <div className="p-4">
+                        <div className="flex items-start gap-3">
+                          {/* Author Avatar */}
+                          <AvatarDisplay
+                            src={post.author?.avatar_url}
+                            name={post.author?.nickname}
+                            size="md"
+                          />
+
+                          <div className="flex-1 min-w-0">
+                            {/* Title with Badges */}
+                            <div className="flex items-center gap-2 mb-1">
+                              {post.is_pinned && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-primary/10 text-primary">
+                                  <Star className="w-2.5 h-2.5" />
+                                  공지
+                                </span>
+                              )}
+                              {postIsHot && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium bg-secondary/10 text-secondary">
+                                  <Flame className="w-2.5 h-2.5" />
+                                  HOT
+                                </span>
+                              )}
+                              <h3 className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors line-clamp-1">
+                                {post.title}
+                              </h3>
+                            </div>
+
+                            {/* Content Preview */}
+                            <p className="text-muted-foreground line-clamp-1 mb-2 text-xs">
+                              {post.content}
+                            </p>
+
+                            {/* Meta Info */}
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                              <span className="font-medium">{getAuthorName(post)}</span>
+                              <span className="flex items-center gap-0.5">
+                                <Clock className="w-3 h-3" />
+                                {format(new Date(post.created_at), "MM.dd", { locale: ko })}
+                              </span>
+                              <span className="flex items-center gap-0.5">
+                                <Eye className="w-3 h-3" />
+                                {post.views}
+                              </span>
+                              <span className={cn(
+                                "flex items-center gap-0.5",
+                                post.likes > 10 ? "text-rose-500" : ""
+                              )}>
+                                <Heart className={cn("w-3 h-3", post.likes > 10 && "fill-current")} />
+                                {post.likes}
+                              </span>
+                              <span className="flex items-center gap-0.5">
+                                <MessageCircle className="w-3 h-3" />
+                                {post.comment_count}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Arrow */}
+                          <ChevronLeft className="w-4 h-4 text-muted-foreground rotate-180 opacity-0 group-hover:opacity-100 transition-opacity self-center" />
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="mt-6 flex flex-col items-center gap-2">
+                <Pagination>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        className={cn(
+                          "cursor-pointer",
+                          currentPage === 1 && "pointer-events-none opacity-50"
+                        )}
+                      />
+                    </PaginationItem>
+
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter(p => {
+                        if (totalPages <= 7) return true;
+                        if (p === 1 || p === totalPages) return true;
+                        if (Math.abs(p - currentPage) <= 1) return true;
+                        return false;
+                      })
+                      .map((pageNum, idx, arr) => (
+                        <span key={pageNum} className="contents">
+                          {idx > 0 && arr[idx - 1] !== pageNum - 1 && (
+                            <PaginationItem>
+                              <PaginationEllipsis />
+                            </PaginationItem>
+                          )}
+                          <PaginationItem>
+                            <PaginationLink
+                              onClick={() => setCurrentPage(pageNum)}
+                              isActive={pageNum === currentPage}
+                              className="cursor-pointer"
+                            >
+                              {pageNum}
+                            </PaginationLink>
+                          </PaginationItem>
+                        </span>
+                      ))
+                    }
+
+                    <PaginationItem>
+                      <PaginationNext
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        className={cn(
+                          "cursor-pointer",
+                          currentPage === totalPages && "pointer-events-none opacity-50"
+                        )}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+                <p className="text-xs text-muted-foreground">
+                  총 {totalCount}개의 게시글
+                </p>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Detail View - Enhanced */}
+        {viewMode === "detail" && (
+          <div className="animate-fade-in">
+            {/* Header with Actions */}
+            <div className="flex items-center justify-between mb-6">
+              <Button
+                variant="ghost"
+                onClick={handleBack}
+                className="gap-2 -ml-3 hover:bg-muted rounded-xl h-10 px-4 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span className="font-medium">목록으로</span>
+              </Button>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 rounded-xl hover:bg-primary/10"
+                >
+                  <Share2 className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 rounded-xl hover:bg-primary/10"
+                >
+                  <Bookmark className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+
+            {postLoading || !selectedPost ? (
+              <div className="text-center py-20 bg-white dark:bg-card rounded-2xl border border-border/50">
+                <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+                <p className="text-muted-foreground">게시글을 불러오는 중...</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Main Content - Takes 2/3 on desktop */}
+                <div className="lg:col-span-2 space-y-6">
+                  {/* Post Card */}
+                  <div className="bg-white dark:bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden">
+                    {/* Gradient Header Bar */}
+                    <div className={cn(
+                      "h-1.5 bg-gradient-to-r",
+                      selectedPost.tab === 'qna' ? "from-primary to-primary/60" :
+                      selectedPost.tab === 'free' ? "from-secondary to-secondary/60" :
+                      "from-amber-500 to-orange-400"
+                    )} />
+
+                    <div className="p-6">
+                      {/* Title Section */}
+                      <div className="flex items-start gap-4 mb-6 pb-6 border-b border-border/30">
+                        <div className={cn(
+                          "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0",
+                          tabConfig[selectedPost.tab].iconBg
+                        )}>
+                          {(() => {
+                            const Icon = tabConfig[selectedPost.tab].icon;
+                            return <Icon className={cn("w-6 h-6", tabConfig[selectedPost.tab].accentColor)} />;
+                          })()}
+                        </div>
+                        <div className="flex-1 min-w-0 overflow-hidden">
+                          <div className="flex items-center gap-2 mb-2 flex-wrap">
+                            <span className={cn(
+                              "inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium flex-shrink-0",
+                              tabConfig[selectedPost.tab].iconBg,
+                              tabConfig[selectedPost.tab].accentColor
+                            )}>
+                              {tabConfig[selectedPost.tab].label}
+                            </span>
+                            {isHotPost(selectedPost) && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-secondary/10 text-secondary flex-shrink-0">
+                                <Flame className="w-3 h-3" />
+                                HOT
+                              </span>
+                            )}
+                          </div>
+                          <h1 className="text-xl font-bold text-foreground leading-tight break-words">
+                            {selectedPost.title}
+                          </h1>
+                        </div>
+
+                        {/* Edit/Delete Menu */}
+                        {selectedPost.is_mine && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl">
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="rounded-xl">
+                              <DropdownMenuItem onClick={() => handleStartEdit(selectedPost)} className="rounded-lg">
+                                <Pencil className="w-4 h-4 mr-2" />
+                                수정
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => setDeletePostId(selectedPost.id)}
+                                className="text-destructive rounded-lg"
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                삭제
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
+                      </div>
+
+                      {/* Author Info */}
+                      <div className="flex items-center gap-3 mb-6">
+                        <AvatarDisplay
+                          src={selectedPost.author?.avatar_url}
+                          name={selectedPost.author?.nickname}
+                          size="md"
+                        />
+                        <div>
+                          <p className="font-semibold text-sm text-foreground">{getAuthorName(selectedPost)}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(selectedPost.created_at), "yyyy년 MM월 dd일 HH:mm", { locale: ko })}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Content Body - Enhanced Readability */}
+                      <div className="text-foreground whitespace-pre-wrap text-base leading-[1.85] min-h-[200px] mb-8 break-words overflow-hidden">
+                        {selectedPost.content}
+                      </div>
+
+                      {/* Engagement Section */}
+                      <div className="flex items-center justify-center gap-3 py-4 rounded-xl bg-gradient-to-r from-muted/30 via-muted/50 to-muted/30 border border-border/30">
+                        <div className="text-center">
+                          <Button
+                            variant={selectedPost.user_reaction === 'like' ? "default" : "outline"}
+                            onClick={() => handleLike(selectedPost.id, true)}
+                            disabled={toggleReaction.isPending}
+                            className={cn(
+                              "gap-2 rounded-xl h-11 px-5 transition-all duration-300",
+                              selectedPost.user_reaction === 'like'
+                                ? "bg-gradient-to-r from-rose-500 to-pink-500 shadow-md shadow-rose-500/25 scale-105"
+                                : "hover:border-rose-300 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+                            )}
+                          >
+                            <Heart className={cn("w-4 h-4", selectedPost.user_reaction === 'like' && "fill-current")} />
+                            <span className="font-bold">{selectedPost.likes}</span>
+                          </Button>
+                          <p className="text-xs text-muted-foreground mt-1.5">도움이 됐어요</p>
+                        </div>
+
+                        <div className="w-px h-10 bg-border/50" />
+
+                        <div className="text-center">
+                          <Button
+                            variant={selectedPost.user_reaction === 'dislike' ? "default" : "outline"}
+                            onClick={() => handleLike(selectedPost.id, false)}
+                            disabled={toggleReaction.isPending}
+                            className={cn(
+                              "gap-2 rounded-xl h-11 px-5 transition-all duration-300",
+                              selectedPost.user_reaction === 'dislike'
+                                ? "bg-gradient-to-r from-blue-500 to-indigo-500 shadow-md shadow-blue-500/25 scale-105 text-white border-transparent"
+                                : "hover:border-blue-300 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-950/20"
+                            )}
+                          >
+                            <ThumbsDown className="w-4 h-4" />
+                            <span className="font-bold">{selectedPost.dislikes}</span>
+                          </Button>
+                          <p className="text-xs text-muted-foreground mt-1.5">아쉬워요</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Comments Card */}
+                  <div className="bg-white dark:bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden">
+                    <div className="p-6">
+                      <h3 className="font-semibold text-foreground mb-5 flex items-center gap-2">
+                        <MessageCircle className="w-5 h-5 text-primary" />
+                        댓글
+                        <span className="px-2.5 py-0.5 rounded-full bg-primary/10 text-primary text-sm font-bold">
+                          {selectedPost.comment_count}
+                        </span>
+                      </h3>
+
+                      {/* Comment Input - Enhanced */}
+                      <div className="bg-gradient-to-r from-primary/5 via-primary/10 to-transparent p-4 rounded-xl mb-6 border border-primary/10">
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center flex-shrink-0">
+                            <span className="text-primary text-sm font-bold">나</span>
+                          </div>
+                          <div className="flex-1">
+                            <div className="flex gap-2">
+                              <Input
+                                placeholder="이 글에 대한 생각을 나눠주세요..."
+                                value={newComment}
+                                onChange={(e) => setNewComment(e.target.value)}
+                                onKeyPress={(e) => e.key === "Enter" && handleAddComment()}
+                                className="h-11 rounded-xl bg-white dark:bg-card border-border/50 focus:border-primary/50 text-sm"
+                              />
+                              <Button
+                                onClick={handleAddComment}
+                                disabled={createComment.isPending || !newComment.trim()}
+                                className="h-11 px-5 rounded-xl bg-primary hover:bg-primary/90 gap-2"
+                              >
+                                {createComment.isPending ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Send className="w-4 h-4" />
+                                )}
+                                <span className="hidden sm:inline">작성</span>
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Comment List */}
+                      <div className="space-y-3">
+                        {!selectedPost.comments || selectedPost.comments.length === 0 ? (
+                          <div className="text-center py-12 rounded-xl bg-muted/20">
+                            <MessageCircle className="w-8 h-8 text-muted-foreground/50 mx-auto mb-3" />
+                            <p className="text-muted-foreground text-sm">첫 번째 댓글을 남겨보세요!</p>
+                          </div>
+                        ) : (
+                          selectedPost.comments.map((comment) => (
+                            <div
+                              key={comment.id}
+                              className="group relative pl-4 border-l-2 border-transparent hover:border-primary/30 transition-all"
+                            >
+                              <div className="flex gap-3 p-4 rounded-xl bg-muted/20 hover:bg-muted/30 transition-colors">
+                                <AvatarDisplay
+                                  src={comment.author?.avatar_url}
+                                  name={comment.author?.nickname}
+                                  size="sm"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center justify-between mb-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-semibold text-sm text-foreground">{getCommentAuthorName(comment)}</span>
+                                      <span className="text-xs text-muted-foreground">
+                                        {format(new Date(comment.created_at), "MM.dd HH:mm", { locale: ko })}
+                                      </span>
+                                      {comment.updated_at && comment.updated_at !== comment.created_at && (
+                                        <span className="text-xs text-muted-foreground">(수정됨)</span>
+                                      )}
+                                    </div>
+                                    {comment.is_mine && editingCommentId !== comment.id && (
+                                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-7 w-7 rounded-lg text-muted-foreground hover:text-primary"
+                                          onClick={() => startEditComment(comment)}
+                                        >
+                                          <Pencil className="w-3.5 h-3.5" />
+                                        </Button>
+                                        <Button
+                                          variant="ghost"
+                                          size="icon"
+                                          className="h-7 w-7 rounded-lg text-muted-foreground hover:text-destructive"
+                                          onClick={() => setDeleteCommentId(comment.id)}
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </Button>
+                                      </div>
+                                    )}
+                                  </div>
+                                  {editingCommentId === comment.id ? (
+                                    <div className="flex gap-2 mt-2">
+                                      <Input
+                                        value={editCommentContent}
+                                        onChange={(e) => setEditCommentContent(e.target.value)}
+                                        onKeyPress={(e) => e.key === "Enter" && handleUpdateComment(comment.id)}
+                                        className="h-9 text-sm rounded-lg"
+                                        autoFocus
+                                      />
+                                      <Button
+                                        size="sm"
+                                        onClick={() => handleUpdateComment(comment.id)}
+                                        disabled={updateComment.isPending || !editCommentContent.trim()}
+                                        className="h-9 px-3 rounded-lg"
+                                      >
+                                        {updateComment.isPending ? (
+                                          <Loader2 className="w-4 h-4 animate-spin" />
+                                        ) : (
+                                          "저장"
+                                        )}
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={cancelEditComment}
+                                        className="h-9 px-3 rounded-lg"
+                                      >
+                                        취소
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <p className="text-foreground text-sm leading-relaxed break-words">{comment.content}</p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sidebar */}
+                <div className="lg:col-span-1 space-y-4">
+                  {/* Author Info Card */}
+                  <div className="bg-white dark:bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden">
+                    <div className={cn(
+                      "h-20 bg-gradient-to-r",
+                      selectedPost.tab === 'qna' ? "from-primary/20 to-primary/5" :
+                      selectedPost.tab === 'free' ? "from-secondary/20 to-secondary/5" :
+                      "from-amber-500/20 to-amber-500/5"
+                    )} />
+                    <div className="px-5 pb-5 -mt-10">
+                      <div className="flex flex-col items-center">
+                        <div className="ring-4 ring-white dark:ring-card rounded-full">
+                          <AvatarDisplay
+                            src={selectedPost.author?.avatar_url}
+                            name={selectedPost.author?.nickname}
+                            size="lg"
+                          />
+                        </div>
+                        <h4 className="font-bold text-foreground mt-3">{getAuthorName(selectedPost)}</h4>
+                        <p className="text-sm text-muted-foreground">DietRx 회원</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Post Info Card */}
+                  <div className="bg-white dark:bg-card rounded-2xl border border-border/50 shadow-sm p-5">
+                    <h4 className="font-semibold text-sm text-foreground mb-4 flex items-center gap-2">
+                      <BookOpen className="w-4 h-4 text-primary" />
+                      게시글 정보
+                    </h4>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground flex items-center gap-2">
+                          <Clock className="w-4 h-4" />
+                          작성일
+                        </span>
+                        <span className="font-medium text-foreground">
+                          {format(new Date(selectedPost.created_at), "MM.dd HH:mm")}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground flex items-center gap-2">
+                          <Eye className="w-4 h-4" />
+                          조회수
+                        </span>
+                        <span className="font-medium text-foreground">{selectedPost.views}회</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground flex items-center gap-2">
+                          <BookOpen className="w-4 h-4" />
+                          읽기 시간
+                        </span>
+                        <span className="font-medium text-foreground">
+                          약 {Math.max(1, Math.ceil(selectedPost.content.length / 500))}분
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Encouragement Card */}
+                  <div className="bg-gradient-to-br from-primary/5 via-primary/10 to-secondary/5 rounded-2xl border border-primary/20 p-5">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-white dark:bg-card shadow-sm flex items-center justify-center flex-shrink-0">
+                        <Sparkles className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground mb-1">
+                          함께 나눠요
+                        </p>
+                        <p className="text-xs text-muted-foreground leading-relaxed">
+                          댓글로 경험을 나누거나 좋아요로 응원해주세요!
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Write/Edit View - Enhanced */}
+        {(viewMode === "write" || viewMode === "edit") && (
+          <div className="animate-fade-in">
+            {/* Header with better visual hierarchy */}
+            <div className="flex items-center justify-between mb-6">
+              <Button
+                variant="ghost"
+                onClick={handleBack}
+                className="gap-2 -ml-3 hover:bg-muted rounded-xl h-10 px-4 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span className="font-medium">돌아가기</span>
+              </Button>
+
+              <div className="flex items-center gap-3">
+                {/* Character count badge */}
+                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/50 text-xs text-muted-foreground">
+                  <span>{editContent.length}</span>
+                  <span>/</span>
+                  <span>2000자</span>
+                </div>
+
+                <Button
+                  onClick={handleSavePost}
+                  disabled={!editTitle.trim() || !editContent.trim() || createPost.isPending || updatePost.isPending}
+                  className={cn(
+                    "gap-2 rounded-xl px-6 h-10 font-semibold transition-all duration-300",
+                    editTitle.trim() && editContent.trim()
+                      ? "bg-primary hover:bg-primary/90 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5"
+                      : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {(createPost.isPending || updatePost.isPending) ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-4 h-4" />
+                  )}
+                  {viewMode === "edit" ? "수정 완료" : "등록하기"}
+                </Button>
+              </div>
+            </div>
+
+            {/* Main Content - Two Column Layout on Desktop */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Editor Section - Takes 2/3 on desktop */}
+              <div className="lg:col-span-2">
+                <div className="bg-white dark:bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden">
+                  {/* Gradient Header Bar */}
+                  <div className={cn(
+                    "h-1.5 bg-gradient-to-r",
+                    activeTab === 'qna' ? "from-primary to-primary/60" :
+                    activeTab === 'free' ? "from-secondary to-secondary/60" :
+                    "from-amber-500 to-orange-400"
+                  )} />
+
+                  <div className="p-6">
+                    {/* Tab Context Header */}
+                    <div className="flex items-center gap-4 mb-6 pb-6 border-b border-border/30">
+                      <div className={cn(
+                        "w-12 h-12 rounded-xl flex items-center justify-center",
+                        currentTabConfig.iconBg
+                      )}>
+                        {(() => {
+                          const Icon = currentTabConfig.icon;
+                          return <Icon className={cn("w-6 h-6", currentTabConfig.accentColor)} />;
+                        })()}
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-bold text-foreground">
+                          {currentTabConfig.label}에 글쓰기
+                        </h2>
+                        <p className="text-sm text-muted-foreground">
+                          {currentTabConfig.description}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Title Input - Enhanced */}
+                    <div className="mb-6">
+                      <label className="block text-sm font-semibold text-foreground mb-2">
+                        제목
+                        <span className="text-destructive ml-1">*</span>
+                      </label>
+                      <div className="relative">
+                        <Input
+                          placeholder={
+                            activeTab === 'qna' ? "예: 정체기 탈출 방법이 궁금해요" :
+                            activeTab === 'free' ? "예: 드디어 -3kg 달성했어요!" :
+                            "예: 저탄수화물 식단 한 달 후기"
+                          }
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value.slice(0, 100))}
+                          className={cn(
+                            "h-12 text-base font-medium rounded-xl border-2 transition-all duration-200 pr-10",
+                            "bg-muted/30 border-transparent",
+                            "focus:bg-white dark:focus:bg-muted focus:border-primary/50 focus:ring-2 focus:ring-primary/20",
+                            editTitle.trim().length >= 5 && "border-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-950/20"
+                          )}
+                        />
+                        {editTitle.trim().length >= 5 && (
+                          <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                            <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                              <svg className="w-3 h-3 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex justify-between mt-1.5">
+                        <span className="text-xs text-muted-foreground">
+                          명확하고 구체적인 제목이 더 많은 관심을 받아요
+                        </span>
+                        <span className={cn(
+                          "text-xs",
+                          editTitle.length > 80 ? "text-amber-500" : "text-muted-foreground"
+                        )}>
+                          {editTitle.length}/100
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Content Textarea - Enhanced */}
+                    <div>
+                      <label className="block text-sm font-semibold text-foreground mb-2">
+                        내용
+                        <span className="text-destructive ml-1">*</span>
+                      </label>
+                      <Textarea
+                        placeholder={
+                          activeTab === 'qna'
+                            ? "현재 상황, 식단, 운동 루틴 등을 자세히 적어주시면 더 도움이 되는 답변을 받을 수 있어요..."
+                            : activeTab === 'free'
+                            ? "여러분과 나누고 싶은 이야기를 자유롭게 적어주세요..."
+                            : "유용한 다이어트 정보, 식단 팁, 운동 방법 등을 공유해주세요..."
+                        }
+                        value={editContent}
+                        onChange={(e) => setEditContent(e.target.value.slice(0, 2000))}
+                        className={cn(
+                          "min-h-[320px] rounded-xl border-2 transition-all duration-200 resize-none text-sm leading-relaxed",
+                          "bg-muted/30 border-transparent",
+                          "focus:bg-white dark:focus:bg-muted focus:border-primary/50 focus:ring-2 focus:ring-primary/20",
+                          editContent.trim().length >= 20 && "border-emerald-500/50 bg-emerald-50/50 dark:bg-emerald-950/20"
+                        )}
+                      />
+                      <div className="flex justify-between items-center mt-2">
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5" />
+                            예상 읽기 시간: {Math.max(1, Math.ceil(editContent.length / 500))}분
+                          </span>
+                        </div>
+                        <span className={cn(
+                          "text-xs font-medium",
+                          editContent.length > 1800 ? "text-amber-500" :
+                          editContent.length > 1500 ? "text-amber-400" :
+                          "text-muted-foreground"
+                        )}>
+                          {editContent.length}/2000
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer Progress Bar */}
+                  <div className="px-6 py-4 bg-muted/20 border-t border-border/30">
+                    {(() => {
+                      const progress = Math.min(100,
+                        (editTitle.trim().length >= 5 ? 30 : 0) +
+                        (editTitle.trim().length >= 10 ? 10 : 0) +
+                        (editContent.trim().length >= 20 ? 30 : 0) +
+                        (editContent.trim().length >= 100 ? 20 : 0) +
+                        (editContent.trim().length >= 200 ? 10 : 0)
+                      );
+                      return (
+                        <>
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-medium text-muted-foreground">작성 진행도</span>
+                            <span className={cn(
+                              "text-xs font-semibold",
+                              progress >= 80 ? "text-emerald-500" : progress >= 50 ? "text-amber-500" : "text-muted-foreground"
+                            )}>
+                              {progress}%
+                            </span>
+                          </div>
+                          <div className="h-2 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className={cn(
+                                "h-full rounded-full transition-all duration-500 ease-out",
+                                progress >= 80 ? "bg-emerald-500" : progress >= 50 ? "bg-amber-500" : "bg-primary"
+                              )}
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Sidebar - Tips & Motivation */}
+              <div className="lg:col-span-1 space-y-4">
+                {/* Writing Tips Card */}
+                <div className="bg-white dark:bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden">
+                  <div className={cn(
+                    "px-4 py-3 border-b border-border/30",
+                    currentTabConfig.iconBg
+                  )}>
+                    <div className="flex items-center gap-2">
+                      <Lightbulb className={cn("w-4 h-4", currentTabConfig.accentColor)} />
+                      <span className="text-sm font-semibold text-foreground">작성 팁</span>
+                    </div>
+                  </div>
+                  <div className="p-4">
+                    <ul className="space-y-3">
+                      {(activeTab === 'qna' ? [
+                        "구체적인 상황을 설명해주세요",
+                        "시도해본 방법이 있다면 함께 알려주세요",
+                        "목표 체중이나 기간을 명시하면 더 정확한 답변을 받을 수 있어요",
+                      ] : activeTab === 'free' ? [
+                        "오늘의 다이어트 일상을 나눠보세요",
+                        "작은 성공도 큰 응원이 됩니다",
+                        "서로 격려하며 함께 성장해요",
+                      ] : [
+                        "출처가 있다면 함께 공유해주세요",
+                        "직접 경험한 정보라면 더욱 신뢰받아요",
+                        "간단명료하게 핵심을 전달해주세요",
+                      ]).map((tip, index) => (
+                        <li key={index} className="flex items-start gap-2.5">
+                          <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <span className="text-xs font-semibold text-primary">{index + 1}</span>
+                          </div>
+                          <span className="text-sm text-muted-foreground leading-relaxed">{tip}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+
+                {/* Motivation Card */}
+                <div className="bg-gradient-to-br from-primary/5 via-primary/10 to-secondary/5 rounded-2xl border border-primary/20 p-5">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-white dark:bg-card shadow-sm flex items-center justify-center flex-shrink-0">
+                      <Heart className="w-5 h-5 text-secondary" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground mb-1">
+                        나눔의 힘
+                      </p>
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        당신의 경험이 누군가에게 큰 힘이 됩니다.
+                        함께 나누면 다이어트도 즐거워져요!
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Guide Card */}
+                <div className="bg-white dark:bg-card rounded-2xl border border-border/50 shadow-sm p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Star className="w-4 h-4 text-amber-500" />
+                    <span className="text-sm font-semibold text-foreground">좋은 글 작성법</span>
+                  </div>
+                  <div className="space-y-2 text-xs text-muted-foreground">
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                      <span>제목은 5자 이상으로 작성</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                      <span>내용은 20자 이상 상세하게</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                      <span>경험담은 구체적으로</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Post Delete Confirmation Dialog */}
+      <AlertDialog open={!!deletePostId} onOpenChange={(open) => !open && setDeletePostId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>게시글 삭제</AlertDialogTitle>
+            <AlertDialogDescription>
+              정말 이 게시글을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deletePostId) {
+                  handleDeletePost(deletePostId);
+                  setDeletePostId(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              삭제
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Comment Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteCommentId} onOpenChange={(open) => !open && setDeleteCommentId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>댓글 삭제</AlertDialogTitle>
+            <AlertDialogDescription>
+              정말 이 댓글을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>취소</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deleteCommentId) {
+                  handleDeleteComment(deleteCommentId);
+                  setDeleteCommentId(null);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              삭제
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}

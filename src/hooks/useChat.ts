@@ -1,39 +1,18 @@
+/**
+ * 챗봇 훅 - Backend API 사용 버전
+ * OpenAI API 키가 더 이상 브라우저에 노출되지 않음
+ */
+
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase, getCurrentUserId } from '@/lib/supabase';
 import type { ChatMessage } from '@/types/domain';
-import OpenAI from 'openai';
+import { chatApi } from '@/lib/api';
 
-// OpenAI client (for development - in production, use Edge Function)
-const openai = new OpenAI({
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-  dangerouslyAllowBrowser: true, // Only for development!
-});
-
+// Re-export CoachPersona for external use
 export type CoachPersona = 'cold' | 'bright' | 'strict';
 
-// System prompts for each persona
-const systemPrompts: Record<CoachPersona, string> = {
-  cold: `You are a diet coach with a cool, factual personality.
-- Be concise and data-driven
-- No emojis
-- Focus on numbers and facts
-- Give practical, straightforward advice
-- Respond in Korean`,
-
-  bright: `You are a warm and supportive diet coach.
-- Be encouraging and positive
-- Use emojis appropriately
-- Celebrate small wins
-- Provide gentle guidance
-- Respond in Korean`,
-
-  strict: `You are a strict and direct diet coach.
-- Be firm but fair
-- Focus on goals and discipline
-- Don't sugarcoat advice
-- Push for accountability
-- Respond in Korean`,
-};
+// Chat type for diet conversations
+const CHAT_TYPE = 'diet';
 
 // Query keys
 const chatKeys = {
@@ -41,8 +20,11 @@ const chatKeys = {
   messages: () => [...chatKeys.all, 'messages'] as const,
 };
 
-// Fetch chat messages from Supabase
-export function useChatMessages() {
+// ============================================
+// 채팅 메시지 조회
+// ============================================
+
+export function useChatMessages(limit: number = 50) {
   const userId = getCurrentUserId();
 
   return useQuery({
@@ -52,19 +34,22 @@ export function useChatMessages() {
         .from('chat_messages')
         .select('*')
         .eq('user_id', userId)
-        .order('created_at', { ascending: true })
-        .limit(50); // Last 50 messages
+        .eq('chat_type', CHAT_TYPE)
+        .order('created_at', { ascending: false })
+        .limit(limit);
 
       if (error) throw error;
-      return data || [];
+      return (data || []).reverse();
     },
   });
 }
 
-// Send message and get AI response
+// ============================================
+// 메시지 전송 (Backend API 호출)
+// ============================================
+
 export function useSendMessage() {
   const queryClient = useQueryClient();
-  const userId = getCurrentUserId();
 
   return useMutation({
     mutationFn: async ({
@@ -74,67 +59,66 @@ export function useSendMessage() {
       content: string;
       persona: CoachPersona;
     }): Promise<{ userMessage: ChatMessage; assistantMessage: ChatMessage }> => {
-      // 1. Save user message to Supabase
-      const { data: userMsg, error: userError } = await supabase
-        .from('chat_messages')
-        .insert({
-          user_id: userId,
-          role: 'user',
-          content,
-        })
-        .select()
-        .single();
 
-      if (userError) throw userError;
+      // Optimistically add user message to cache
+      const tempUserMsg: ChatMessage = {
+        id: `temp-${Date.now()}`,
+        user_id: getCurrentUserId(),
+        role: 'user',
+        content,
+        chat_type: CHAT_TYPE,
+        created_at: new Date().toISOString(),
+      };
 
-      // 2. Immediately update cache to show user message
-      queryClient.invalidateQueries({ queryKey: chatKeys.messages() });
-
-      // 3. Get recent messages for context
-      const { data: recentMessages } = await supabase
-        .from('chat_messages')
-        .select('role, content')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      // 4. Build messages array for OpenAI
-      const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-        { role: 'system', content: systemPrompts[persona] },
-        ...(recentMessages || []).reverse().map((msg) => ({
-          role: msg.role as 'user' | 'assistant',
-          content: msg.content,
-        })),
-      ];
-
-      // 5. Call OpenAI API (gpt-4o-mini)
-      const completion = await openai.chat.completions.create({
-        model: 'gpt-4o-mini',
-        messages,
-        max_tokens: 300,
-        temperature: persona === 'cold' ? 0.3 : persona === 'strict' ? 0.5 : 0.7,
+      queryClient.setQueryData<ChatMessage[]>(chatKeys.messages(), (old) => {
+        return old ? [...old, tempUserMsg] : [tempUserMsg];
       });
 
-      const assistantContent =
-        completion.choices[0]?.message?.content || '응답을 생성할 수 없습니다.';
+      try {
+        console.log('[Chat] Sending message to backend API...');
 
-      // 6. Save assistant message to Supabase
-      const { data: assistantMsg, error: assistantError } = await supabase
-        .from('chat_messages')
-        .insert({
-          user_id: userId,
-          role: 'assistant',
-          content: assistantContent,
-        })
-        .select()
-        .single();
+        // Call backend API (handles intent classification, context, function calling)
+        const response = await chatApi.sendMessage({ content, persona });
 
-      if (assistantError) throw assistantError;
+        console.log('[Chat] Response received, intent:', response.intent);
 
-      return {
-        userMessage: userMsg,
-        assistantMessage: assistantMsg,
-      };
+        // Invalidate and refetch messages from DB
+        await queryClient.invalidateQueries({ queryKey: chatKeys.messages() });
+
+        // Invalidate related queries if there were tool calls
+        if (response.action_result?.tool_calls) {
+          console.log('[Chat] Tool calls detected, invalidating related queries');
+          queryClient.invalidateQueries({ queryKey: ['meals'] });
+          queryClient.invalidateQueries({ queryKey: ['todayCalories'] });
+        }
+
+        // Get the latest messages from cache
+        const messages = queryClient.getQueryData<ChatMessage[]>(chatKeys.messages()) || [];
+        const userMessage = messages.find(m => m.content === content && m.role === 'user') || tempUserMsg as ChatMessage;
+        const assistantMessage = messages[messages.length - 1];
+
+        return { userMessage, assistantMessage };
+      } catch (error) {
+        // Remove optimistic update on error
+        queryClient.setQueryData<ChatMessage[]>(chatKeys.messages(), (old) => {
+          return old?.filter(m => m.id !== tempUserMsg.id) || [];
+        });
+        throw error;
+      }
+    },
+  });
+}
+
+// ============================================
+// 채팅 기록 삭제
+// ============================================
+
+export function useClearChat() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async () => {
+      await chatApi.clearHistory();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: chatKeys.messages() });
@@ -142,22 +126,20 @@ export function useSendMessage() {
   });
 }
 
-// Clear chat history
-export function useClearChat() {
-  const queryClient = useQueryClient();
-  const userId = getCurrentUserId();
+// ============================================
+// AI 분석 (MyPage용)
+// ============================================
 
+export function useAIAnalysis() {
   return useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase
-        .from('chat_messages')
-        .delete()
-        .eq('user_id', userId);
+    mutationFn: async ({ persona = 'bright' as CoachPersona }): Promise<string> => {
+      // Call the chat API with an analysis request
+      const response = await chatApi.sendMessage({
+        content: '지난 7일간의 내 다이어트 현황을 분석해줘. 주간 요약, 잘한 점, 개선할 점, 추천 액션을 알려줘.',
+        persona,
+      });
 
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: chatKeys.messages() });
+      return response.message;
     },
   });
 }

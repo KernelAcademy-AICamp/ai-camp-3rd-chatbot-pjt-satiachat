@@ -2,19 +2,19 @@ import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
-  UtensilsCrossed,
   User,
   Pill,
+  MessageSquare,
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const mobileNavItems = [
-  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Meals", url: "/meals", icon: UtensilsCrossed },
-  { title: "My Page", url: "/my-page", icon: User },
-  { title: "Meds", url: "/medications", icon: Pill },
-  { title: "Settings", url: "/settings", icon: Settings },
+  { title: "홈", url: "/dashboard", icon: LayoutDashboard },
+  { title: "내정보", url: "/my-page", icon: User },
+  { title: "약물", url: "/medications", icon: Pill },
+  { title: "게시판", url: "/board", icon: MessageSquare },
+  { title: "설정", url: "/settings", icon: Settings },
 ];
 
 export function MobileNav() {
@@ -22,22 +22,23 @@ export function MobileNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border md:hidden">
-      <div className="flex items-center justify-around h-16 px-2">
+      <div className="flex items-center justify-around h-16 px-1">
         {mobileNavItems.map((item) => {
-          const isActive = location.pathname === item.url;
+          const isActive = location.pathname === item.url ||
+            (item.url !== "/dashboard" && location.pathname.startsWith(item.url));
           return (
             <NavLink
               key={item.url}
               to={item.url}
               className={cn(
-                "flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-all duration-200",
+                "flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-all duration-200 min-w-0",
                 isActive
                   ? "text-primary"
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <item.icon className={cn("w-5 h-5", isActive && "animate-pulse-soft")} />
-              <span className="text-[10px] font-medium">{item.title}</span>
+              <item.icon className={cn("w-5 h-5 flex-shrink-0", isActive && "animate-pulse-soft")} />
+              <span className="text-[9px] font-medium truncate">{item.title}</span>
             </NavLink>
           );
         })}

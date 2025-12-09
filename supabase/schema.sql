@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS public.medications (
   name TEXT NOT NULL,
   dosage TEXT,
   frequency TEXT CHECK (frequency IN ('daily', 'weekly', 'as_needed')),
-  day_of_week INTEGER CHECK (day_of_week >= 0 AND day_of_week <= 6), -- 0=Sun, 1=Mon, ..., 6=Sat (for weekly meds)
+  dose_day INTEGER CHECK (dose_day >= 0 AND dose_day <= 6),  -- 0=Sunday, 6=Saturday (for weekly medications)
   time_of_day TEXT,
   notes TEXT,
   is_active BOOLEAN DEFAULT true,
@@ -186,6 +186,91 @@ DROP TRIGGER IF EXISTS update_medications_updated_at ON public.medications;
 CREATE TRIGGER update_medications_updated_at
   BEFORE UPDATE ON public.medications
   FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- ============================================================
+-- 8. Foods (Korean food nutrition database)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.foods (
+  id SERIAL PRIMARY KEY,
+  food_code VARCHAR(30) UNIQUE NOT NULL,        -- 식품코드
+  food_name VARCHAR(200) NOT NULL,              -- 식품명 (검색용)
+  representative_name VARCHAR(200),             -- 대표식품명 (그룹핑용)
+  category VARCHAR(100),                        -- 식품대분류명
+  calories NUMERIC(10,2),                       -- 에너지(kcal)
+  protein NUMERIC(10,2),                        -- 단백질(g)
+  fat NUMERIC(10,2),                            -- 지방(g)
+  carbs NUMERIC(10,2),                          -- 탄수화물(g)
+  sugar NUMERIC(10,2),                          -- 당류(g)
+  fiber NUMERIC(10,2),                          -- 식이섬유(g)
+  sodium NUMERIC(10,2),                         -- 나트륨(mg)
+  serving_size VARCHAR(50),                     -- 영양성분함량기준량
+  food_weight VARCHAR(50),                      -- 식품중량
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Foods 검색 성능을 위한 인덱스
+CREATE INDEX IF NOT EXISTS idx_foods_name ON public.foods USING gin(to_tsvector('simple', food_name));
+CREATE INDEX IF NOT EXISTS idx_foods_name_like ON public.foods(food_name varchar_pattern_ops);
+CREATE INDEX IF NOT EXISTS idx_foods_rep_name ON public.foods(representative_name);
+CREATE INDEX IF NOT EXISTS idx_foods_category ON public.foods(category);
+
+-- Foods는 공용 데이터이므로 모든 인증된 사용자가 읽기 가능
+ALTER TABLE public.foods ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Anyone can read foods" ON public.foods
+  FOR SELECT USING (true);
+
+-- 음식 검색 함수 (한글 검색 최적화)
+CREATE OR REPLACE FUNCTION search_foods(search_term TEXT, max_results INT DEFAULT 20)
+RETURNS TABLE (
+  id INT,
+  food_code VARCHAR,
+  food_name VARCHAR,
+  representative_name VARCHAR,
+  category VARCHAR,
+  calories NUMERIC,
+  protein NUMERIC,
+  fat NUMERIC,
+  carbs NUMERIC,
+  sugar NUMERIC,
+  fiber NUMERIC,
+  sodium NUMERIC,
+  serving_size VARCHAR,
+  food_weight VARCHAR
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT
+    f.id,
+    f.food_code,
+    f.food_name,
+    f.representative_name,
+    f.category,
+    f.calories,
+    f.protein,
+    f.fat,
+    f.carbs,
+    f.sugar,
+    f.fiber,
+    f.sodium,
+    f.serving_size,
+    f.food_weight
+  FROM public.foods f
+  WHERE f.food_name ILIKE '%' || search_term || '%'
+     OR f.representative_name ILIKE '%' || search_term || '%'
+  ORDER BY
+    -- 정확히 일치하는 것 우선
+    CASE WHEN f.food_name = search_term THEN 0
+         WHEN f.representative_name = search_term THEN 1
+         WHEN f.food_name ILIKE search_term || '%' THEN 2
+         WHEN f.representative_name ILIKE search_term || '%' THEN 3
+         ELSE 4 END,
+    -- 그 다음 이름 길이가 짧은 것 우선 (더 일반적인 음식)
+    LENGTH(f.food_name),
+    f.food_name
+  LIMIT max_results;
+END;
+$$ LANGUAGE plpgsql;
 
 -- ============================================================
 -- Development Helper: Create test user for development

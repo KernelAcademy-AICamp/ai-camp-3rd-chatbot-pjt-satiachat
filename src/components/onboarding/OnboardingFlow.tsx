@@ -19,10 +19,10 @@ import { CompletionStep } from './steps/CompletionStep';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { SatiaChatLogo } from '@/components/ui/satiachat-logo';
+import { SatiaChatLogo } from '@/components/brand/SatiaChatLogo';
 
 const TOTAL_STEPS = 5;
-const STORAGE_KEY = 'satiachat_onboarding_data';
+const STORAGE_KEY = 'dietrx_onboarding_data';
 
 export function OnboardingFlow() {
   const [currentStep, setCurrentStep] = useState(1);
@@ -89,17 +89,20 @@ export function OnboardingFlow() {
       // Save to Supabase user_profiles
       const { error } = await supabase
         .from('user_profiles')
-        .upsert({
-          user_id: user?.id || 'dev-user-00000000-0000-0000-0000-000000000001',
-          gender: data.gender,
-          birth_year: data.birthYear,
-          height_cm: data.heightCm,
-          current_weight_kg: data.currentWeightKg,
-          goal_weight_kg: data.goalWeightKg,
-          activity_level: data.activityLevel,
-          coach_persona: data.coachPersona,
-          updated_at: new Date().toISOString(),
-        });
+        .upsert(
+          {
+            user_id: user?.id || 'dev-user-00000000-0000-0000-0000-000000000001',
+            gender: data.gender,
+            birth_year: data.birthYear,
+            height_cm: data.heightCm,
+            current_weight_kg: data.currentWeightKg,
+            goal_weight_kg: data.goalWeightKg,
+            activity_level: data.activityLevel,
+            coach_persona: data.coachPersona,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id' }
+        );
 
       if (error) throw error;
 
@@ -140,9 +143,8 @@ export function OnboardingFlow() {
       <div className="max-w-lg mx-auto">
         {/* Header */}
         <div className="text-center mb-8 flex flex-col items-center">
-          <SatiaChatLogo size="md" className="mb-2" />
-          <p className="text-sm text-muted-foreground">Feel Full, Live Light</p>
-          <p className="text-muted-foreground mt-3">
+          <SatiaChatLogo size="lg" animate className="mb-2" />
+          <p className="text-muted-foreground mt-1">
             맞춤 코칭 환경을 설정합니다
           </p>
         </div>

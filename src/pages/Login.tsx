@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { loginSchema, LoginFormData } from '@/lib/validations/onboarding';
-import { SatiaChatLogo } from '@/components/ui/satiachat-logo';
+import { SatiaChatLogo } from '@/components/brand/SatiaChatLogo';
 
 export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
@@ -52,9 +52,8 @@ export default function Login() {
       <div className="w-full max-w-md space-y-8">
         {/* Logo */}
         <div className="text-center flex flex-col items-center">
-          <SatiaChatLogo size="lg" className="mb-2" />
-          <p className="text-sm text-muted-foreground mt-1">Feel Full, Live Light</p>
-          <p className="text-muted-foreground mt-4">로그인하여 계속하기</p>
+          <SatiaChatLogo size="xl" animate className="mb-4" />
+          <p className="text-muted-foreground">로그인하여 계속하기</p>
         </div>
 
         {/* Form */}

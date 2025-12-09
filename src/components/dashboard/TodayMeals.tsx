@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Coffee, Sun, Moon, Cookie, Plus, Loader2 } from "lucide-react";
+import { Coffee, Sun, Moon, Cookie, Plus, Loader2, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { MealForm } from "@/components/meals/MealForm";
 import { useTodayCalories } from "@/hooks/useMeals";
-import type { MealType } from "@/types/domain";
+import type { MealType, MealWithItems } from "@/types/domain";
 
 const mealConfig: Record<MealType, { icon: typeof Coffee; label: string; time: string }> = {
   breakfast: { icon: Coffee, label: "Breakfast", time: "7:00 - 9:00" },
@@ -16,14 +16,21 @@ const mealConfig: Record<MealType, { icon: typeof Coffee; label: string; time: s
 const mealTypes: MealType[] = ['breakfast', 'lunch', 'dinner', 'snack'];
 
 export function TodayMeals() {
-  const [showAddForm, setShowAddForm] = useState(false);
+  const [showForm, setShowForm] = useState(false);
   const [selectedMealType, setSelectedMealType] = useState<MealType>('breakfast');
+  const [editMeal, setEditMeal] = useState<MealWithItems | undefined>(undefined);
 
   const { mealsByType, totalCalories, isLoading, error } = useTodayCalories();
 
   const handleAddMeal = (mealType: MealType) => {
     setSelectedMealType(mealType);
-    setShowAddForm(true);
+    setEditMeal(undefined);
+    setShowForm(true);
+  };
+
+  const handleEditMeal = (meal: MealWithItems) => {
+    setEditMeal(meal);
+    setShowForm(true);
   };
 
   if (isLoading) {
@@ -66,12 +73,12 @@ export function TodayMeals() {
               <div
                 key={mealType}
                 className={cn(
-                  "flex items-center gap-4 p-3 rounded-xl transition-all duration-200",
+                  "flex items-center gap-4 p-3 rounded-xl transition-all duration-200 cursor-pointer",
                   isLogged
                     ? "bg-muted/50 hover:bg-muted"
-                    : "bg-muted/20 border border-dashed border-border hover:border-primary/30 cursor-pointer"
+                    : "bg-muted/20 border border-dashed border-border hover:border-primary/30"
                 )}
-                onClick={() => !isLogged && handleAddMeal(mealType)}
+                onClick={() => isLogged ? handleEditMeal(meal) : handleAddMeal(mealType)}
               >
                 <div
                   className={cn(
@@ -100,12 +107,15 @@ export function TodayMeals() {
                   )}
                 </div>
 
-                {isLogged && (
-                  <div className="text-right">
-                    <span className="text-sm font-semibold text-foreground">{calories}</span>
-                    <span className="text-xs text-muted-foreground ml-0.5">kcal</span>
+                {isLogged ? (
+                  <div className="flex items-center gap-2">
+                    <div className="text-right">
+                      <span className="text-sm font-semibold text-foreground">{calories}</span>
+                      <span className="text-xs text-muted-foreground ml-0.5">kcal</span>
+                    </div>
+                    <Pencil className="w-4 h-4 text-muted-foreground" />
                   </div>
-                )}
+                ) : null}
               </div>
             );
           })}
@@ -120,11 +130,12 @@ export function TodayMeals() {
         </div>
       </div>
 
-      {/* Add Meal Form */}
+      {/* Add/Edit Meal Form */}
       <MealForm
-        open={showAddForm}
-        onOpenChange={setShowAddForm}
+        open={showForm}
+        onOpenChange={setShowForm}
         defaultMealType={selectedMealType}
+        editMeal={editMeal}
       />
     </>
   );

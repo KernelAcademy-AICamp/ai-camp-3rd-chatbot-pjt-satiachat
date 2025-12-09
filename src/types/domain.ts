@@ -9,6 +9,8 @@ export interface UserProfile {
   id: string;
   user_id: string;
   email?: string;
+  nickname?: string;
+  avatar_url?: string;
   gender?: Gender;
   birth_year?: number;
   height_cm?: number;
@@ -64,10 +66,9 @@ export interface ProgressLog {
 }
 
 // ============ Medications ============
-export type MedicationFrequency = 'daily' | 'weekly' | 'as_needed';
+export type MedicationFrequency = 'weekly'; // 위고비/마운자로는 주 1회 복용
 export type MedicationLogStatus = 'taken' | 'skipped' | 'delayed';
-
-export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0 = Sunday, 6 = Saturday
+export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0=일, 1=월, ..., 6=토
 
 export interface Medication {
   id: string;
@@ -75,7 +76,7 @@ export interface Medication {
   name: string;
   dosage?: string;
   frequency?: MedicationFrequency;
-  day_of_week?: DayOfWeek; // For weekly medications: which day to take (0=Sun, 1=Mon, ..., 6=Sat)
+  dose_day?: DayOfWeek; // 복용 요일 (0=일요일, 6=토요일)
   time_of_day?: string;
   notes?: string;
   is_active: boolean;
@@ -145,7 +146,7 @@ export interface CreateMedicationRequest {
   name: string;
   dosage?: string;
   frequency?: MedicationFrequency;
-  day_of_week?: DayOfWeek;
+  dose_day?: DayOfWeek;
   time_of_day?: string;
   notes?: string;
 }
@@ -154,7 +155,7 @@ export interface UpdateMedicationRequest {
   name?: string;
   dosage?: string;
   frequency?: MedicationFrequency;
-  day_of_week?: DayOfWeek;
+  dose_day?: DayOfWeek;
   time_of_day?: string;
   notes?: string;
   is_active?: boolean;
@@ -163,6 +164,24 @@ export interface UpdateMedicationRequest {
 export interface SendChatMessageRequest {
   message: string;
   persona?: ChatPersona;
+}
+
+// ============ Foods (Nutrition Database) ============
+export interface Food {
+  id: number;
+  food_code: string;
+  food_name: string;
+  representative_name: string | null;
+  category: string | null;
+  calories: number | null;
+  protein: number | null;
+  fat: number | null;
+  carbs: number | null;
+  sugar: number | null;
+  fiber: number | null;
+  sodium: number | null;
+  serving_size: string | null;
+  food_weight: string | null;
 }
 
 // ============ Statistics Types ============
@@ -189,4 +208,72 @@ export interface MedicationAdherence {
   total_scheduled: number;
   total_taken: number;
   adherence_percent: number;
+}
+
+// ============ Board (Community) ============
+export type PostTab = 'qna' | 'free' | 'info';
+export type ReactionType = 'like' | 'dislike';
+
+export interface Post {
+  id: string;
+  user_id: string;
+  tab: PostTab;
+  title: string;
+  content: string;
+  views: number;
+  likes: number;
+  dislikes: number;
+  comment_count: number;
+  is_pinned: boolean;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+  // Joined data
+  author?: PostAuthor;
+  user_reaction?: ReactionType | null;
+  is_mine?: boolean;
+  comments?: PostComment[];
+}
+
+export interface PostAuthor {
+  nickname: string | null;
+  avatar_url?: string | null;
+}
+
+export interface PostComment {
+  id: string;
+  post_id: string;
+  user_id: string;
+  content: string;
+  is_deleted: boolean;
+  created_at: string;
+  updated_at: string;
+  // Joined data
+  author?: PostAuthor;
+  is_mine?: boolean;
+}
+
+export interface PostReaction {
+  id: string;
+  post_id: string;
+  user_id: string;
+  reaction_type: ReactionType;
+  created_at: string;
+}
+
+// Board API Request Types
+export interface CreatePostRequest {
+  tab: PostTab;
+  title: string;
+  content: string;
+}
+
+export interface UpdatePostRequest {
+  title?: string;
+  content?: string;
+}
+
+export interface CreateCommentRequest {
+  post_id: string;
+  content: string;
 }

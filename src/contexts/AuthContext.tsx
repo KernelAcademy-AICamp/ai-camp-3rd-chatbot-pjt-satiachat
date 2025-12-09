@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [queryClient, user?.id]);
 
   const signUp = async (email: string, password: string, nickname: string) => {
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -60,6 +60,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       },
     });
+
+    // If signup succeeded, save nickname to user_profiles
+    if (!error && data.user) {
+      // Use upsert to create or update the profile with nickname
+      setTimeout(async () => {
+        const userId = data.user!.id;
+
+        // Upsert profile with nickname
+        const { error: upsertError } = await supabase
+          .from('user_profiles')
+          .upsert(
+            { user_id: userId, nickname },
+            { onConflict: 'user_id' }
+          );
+
+        if (upsertError) {
+          console.error('Failed to save nickname to profile:', upsertError);
+        }
+      }, 500);
+    }
+
     return { error: error as Error | null };
   };
 

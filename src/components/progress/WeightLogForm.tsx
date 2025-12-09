@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Scale } from 'lucide-react';
 import {
   Dialog,
@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useCreateProgress, useUpsertTodayProgress } from '@/hooks/useProgress';
+import { useUpsertProgress, useProgressByDate } from '@/hooks/useProgress';
 import { getToday } from '@/lib/supabase';
 
 interface WeightLogFormProps {
@@ -32,14 +32,43 @@ export function WeightLogForm({
   onOpenChange,
   editLog,
 }: WeightLogFormProps) {
-  const createProgress = useCreateProgress();
-  const upsertToday = useUpsertTodayProgress();
+  const upsertProgress = useUpsertProgress();
 
-  const [date, setDate] = useState(editLog?.date || getToday());
-  const [weightKg, setWeightKg] = useState(editLog?.weight_kg?.toString() || '');
-  const [bodyFatPercent, setBodyFatPercent] = useState(editLog?.body_fat_percent?.toString() || '');
-  const [muscleMassKg, setMuscleMassKg] = useState(editLog?.muscle_mass_kg?.toString() || '');
-  const [notes, setNotes] = useState(editLog?.notes || '');
+  const [date, setDate] = useState(getToday());
+  const [weightKg, setWeightKg] = useState('');
+  const [bodyFatPercent, setBodyFatPercent] = useState('');
+  const [muscleMassKg, setMuscleMassKg] = useState('');
+  const [notes, setNotes] = useState('');
+
+  // 선택된 날짜의 기존 기록 조회
+  const { data: existingLog } = useProgressByDate(open ? date : '');
+
+  // 다이얼로그가 열릴 때마다 오늘 날짜로 초기화
+  useEffect(() => {
+    if (open) {
+      setDate(editLog?.date || getToday());
+      setWeightKg(editLog?.weight_kg?.toString() || '');
+      setBodyFatPercent(editLog?.body_fat_percent?.toString() || '');
+      setMuscleMassKg(editLog?.muscle_mass_kg?.toString() || '');
+      setNotes(editLog?.notes || '');
+    }
+  }, [open, editLog]);
+
+  // 날짜 변경 시 기존 기록 로드
+  useEffect(() => {
+    if (open && existingLog && !editLog) {
+      setWeightKg(existingLog.weight_kg?.toString() || '');
+      setBodyFatPercent(existingLog.body_fat_percent?.toString() || '');
+      setMuscleMassKg(existingLog.muscle_mass_kg?.toString() || '');
+      setNotes(existingLog.notes || '');
+    } else if (open && !existingLog && !editLog) {
+      // 해당 날짜에 기록이 없으면 폼 초기화
+      setWeightKg('');
+      setBodyFatPercent('');
+      setMuscleMassKg('');
+      setNotes('');
+    }
+  }, [existingLog, open, editLog]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,23 +79,13 @@ export function WeightLogForm({
     }
 
     try {
-      const data = {
+      await upsertProgress.mutateAsync({
+        date,
         weight_kg: weight,
         body_fat_percent: bodyFatPercent ? parseFloat(bodyFatPercent) : undefined,
         muscle_mass_kg: muscleMassKg ? parseFloat(muscleMassKg) : undefined,
         notes: notes || undefined,
-      };
-
-      if (date === getToday()) {
-        // Use upsert for today
-        await upsertToday.mutateAsync(data);
-      } else {
-        // Use create for other dates
-        await createProgress.mutateAsync({
-          date,
-          ...data,
-        });
-      }
+      });
 
       // Reset form and close
       setWeightKg('');
@@ -79,7 +98,7 @@ export function WeightLogForm({
     }
   };
 
-  const isLoading = createProgress.isPending || upsertToday.isPending;
+  const isLoading = upsertProgress.isPending;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -109,7 +128,6 @@ export function WeightLogForm({
               id="weight"
               type="number"
               step="0.1"
-              placeholder="72.5"
               value={weightKg}
               onChange={(e) => setWeightKg(e.target.value)}
               required
@@ -123,7 +141,6 @@ export function WeightLogForm({
                 id="bodyFat"
                 type="number"
                 step="0.1"
-                placeholder="20.5"
                 value={bodyFatPercent}
                 onChange={(e) => setBodyFatPercent(e.target.value)}
               />
@@ -135,7 +152,6 @@ export function WeightLogForm({
                 id="muscle"
                 type="number"
                 step="0.1"
-                placeholder="35.0"
                 value={muscleMassKg}
                 onChange={(e) => setMuscleMassKg(e.target.value)}
               />

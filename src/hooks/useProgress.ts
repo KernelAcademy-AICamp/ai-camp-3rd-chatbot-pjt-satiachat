@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase, getCurrentUserId, getToday } from '@/lib/supabase';
+import { supabase, getCurrentUserId, getToday, formatDate } from '@/lib/supabase';
 import type { ProgressLog, CreateProgressRequest } from '@/types/domain';
+import { useProfile } from './useProfile';
 
 // Query keys
 export const progressKeys = {
@@ -9,6 +10,7 @@ export const progressKeys = {
   list: (from: string, to: string) => [...progressKeys.lists(), from, to] as const,
   latest: () => [...progressKeys.all, 'latest'] as const,
   weekly: () => [...progressKeys.all, 'weekly'] as const,
+  byDate: (date: string) => [...progressKeys.all, 'date', date] as const,
 };
 
 // Fetch progress logs for a date range
@@ -66,7 +68,7 @@ export function useWeeklyProgress() {
   const sevenDaysAgo = new Date(today);
   sevenDaysAgo.setDate(today.getDate() - 6);
 
-  const from = sevenDaysAgo.toISOString().split('T')[0];
+  const from = formatDate(sevenDaysAgo);
   const to = getToday();
 
   return useQuery({
@@ -119,6 +121,35 @@ export function useWeeklyStats() {
   };
 }
 
+// Fetch progress for a specific date
+export function useProgressByDate(date: string) {
+  const userId = getCurrentUserId();
+
+  return useQuery({
+    queryKey: progressKeys.byDate(date),
+    queryFn: async (): Promise<ProgressLog | null> => {
+      if (!date) return null;
+
+      const { data, error } = await supabase
+        .from('progress_logs')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('date', date)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // No rows returned
+          return null;
+        }
+        throw error;
+      }
+      return data;
+    },
+    enabled: !!date,
+  });
+}
+
 // Create a new progress log
 export function useCreateProgress() {
   const queryClient = useQueryClient();
@@ -136,6 +167,40 @@ export function useCreateProgress() {
           muscle_mass_kg: request.muscle_mass_kg,
           notes: request.notes,
         })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: progressKeys.all });
+    },
+  });
+}
+
+// Upsert progress for any date (create or update)
+export function useUpsertProgress() {
+  const queryClient = useQueryClient();
+  const userId = getCurrentUserId();
+
+  return useMutation({
+    mutationFn: async (request: CreateProgressRequest): Promise<ProgressLog> => {
+      const { data, error } = await supabase
+        .from('progress_logs')
+        .upsert(
+          {
+            user_id: userId,
+            date: request.date,
+            weight_kg: request.weight_kg,
+            body_fat_percent: request.body_fat_percent,
+            muscle_mass_kg: request.muscle_mass_kg,
+            notes: request.notes,
+          },
+          {
+            onConflict: 'user_id,date',
+          }
+        )
         .select()
         .single();
 
@@ -225,5 +290,132 @@ export function useUpsertTodayProgress() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: progressKeys.all });
     },
+  });
+}
+
+// 칼로리 데이터 타입
+export interface DailyCalorieData {
+  date: string;
+  totalCalories: number;
+  targetCalories: number;
+  mealCount: number;
+}
+
+// 기간별 체중 데이터 조회
+export function useProgressByRange(startDate: string, endDate: string) {
+  const userId = getCurrentUserId();
+
+  return useQuery({
+    queryKey: [...progressKeys.all, 'range', startDate, endDate],
+    queryFn: async (): Promise<ProgressLog[]> => {
+      const { data, error } = await supabase
+        .from('progress_logs')
+        .select('*')
+        .eq('user_id', userId)
+        .gte('date', startDate)
+        .lte('date', endDate)
+        .order('date', { ascending: true });
+
+      if (error) throw error;
+      return data || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+// 기간별 칼로리 데이터 조회
+export function useCaloriesByRange(startDate: string, endDate: string) {
+  const userId = getCurrentUserId();
+  const { data: profile } = useProfile();
+  const targetCalories = profile?.target_calories || 2000;
+
+  return useQuery({
+    queryKey: ['calories', 'range', startDate, endDate, userId],
+    queryFn: async (): Promise<DailyCalorieData[]> => {
+      // 기간 내 모든 날짜 생성
+      const dates: string[] = [];
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        dates.push(formatDate(d));
+      }
+
+      // 식단 데이터 조회
+      const { data: meals, error } = await supabase
+        .from('meals')
+        .select('date, total_calories')
+        .eq('user_id', userId)
+        .gte('date', startDate)
+        .lte('date', endDate);
+
+      if (error) throw error;
+
+      // 날짜별로 그룹화
+      const caloriesByDate: Record<string, { total: number; count: number }> = {};
+      (meals || []).forEach((meal) => {
+        if (!caloriesByDate[meal.date]) {
+          caloriesByDate[meal.date] = { total: 0, count: 0 };
+        }
+        caloriesByDate[meal.date].total += meal.total_calories || 0;
+        caloriesByDate[meal.date].count += 1;
+      });
+
+      return dates.map((date) => ({
+        date,
+        totalCalories: caloriesByDate[date]?.total || 0,
+        targetCalories,
+        mealCount: caloriesByDate[date]?.count || 0,
+      }));
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+// 최근 7일간 칼로리 데이터 조회 (하위 호환성)
+export function useWeeklyCalories() {
+  const userId = getCurrentUserId();
+  const { data: profile } = useProfile();
+  const targetCalories = profile?.target_calories || 2000;
+
+  return useQuery({
+    queryKey: ['calories', 'weekly', userId],
+    queryFn: async (): Promise<DailyCalorieData[]> => {
+      // 최근 7일 날짜 계산 (로컬 타임존 기준)
+      const dates: string[] = [];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        dates.push(formatDate(date));
+      }
+
+      // 7일간 식단 데이터 조회
+      const { data: meals, error } = await supabase
+        .from('meals')
+        .select('date, total_calories')
+        .eq('user_id', userId)
+        .gte('date', dates[0])
+        .lte('date', dates[dates.length - 1]);
+
+      if (error) throw error;
+
+      // 날짜별로 그룹화
+      const caloriesByDate: Record<string, { total: number; count: number }> = {};
+      (meals || []).forEach((meal) => {
+        if (!caloriesByDate[meal.date]) {
+          caloriesByDate[meal.date] = { total: 0, count: 0 };
+        }
+        caloriesByDate[meal.date].total += meal.total_calories || 0;
+        caloriesByDate[meal.date].count += 1;
+      });
+
+      // 결과 배열 생성 (빈 날짜도 포함)
+      return dates.map((date) => ({
+        date,
+        totalCalories: caloriesByDate[date]?.total || 0,
+        targetCalories,
+        mealCount: caloriesByDate[date]?.count || 0,
+      }));
+    },
+    staleTime: 5 * 60 * 1000, // 5분간 캐시
   });
 }

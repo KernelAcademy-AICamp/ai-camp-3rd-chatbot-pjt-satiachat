@@ -3,27 +3,25 @@ import { NavLink } from "@/components/NavLink";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
-  UtensilsCrossed,
   User,
   Pill,
-  FileText,
   Settings,
   ChevronLeft,
   ChevronRight,
   LogOut,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { SatiaChatLogo, SatiaChatHorizontalLogo } from "@/components/ui/satiachat-logo";
+import { SatiaChatLogo, SatiaChatLogoMark } from "@/components/brand/SatiaChatLogo";
 
 const navItems = [
   { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
-  { title: "Meals", url: "/meals", icon: UtensilsCrossed },
   { title: "My Page", url: "/my-page", icon: User },
   { title: "Medications", url: "/medications", icon: Pill },
-  { title: "Reports", url: "/reports", icon: FileText },
+  { title: "Board", url: "/board", icon: MessageSquare },
   { title: "Settings", url: "/settings", icon: Settings },
 ];
 
@@ -64,17 +62,15 @@ export function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     <aside
       className={cn(
         "fixed left-0 top-0 z-40 h-screen bg-sidebar border-r border-sidebar-border transition-all duration-300 ease-in-out flex flex-col",
-        collapsed ? "w-16" : "w-80"
+        collapsed ? "w-16" : "w-64"
       )}
     >
       {/* Logo */}
-      <div className="flex items-center justify-center h-[100px] border-b border-sidebar-border">
+      <div className="flex items-center h-16 px-4 border-b border-sidebar-border">
         {collapsed ? (
-          <SatiaChatLogo size="md" showWordmark={false} />
+          <SatiaChatLogoMark size={40} className="mx-auto" />
         ) : (
-          <div className="w-full flex justify-center pl-[252px]">
-            <SatiaChatHorizontalLogo size="3xl" />
-          </div>
+          <SatiaChatLogo size="md" showText={true} className="animate-fade-in" />
         )}
       </div>
 

@@ -1,0 +1,31 @@
+{
+  "medications": {
+    "wegovy": {
+      "name": "위고비 (세마글루티드)",
+      "cache_seq": "202301386",
+      "sections": [
+        "EE",
+        "UD",
+        "NB"
+      ]
+    },
+    "mounjaro": {
+      "name": "마운자로 (터제파타이드)",
+      "cache_seq": "202301983",
+      "sections": [
+        "EE",
+        "UD",
+        "NB"
+      ]
+    }
+  },
+  "files": [
+    "C:\\workspace\\mini_project\\medication-rag\\docs\\wegovy_EE.txt",
+    "C:\\workspace\\mini_project\\medication-rag\\docs\\wegovy_UD.txt",
+    "C:\\workspace\\mini_project\\medication-rag\\docs\\wegovy_NB.txt",
+    "C:\\workspace\\mini_project\\medication-rag\\docs\\mounjaro_EE.txt",
+    "C:\\workspace\\mini_project\\medication-rag\\docs\\mounjaro_UD.txt",
+    "C:\\workspace\\mini_project\\medication-rag\\docs\\mounjaro_NB.txt"
+  ],
+  "total_files": 6
+}
