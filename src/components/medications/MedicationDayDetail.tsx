@@ -1,31 +1,14 @@
-import { useState } from "react";
 import { format, isToday, isFuture, parseISO } from "date-fns";
 import { ko } from "date-fns/locale";
-import {
-  Check, X, Plus, Clock, Loader2, Pill, Trash2
-} from "lucide-react";
+import { Check, X, Clock, Loader2, Pill, Undo2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import {
   useMedicationLogsForDate,
   useLogMedicationForDate,
   useDeleteMedicationLog,
-  useMedications,
 } from "@/hooks/useMedications";
-import type { MedicationWithLogs, Medication } from "@/types/domain";
+import type { MedicationWithLogs } from "@/types/domain";
 
 interface MedicationDayDetailProps {
   date: string; // YYYY-MM-DD
@@ -33,46 +16,27 @@ interface MedicationDayDetailProps {
 }
 
 export function MedicationDayDetail({ date }: MedicationDayDetailProps) {
-  const [showAddDialog, setShowAddDialog] = useState(false);
-  const [selectedMedId, setSelectedMedId] = useState<string>("");
-  const [selectedTime, setSelectedTime] = useState<string>("");
-  const [selectedStatus, setSelectedStatus] = useState<"taken" | "skipped">("taken");
-
   const dateObj = parseISO(date);
   const isTodayDate = isToday(dateObj);
   const isFutureDate = isFuture(dateObj);
 
   const { data: dayData, isLoading } = useMedicationLogsForDate(date);
-  const { data: allMedications } = useMedications();
   const logMutation = useLogMedicationForDate();
   const deleteMutation = useDeleteMedicationLog();
 
-  const handleAddLog = async () => {
-    if (!selectedMedId) return;
-
+  // 복용 완료 처리
+  const handleTakeMedication = async (medicationId: string) => {
     await logMutation.mutateAsync({
-      medicationId: selectedMedId,
+      medicationId,
       date,
-      time: selectedTime || undefined,
-      status: selectedStatus,
+      status: "taken",
     });
-
-    setShowAddDialog(false);
-    setSelectedMedId("");
-    setSelectedTime("");
-    setSelectedStatus("taken");
   };
 
-  const handleDeleteLog = async (logId: string) => {
+  // 복용 취소 (로그 삭제)
+  const handleUntakeMedication = async (logId: string) => {
     await deleteMutation.mutateAsync({ logId, date });
   };
-
-  // 아직 기록되지 않은 약물 목록
-  const unloggedMedications = allMedications?.filter(
-    (med) => !dayData?.medications.some(
-      (m) => m.id === med.id && m.medication_logs && m.medication_logs.length > 0
-    )
-  ) || [];
 
   if (isLoading) {
     return (
@@ -85,27 +49,14 @@ export function MedicationDayDetail({ date }: MedicationDayDetailProps) {
   return (
     <div className="h-full flex flex-col">
       {/* 헤더 */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <p className="text-sm text-muted-foreground">선택한 날짜</p>
-          <h3 className="text-xl font-semibold text-foreground">
-            {format(dateObj, "M월 d일 EEEE", { locale: ko })}
-            {isTodayDate && (
-              <span className="ml-2 text-sm font-normal text-primary">(오늘)</span>
-            )}
-          </h3>
-        </div>
-        {!isFutureDate && (
-          <Button
-            size="sm"
-            onClick={() => setShowAddDialog(true)}
-            className="gap-2 rounded-xl"
-            disabled={unloggedMedications.length === 0}
-          >
-            <Plus className="w-4 h-4" />
-            기록 추가
-          </Button>
-        )}
+      <div className="mb-6">
+        <p className="text-sm text-muted-foreground">선택한 날짜</p>
+        <h3 className="text-xl font-semibold text-foreground">
+          {format(dateObj, "M월 d일 EEEE", { locale: ko })}
+          {isTodayDate && (
+            <span className="ml-2 text-sm font-normal text-primary">(오늘)</span>
+          )}
+        </h3>
       </div>
 
       {/* 복용 기록 목록 */}
@@ -121,6 +72,7 @@ export function MedicationDayDetail({ date }: MedicationDayDetailProps) {
             const hasTaken = log?.status === "taken";
             const hasSkipped = log?.status === "skipped";
             const hasLog = !!log;
+            const isProcessing = logMutation.isPending || deleteMutation.isPending;
 
             return (
               <div
@@ -135,20 +87,23 @@ export function MedicationDayDetail({ date }: MedicationDayDetailProps) {
                 {/* 상태 아이콘 */}
                 <div
                   className={cn(
-                    "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0",
+                    "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0",
                     hasTaken && "bg-success text-success-foreground",
                     hasSkipped && "bg-destructive text-destructive-foreground",
                     !hasLog && "bg-muted text-muted-foreground"
                   )}
                 >
-                  {hasTaken && <Check className="w-5 h-5" />}
-                  {hasSkipped && <X className="w-5 h-5" />}
-                  {!hasLog && <Pill className="w-5 h-5" />}
+                  {hasTaken && <Check className="w-6 h-6" />}
+                  {hasSkipped && <X className="w-6 h-6" />}
+                  {!hasLog && <Pill className="w-6 h-6" />}
                 </div>
 
                 {/* 약물 정보 */}
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium text-foreground truncate">
+                  <p className={cn(
+                    "font-medium truncate",
+                    hasTaken ? "text-muted-foreground line-through" : "text-foreground"
+                  )}>
                     {med.name}
                   </p>
                   <p className="text-sm text-muted-foreground">
@@ -162,32 +117,33 @@ export function MedicationDayDetail({ date }: MedicationDayDetailProps) {
                   </p>
                 </div>
 
-                {/* 상태 표시 및 삭제 버튼 */}
-                <div className="flex items-center gap-2">
-                  {hasLog && (
-                    <>
-                      <span
-                        className={cn(
-                          "text-xs font-medium px-2 py-1 rounded-lg",
-                          hasTaken && "bg-success/20 text-success",
-                          hasSkipped && "bg-destructive/20 text-destructive"
-                        )}
-                      >
-                        {hasTaken ? "복용 완료" : "건너뜀"}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 rounded-lg text-muted-foreground hover:text-destructive"
-                        onClick={() => handleDeleteLog(log.id)}
-                        disabled={deleteMutation.isPending}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </>
-                  )}
-                  {!hasLog && !isFutureDate && (
-                    <span className="text-xs text-muted-foreground">미기록</span>
+                {/* 액션 버튼 */}
+                <div className="flex-shrink-0">
+                  {isFutureDate ? (
+                    <span className="text-xs text-muted-foreground px-3 py-1.5 rounded-lg bg-muted">
+                      미래
+                    </span>
+                  ) : hasLog ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="rounded-xl text-muted-foreground hover:text-destructive gap-1.5"
+                      onClick={() => handleUntakeMedication(log.id)}
+                      disabled={isProcessing}
+                    >
+                      <Undo2 className="w-4 h-4" />
+                      취소
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      className="rounded-xl bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-md shadow-primary/20 gap-1.5"
+                      onClick={() => handleTakeMedication(med.id)}
+                      disabled={isProcessing}
+                    >
+                      <Check className="w-4 h-4" />
+                      복용
+                    </Button>
                   )}
                 </div>
               </div>
@@ -196,90 +152,12 @@ export function MedicationDayDetail({ date }: MedicationDayDetailProps) {
         )}
       </div>
 
-      {/* 기록 추가 다이얼로그 */}
-      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>복용 기록 추가</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
-                약물 선택
-              </label>
-              <Select value={selectedMedId} onValueChange={setSelectedMedId}>
-                <SelectTrigger className="rounded-xl">
-                  <SelectValue placeholder="약물을 선택하세요" />
-                </SelectTrigger>
-                <SelectContent>
-                  {unloggedMedications.map((med) => (
-                    <SelectItem key={med.id} value={med.id}>
-                      {med.name} ({med.dosage})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
-                복용 시간 (선택)
-              </label>
-              <input
-                type="time"
-                value={selectedTime}
-                onChange={(e) => setSelectedTime(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-input bg-background text-foreground"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">
-                상태
-              </label>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant={selectedStatus === "taken" ? "default" : "outline"}
-                  className={cn(
-                    "flex-1 rounded-xl gap-2",
-                    selectedStatus === "taken" && "bg-success hover:bg-success/90"
-                  )}
-                  onClick={() => setSelectedStatus("taken")}
-                >
-                  <Check className="w-4 h-4" />
-                  복용 완료
-                </Button>
-                <Button
-                  type="button"
-                  variant={selectedStatus === "skipped" ? "default" : "outline"}
-                  className={cn(
-                    "flex-1 rounded-xl gap-2",
-                    selectedStatus === "skipped" && "bg-destructive hover:bg-destructive/90"
-                  )}
-                  onClick={() => setSelectedStatus("skipped")}
-                >
-                  <X className="w-4 h-4" />
-                  건너뜀
-                </Button>
-              </div>
-            </div>
-
-            <Button
-              onClick={handleAddLog}
-              disabled={!selectedMedId || logMutation.isPending}
-              className="w-full rounded-xl"
-            >
-              {logMutation.isPending ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              ) : (
-                <Plus className="w-4 h-4 mr-2" />
-              )}
-              기록 추가
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* 미래 날짜 안내 */}
+      {isFutureDate && (
+        <div className="mt-4 p-3 bg-muted/50 rounded-xl text-center text-sm text-muted-foreground">
+          미래 날짜는 기록할 수 없습니다
+        </div>
+      )}
     </div>
   );
 }
