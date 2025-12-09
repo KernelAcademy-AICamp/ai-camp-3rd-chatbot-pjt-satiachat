@@ -71,7 +71,7 @@ export default function Medications() {
           </div>
 
           {/* 탭 네비게이션 */}
-          <div className="flex gap-2 mb-6 p-1 bg-muted/50 rounded-2xl w-fit">
+          <div className="flex gap-1 mb-6 p-1 bg-muted/50 rounded-xl w-fit">
             {[
               { id: "today" as ViewTab, label: "오늘", icon: Calendar },
               { id: "history" as ViewTab, label: "기록", icon: History },
@@ -80,13 +80,13 @@ export default function Medications() {
                 key={tab.id}
                 onClick={() => setActiveView(tab.id)}
                 className={cn(
-                  "flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all",
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
                   activeView === tab.id
-                    ? "bg-card text-foreground shadow-md"
+                    ? "bg-card text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
                 )}
               >
-                <tab.icon className="w-4 h-4" />
+                <tab.icon className="w-3.5 h-3.5" />
                 {tab.label}
               </button>
             ))}
