@@ -1,201 +1,21 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase, getCurrentUserId } from '@/lib/supabase';
-import OpenAI from 'openai';
-import { classifyMedicationIntent, type MedicationIntent } from '@/lib/ai/prompts';
-
-// RAG API endpoint (Python FastAPI backend)
-const RAG_API_URL = import.meta.env.VITE_RAG_API_URL || 'http://localhost:8001';
-
-// OpenAI 클라이언트 (의도 분류용)
-const openai = new OpenAI({
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-  dangerouslyAllowBrowser: true,
-});
+import { medicationApi } from '@/lib/api';
 
 // Chat type for medication conversations
 const CHAT_TYPE = 'medication';
-
-// 컨텍스트 캐시 (5분 TTL)
-const CONTEXT_CACHE_TTL = 5 * 60 * 1000;
-let cachedContext: { data: string; timestamp: number; userId: string } | null = null;
 
 export interface MedicationChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   timestamp: Date;
+  isEmergency?: boolean;
+  sources?: string[];
 }
 
 /**
- * 사용자 건강 데이터 수집 (캐싱 적용)
- */
-async function getUserHealthContext(): Promise<string> {
-  const userId = getCurrentUserId();
-
-  // 캐시 유효성 검사
-  if (
-    cachedContext &&
-    cachedContext.userId === userId &&
-    Date.now() - cachedContext.timestamp < CONTEXT_CACHE_TTL
-  ) {
-    return cachedContext.data;
-  }
-
-  // 1. 프로필 정보
-  const { data: profile } = await supabase
-    .from('user_profiles')
-    .select('*')
-    .eq('user_id', userId)
-    .single();
-
-  // 2. 최근 30일 체중 기록
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
-
-  const { data: weightLogs } = await supabase
-    .from('progress_logs')
-    .select('date, weight_kg, body_fat_percent')
-    .eq('user_id', userId)
-    .gte('date', thirtyDaysAgoStr)
-    .order('date', { ascending: true });
-
-  // 3. 최근 7일 칼로리 기록
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
-
-  const { data: meals } = await supabase
-    .from('meals')
-    .select('date, total_calories')
-    .eq('user_id', userId)
-    .gte('date', sevenDaysAgoStr)
-    .order('date', { ascending: true });
-
-  // 4. 활성 약물 목록
-  const { data: medications } = await supabase
-    .from('medications')
-    .select('id, name, dosage, frequency, time_of_day')
-    .eq('user_id', userId)
-    .eq('is_active', true);
-
-  // 5. 활성 약물의 최근 30일 복용 기록만 조회
-  const activeMedIds = medications?.map(m => m.id) || [];
-  let medicationLogs: any[] = [];
-
-  if (activeMedIds.length > 0) {
-    const { data: logsData } = await supabase
-      .from('medication_logs')
-      .select('medication_id, taken_at, status')
-      .eq('user_id', userId)
-      .in('medication_id', activeMedIds)
-      .gte('taken_at', thirtyDaysAgoStr)
-      .order('taken_at', { ascending: false });
-
-    medicationLogs = logsData || [];
-  }
-
-  // 컨텍스트 문자열 생성 (토큰 최적화)
-  let context = '## 건강 데이터\n';
-
-  // 프로필 (간결하게)
-  if (profile) {
-    context += `체중: ${profile.current_weight_kg || '?'}kg → 목표: ${profile.goal_weight_kg || '?'}kg | 칼로리목표: ${profile.target_calories || 2000}kcal\n`;
-  }
-
-  // 체중 변화 (30일) - 핵심만
-  if (weightLogs && weightLogs.length > 0) {
-    const firstWeight = weightLogs[0].weight_kg;
-    const lastWeight = weightLogs[weightLogs.length - 1].weight_kg;
-    const monthlyChange = lastWeight - firstWeight;
-    context += `\n체중변화(30일): ${firstWeight}→${lastWeight}kg (${monthlyChange > 0 ? '+' : ''}${monthlyChange.toFixed(1)}kg)\n`;
-  }
-
-  // 칼로리 (7일) - 평균만
-  if (meals && meals.length > 0) {
-    const dailyCalories: Record<string, number> = {};
-    meals.forEach((meal) => {
-      if (!dailyCalories[meal.date]) dailyCalories[meal.date] = 0;
-      dailyCalories[meal.date] += meal.total_calories || 0;
-    });
-    const calories = Object.values(dailyCalories);
-    const avgCalories = Math.round(calories.reduce((a, b) => a + b, 0) / calories.length);
-    const targetCalories = profile?.target_calories || 2000;
-    context += `칼로리(7일평균): ${avgCalories}kcal (목표의 ${Math.round((avgCalories / targetCalories) * 100)}%)\n`;
-  }
-
-  // 약물 복용 기록 (상세)
-  if (medications && medications.length > 0) {
-    context += '\n## 약물 복용 현황\n';
-
-    const today = new Date();
-    const todayStr = today.toISOString().split('T')[0];
-
-    medications.forEach((med) => {
-      // 해당 약물의 로그만 필터링
-      const logs = medicationLogs.filter(log => log.medication_id === med.id);
-
-      // 최근 7일 복용 현황
-      const last7Days: string[] = [];
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const dateStr = d.toISOString().split('T')[0];
-        const dayLog = logs.find(l => l.taken_at.startsWith(dateStr));
-        if (dayLog?.status === 'taken') {
-          last7Days.push('O');
-        } else if (dayLog?.status === 'skipped') {
-          last7Days.push('X');
-        } else {
-          last7Days.push('-');
-        }
-      }
-
-      // 30일 복용률 계산
-      const last30DaysLogs = logs.filter(l => l.status === 'taken');
-      const rate30d = logs.length > 0 ? Math.round((last30DaysLogs.length / 30) * 100) : 0;
-
-      // 마지막 복용 정보
-      const lastTaken = logs.find(l => l.status === 'taken');
-      let lastTakenStr = '기록없음';
-      if (lastTaken) {
-        const lastDate = lastTaken.taken_at.split('T')[0];
-        if (lastDate === todayStr) {
-          lastTakenStr = '오늘 ' + lastTaken.taken_at.split('T')[1].slice(0, 5);
-        } else {
-          const daysAgo = Math.floor((today.getTime() - new Date(lastDate).getTime()) / (1000 * 60 * 60 * 24));
-          lastTakenStr = `${daysAgo}일 전`;
-        }
-      }
-
-      // 연속 복용 일수 계산
-      let consecutiveDays = 0;
-      for (let i = 0; i < 30; i++) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const dateStr = d.toISOString().split('T')[0];
-        const dayLog = logs.find(l => l.taken_at.startsWith(dateStr) && l.status === 'taken');
-        if (dayLog) {
-          consecutiveDays++;
-        } else {
-          break;
-        }
-      }
-
-      context += `\n${med.name} (${med.dosage})\n`;
-      context += `- 최근7일: [${last7Days.join('')}] (O=복용, X=건너뜀, -=미기록)\n`;
-      context += `- 30일복용률: ${rate30d}% | 연속: ${consecutiveDays}일 | 마지막복용: ${lastTakenStr}\n`;
-    });
-  }
-
-  // 캐시 저장
-  cachedContext = { data: context, timestamp: Date.now(), userId };
-
-  return context;
-}
-
-/**
- * 약물 전문 AI 챗봇 훅 (Supabase 저장 지원)
+ * 약물 전문 AI 챗봇 훅 (Backend API 사용)
  */
 export function useMedicationChat() {
   const [messages, setMessages] = useState<MedicationChatMessage[]>([]);
@@ -233,115 +53,65 @@ export function useMedicationChat() {
   const sendMessage = useCallback(async (content: string) => {
     if (!content.trim() || isLoading) return;
 
-    const userId = getCurrentUserId();
-
-    // 1. 사용자 메시지를 Supabase에 저장
-    const { data: userMsgData, error: userError } = await supabase
-      .from('chat_messages')
-      .insert({
-        user_id: userId,
-        role: 'user',
-        content,
-        chat_type: CHAT_TYPE,
-      })
-      .select()
-      .single();
-
-    if (userError) {
-      console.error('Failed to save user message:', userError);
-      return;
-    }
-
-    const userMessage: MedicationChatMessage = {
-      id: userMsgData.id,
+    // 사용자 메시지 즉시 표시 (optimistic update)
+    const tempUserMessage: MedicationChatMessage = {
+      id: `temp-user-${Date.now()}`,
       role: 'user',
       content,
-      timestamp: new Date(userMsgData.created_at),
+      timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    setMessages((prev) => [...prev, tempUserMessage]);
     setIsLoading(true);
 
     try {
-      // [1단계] 의도 분류 (gpt-4o-mini, ~50 토큰)
-      console.log('[MedicationChat] Step 1: Classifying intent...');
-      const intent = await classifyMedicationIntent(openai, content);
-      console.log('[MedicationChat] Intent:', intent);
-
-      // [2단계] 컨텍스트 수집 (chat 제외)
-      let healthContext = '';
-      if (intent !== 'chat') {
-        console.log('[MedicationChat] Step 2: Collecting health context...');
-        healthContext = await getUserHealthContext();
-      }
-
-      // RAG 사용 여부 결정
-      // - medication_info: RAG 필수 (약물 정보 검색)
-      // - analysis: RAG 필수 (약물+통계 종합 분석)
-      // - stats: RAG 불필요 (통계만 사용)
-      // - chat: RAG 불필요 (일반 대화)
-      const useRag = intent === 'medication_info' || intent === 'analysis';
-      console.log('[MedicationChat] Use RAG:', useRag);
-
-      // [3단계] Python RAG API 호출
-      console.log('[MedicationChat] Step 3: Calling RAG API...');
-      const response = await fetch(`${RAG_API_URL}/ask`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          query: content,
-          user_context: healthContext,
-          use_rag: useRag,
-          intent: intent,
-        }),
+      // Backend API 호출 (JWT 인증 포함)
+      console.log('[MedicationChat] Calling backend API...');
+      const response = await medicationApi.ask({
+        query: content,
+        include_health_context: true,
+        use_rag: true,
       });
 
-      if (!response.ok) {
-        throw new Error(`RAG API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      const responseContent = data.response || '응답을 생성할 수 없습니다.';
+      console.log('[MedicationChat] Response received, emergency:', response.is_emergency);
 
       // 응급 상황 경고 로깅
-      if (data.is_emergency) {
+      if (response.is_emergency) {
         console.warn('[MedicationChat] Emergency detected!');
       }
 
-      // AI 응답을 Supabase에 저장
-      const { data: assistantMsgData, error: assistantError } = await supabase
+      // Supabase에서 최신 메시지 다시 로드
+      const userId = getCurrentUserId();
+      const { data } = await supabase
         .from('chat_messages')
-        .insert({
-          user_id: userId,
-          role: 'assistant',
-          content: responseContent,
-          chat_type: CHAT_TYPE,
-        })
-        .select()
-        .single();
+        .select('*')
+        .eq('user_id', userId)
+        .eq('chat_type', CHAT_TYPE)
+        .order('created_at', { ascending: true })
+        .limit(50);
 
-      if (assistantError) {
-        console.error('Failed to save assistant message:', assistantError);
+      if (data) {
+        const loadedMessages: MedicationChatMessage[] = data.map((msg) => ({
+          id: msg.id,
+          role: msg.role as 'user' | 'assistant',
+          content: msg.content,
+          timestamp: new Date(msg.created_at),
+          isEmergency: msg.role === 'assistant' && response.is_emergency,
+          sources: msg.role === 'assistant' ? response.sources : undefined,
+        }));
+        setMessages(loadedMessages);
       }
-
-      const assistantMessage: MedicationChatMessage = {
-        id: assistantMsgData?.id || `assistant-${Date.now()}`,
-        role: 'assistant',
-        content: responseContent,
-        timestamp: new Date(assistantMsgData?.created_at || Date.now()),
-      };
-
-      setMessages((prev) => [...prev, assistantMessage]);
     } catch (error) {
       console.error('Medication chat error:', error);
 
-      // 에러 메시지 (저장하지 않음)
+      // 에러 시 임시 메시지 제거
+      setMessages((prev) => prev.filter(m => m.id !== tempUserMessage.id));
+
+      // 에러 메시지 표시
       const errorMessage: MedicationChatMessage = {
         id: `error-${Date.now()}`,
         role: 'assistant',
-        content: '죄송합니다. 응답을 생성하는 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.',
+        content: '죄송합니다. 응답을 생성하는 중 오류가 발생했습니다. 서버 연결을 확인해주세요.',
         timestamp: new Date(),
       };
 
@@ -352,16 +122,12 @@ export function useMedicationChat() {
   }, [isLoading]);
 
   const clearMessages = useCallback(async () => {
-    const userId = getCurrentUserId();
-
-    // Supabase에서 해당 사용자의 medication 채팅 삭제
-    await supabase
-      .from('chat_messages')
-      .delete()
-      .eq('user_id', userId)
-      .eq('chat_type', CHAT_TYPE);
-
-    setMessages([]);
+    try {
+      await medicationApi.clearHistory();
+      setMessages([]);
+    } catch (error) {
+      console.error('Failed to clear messages:', error);
+    }
   }, []);
 
   return {

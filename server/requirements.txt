@@ -1,0 +1,26 @@
+# FastAPI Framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-dotenv>=1.0.0
+
+# Auth - JWT
+PyJWT>=2.8.0
+
+# Database - Supabase
+supabase>=2.0.0
+
+# AI - OpenAI
+openai>=1.0.0
+
+# RAG - LlamaIndex
+llama-index>=0.10.0
+llama-index-embeddings-openai>=0.1.0
+llama-index-llms-openai>=0.1.0
+
+# HTTP Client
+httpx>=0.25.0
+
+# Utilities
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+python-multipart>=0.0.6

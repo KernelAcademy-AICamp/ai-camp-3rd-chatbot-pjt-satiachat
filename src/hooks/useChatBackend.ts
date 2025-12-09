@@ -1,14 +1,13 @@
 /**
- * 챗봇 훅 - Backend API 사용 버전
- * OpenAI API 키가 더 이상 브라우저에 노출되지 않음
+ * Chat hook using Backend API
+ * Replaces direct OpenAI calls with secure backend API calls
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase, getCurrentUserId } from '@/lib/supabase';
+import { chatApi, type ChatResponse } from '@/lib/api';
 import type { ChatMessage } from '@/types/domain';
-import { chatApi } from '@/lib/api';
 
-// Re-export CoachPersona for external use
 export type CoachPersona = 'cold' | 'bright' | 'strict';
 
 // Chat type for diet conversations
@@ -21,7 +20,7 @@ const chatKeys = {
 };
 
 // ============================================
-// 채팅 메시지 조회
+// Chat Messages Query
 // ============================================
 
 export function useChatMessages(limit: number = 50) {
@@ -45,7 +44,7 @@ export function useChatMessages(limit: number = 50) {
 }
 
 // ============================================
-// 메시지 전송 (Backend API 호출)
+// Send Message Mutation (Backend API)
 // ============================================
 
 export function useSendMessage() {
@@ -58,7 +57,7 @@ export function useSendMessage() {
     }: {
       content: string;
       persona: CoachPersona;
-    }): Promise<{ userMessage: ChatMessage; assistantMessage: ChatMessage }> => {
+    }): Promise<{ userMessage: ChatMessage; assistantMessage: ChatMessage; response: ChatResponse }> => {
 
       // Optimistically add user message to cache
       const tempUserMsg: ChatMessage = {
@@ -75,29 +74,28 @@ export function useSendMessage() {
       });
 
       try {
-        console.log('[Chat] Sending message to backend API...');
-
-        // Call backend API (handles intent classification, context, function calling)
+        // Call backend API
         const response = await chatApi.sendMessage({ content, persona });
-
-        console.log('[Chat] Response received, intent:', response.intent);
 
         // Invalidate and refetch messages from DB
         await queryClient.invalidateQueries({ queryKey: chatKeys.messages() });
 
-        // Invalidate related queries if there were tool calls
+        // Get the latest messages
+        const messages = queryClient.getQueryData<ChatMessage[]>(chatKeys.messages()) || [];
+        const userMessage = messages.find(m => m.content === content && m.role === 'user') || tempUserMsg;
+        const assistantMessage = messages[messages.length - 1];
+
+        // Invalidate related queries (meals, calories, etc.)
         if (response.action_result?.tool_calls) {
-          console.log('[Chat] Tool calls detected, invalidating related queries');
           queryClient.invalidateQueries({ queryKey: ['meals'] });
           queryClient.invalidateQueries({ queryKey: ['todayCalories'] });
         }
 
-        // Get the latest messages from cache
-        const messages = queryClient.getQueryData<ChatMessage[]>(chatKeys.messages()) || [];
-        const userMessage = messages.find(m => m.content === content && m.role === 'user') || tempUserMsg as ChatMessage;
-        const assistantMessage = messages[messages.length - 1];
-
-        return { userMessage, assistantMessage };
+        return {
+          userMessage,
+          assistantMessage,
+          response,
+        };
       } catch (error) {
         // Remove optimistic update on error
         queryClient.setQueryData<ChatMessage[]>(chatKeys.messages(), (old) => {
@@ -110,7 +108,7 @@ export function useSendMessage() {
 }
 
 // ============================================
-// 채팅 기록 삭제
+// Clear Chat History Mutation
 // ============================================
 
 export function useClearChat() {
@@ -127,7 +125,8 @@ export function useClearChat() {
 }
 
 // ============================================
-// AI 분석 (MyPage용)
+// AI Analysis (MyPage)
+// Uses backend API for analysis
 // ============================================
 
 export function useAIAnalysis() {
