@@ -38,7 +38,7 @@ export default function Medications() {
                     <Pill className="w-6 h-6 text-primary-foreground" />
                   </div>
                   <div>
-                    <h1 className="text-2xl md:text-3xl font-bold text-foreground">약물 관리</h1>
+                    <h1 className="text-2xl md:text-3xl font-bold text-foreground">Medications</h1>
                     <p className="text-muted-foreground text-sm">오늘의 복용 현황을 확인하세요</p>
                   </div>
                 </div>

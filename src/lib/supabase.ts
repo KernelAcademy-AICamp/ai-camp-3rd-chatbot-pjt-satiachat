@@ -50,9 +50,6 @@ export const supabase = createClient(
   }
 );
 
-// Fallback user ID for development when not authenticated
-export const DEV_USER_ID = 'dev-user-00000000-0000-0000-0000-000000000001';
-
 // In-memory cache for current user ID (updated by AuthContext)
 let cachedUserId: string | null = null;
 
@@ -65,10 +62,22 @@ export const setCurrentUserId = (userId: string | null) => {
 
 /**
  * Get current authenticated user ID synchronously.
- * Returns cached user ID if authenticated, otherwise DEV_USER_ID for development.
+ * 프로덕션에서는 인증된 사용자만 허용, 개발 모드에서는 fallback 허용
  */
 export const getCurrentUserId = (): string => {
-  return cachedUserId ?? DEV_USER_ID;
+  if (cachedUserId) {
+    return cachedUserId;
+  }
+
+  // 개발 모드에서만 fallback ID 허용
+  if (import.meta.env.DEV) {
+    console.warn('[DEV] Using development fallback user ID');
+    return 'dev-user-00000000-0000-0000-0000-000000000001';
+  }
+
+  // 프로덕션에서 인증되지 않은 경우 빈 문자열 반환 (쿼리 실패하도록)
+  console.error('[PROD] No authenticated user - queries will fail');
+  return '';
 };
 
 // Helper to format date as YYYY-MM-DD (local timezone)

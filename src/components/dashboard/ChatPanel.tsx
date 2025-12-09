@@ -99,8 +99,9 @@ export function ChatPanel() {
               className="h-8 w-8 text-muted-foreground hover:text-destructive"
               onClick={handleClearChat}
               disabled={clearChat.isPending}
+              aria-label="채팅 기록 삭제"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-4 h-4" aria-hidden="true" />
             </Button>
           )}
           <div className="flex items-center gap-1.5 px-2.5 py-1 bg-success/10 rounded-full">
@@ -192,8 +193,9 @@ export function ChatPanel() {
             size="icon"
             disabled={!input.trim() || sendMessage.isPending}
             className="rounded-xl bg-primary hover:bg-primary/90 disabled:opacity-50"
+            aria-label="메시지 전송"
           >
-            <Send className="w-4 h-4" />
+            <Send className="w-4 h-4" aria-hidden="true" />
           </Button>
         </form>
         <p className="text-[10px] text-muted-foreground mt-2 text-center">

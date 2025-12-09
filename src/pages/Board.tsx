@@ -392,7 +392,7 @@ export default function Board() {
               </div>
               <div>
                 <h1 className="text-xl font-bold text-foreground">
-                  커뮤니티
+                  Board
                 </h1>
                 <p className="text-muted-foreground text-sm">
                   함께 나누고, 함께 성장해요
