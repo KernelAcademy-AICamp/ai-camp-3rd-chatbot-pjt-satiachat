@@ -1,18 +1,10 @@
 import { useState, useRef, useEffect } from "react";
-import { Send, Pill, Scale, Activity, FileText, Loader2 } from "lucide-react";
+import { Send, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { useMedicationChat, type MedicationChatMessage } from "@/hooks/useMedicationChat";
-
-// 전문 의료 상담용 빠른 질문 버튼 (페르소나 없음)
-const quickActions = [
-  { icon: Pill, label: "위고비 효능", query: "위고비 효능과 부작용을 알려주세요" },
-  { icon: FileText, label: "마운자로 용법", query: "마운자로 주사 방법은 어떻게 되나요?" },
-  { icon: Scale, label: "체중 분석", query: "최근 체중 변화를 분석해주세요" },
-  { icon: Activity, label: "복용 효과", query: "약 복용 후 체중 변화를 분석해주세요" },
-];
+import { useMedicationChat } from "@/hooks/useMedicationChat";
 
 export function MedicationChatPanel() {
   const [input, setInput] = useState("");
@@ -63,23 +55,6 @@ export function MedicationChatPanel() {
         <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-100 dark:bg-blue-900/30 rounded-full">
           <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
           <span className="text-xs text-blue-600 dark:text-blue-400 font-medium">상담 가능</span>
-        </div>
-      </div>
-
-      {/* 빠른 질문 버튼 */}
-      <div className="p-3 border-b border-border bg-muted/20 flex-shrink-0">
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide snap-x snap-mandatory">
-          {quickActions.map((action) => (
-            <button
-              key={action.label}
-              onClick={() => handleSend(action.query)}
-              disabled={isLoading}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-background border border-border rounded-full text-xs font-medium text-foreground hover:border-info hover:bg-info/5 transition-colors whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed snap-start flex-shrink-0"
-            >
-              <action.icon className="w-3.5 h-3.5 text-info" />
-              {action.label}
-            </button>
-          ))}
         </div>
       </div>
 
