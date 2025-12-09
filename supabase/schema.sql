@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS public.medications (
   name TEXT NOT NULL,
   dosage TEXT,
   frequency TEXT CHECK (frequency IN ('daily', 'weekly', 'as_needed')),
+  day_of_week INTEGER CHECK (day_of_week >= 0 AND day_of_week <= 6), -- 0=Sun, 1=Mon, ..., 6=Sat (for weekly meds)
   time_of_day TEXT,
   notes TEXT,
   is_active BOOLEAN DEFAULT true,

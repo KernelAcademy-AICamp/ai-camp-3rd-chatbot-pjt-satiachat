@@ -42,6 +42,7 @@ export function useMedications() {
 export function useMedicationsWithTodayLogs() {
   const userId = getCurrentUserId();
   const today = getToday();
+  const todayDayOfWeek = new Date().getDay(); // 0 = Sunday, 6 = Saturday
 
   return useQuery({
     queryKey: [...medicationKeys.active(), 'withLogs', today],
@@ -60,6 +61,19 @@ export function useMedicationsWithTodayLogs() {
         return [];
       }
 
+      // Filter medications based on frequency
+      // - daily: show every day
+      // - weekly: only show on the scheduled day_of_week
+      // - as_needed: show every day
+      const filteredMedications = medications.filter(med => {
+        if (med.frequency === 'weekly') {
+          // Only show weekly medications on their scheduled day
+          return med.day_of_week === todayDayOfWeek;
+        }
+        // Show daily and as_needed medications every day
+        return true;
+      });
+
       // Then get today's logs
       const todayStart = `${today}T00:00:00`;
       const todayEnd = `${today}T23:59:59`;
@@ -74,7 +88,7 @@ export function useMedicationsWithTodayLogs() {
       if (logError) throw logError;
 
       // Combine medications with their logs
-      return medications.map(med => ({
+      return filteredMedications.map(med => ({
         ...med,
         medication_logs: logs?.filter(log => log.medication_id === med.id) || [],
       }));
@@ -127,6 +141,7 @@ export function useCreateMedication() {
           name: request.name,
           dosage: request.dosage,
           frequency: request.frequency,
+          day_of_week: request.day_of_week,
           time_of_day: request.time_of_day,
           notes: request.notes,
           is_active: true,

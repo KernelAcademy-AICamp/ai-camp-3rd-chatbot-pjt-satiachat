@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useCreateMedication, useUpdateMedication } from '@/hooks/useMedications';
-import type { Medication, MedicationFrequency } from '@/types/domain';
+import type { Medication, MedicationFrequency, DayOfWeek } from '@/types/domain';
 
 interface MedicationFormProps {
   open: boolean;
@@ -31,6 +31,16 @@ const frequencyLabels: Record<MedicationFrequency, string> = {
   daily: '매일',
   weekly: '매주',
   as_needed: '필요시',
+};
+
+const dayOfWeekLabels: Record<DayOfWeek, string> = {
+  0: '일요일',
+  1: '월요일',
+  2: '화요일',
+  3: '수요일',
+  4: '목요일',
+  5: '금요일',
+  6: '토요일',
 };
 
 export function MedicationForm({
@@ -45,6 +55,9 @@ export function MedicationForm({
   const [dosage, setDosage] = useState(editMedication?.dosage || '');
   const [frequency, setFrequency] = useState<MedicationFrequency>(
     editMedication?.frequency || 'daily'
+  );
+  const [dayOfWeek, setDayOfWeek] = useState<DayOfWeek>(
+    editMedication?.day_of_week ?? (new Date().getDay() as DayOfWeek)
   );
   const [timeOfDay, setTimeOfDay] = useState(editMedication?.time_of_day || '');
   const [notes, setNotes] = useState(editMedication?.notes || '');
@@ -61,6 +74,7 @@ export function MedicationForm({
         name: name.trim(),
         dosage: dosage.trim() || undefined,
         frequency,
+        day_of_week: frequency === 'weekly' ? dayOfWeek : undefined,
         time_of_day: timeOfDay.trim() || undefined,
         notes: notes.trim() || undefined,
       };
@@ -86,6 +100,7 @@ export function MedicationForm({
     setName('');
     setDosage('');
     setFrequency('daily');
+    setDayOfWeek(new Date().getDay() as DayOfWeek);
     setTimeOfDay('');
     setNotes('');
   };
@@ -141,6 +156,24 @@ export function MedicationForm({
               </Select>
             </div>
           </div>
+
+          {frequency === 'weekly' && (
+            <div className="space-y-2">
+              <Label htmlFor="dayOfWeek">복용 요일</Label>
+              <Select value={String(dayOfWeek)} onValueChange={(v) => setDayOfWeek(Number(v) as DayOfWeek)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.entries(dayOfWeekLabels) as [string, string][]).map(([value, label]) => (
+                    <SelectItem key={value} value={value}>
+                      {label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="timeOfDay">복용 시간</Label>

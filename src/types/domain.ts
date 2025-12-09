@@ -67,12 +67,15 @@ export interface ProgressLog {
 export type MedicationFrequency = 'daily' | 'weekly' | 'as_needed';
 export type MedicationLogStatus = 'taken' | 'skipped' | 'delayed';
 
+export type DayOfWeek = 0 | 1 | 2 | 3 | 4 | 5 | 6; // 0 = Sunday, 6 = Saturday
+
 export interface Medication {
   id: string;
   user_id: string;
   name: string;
   dosage?: string;
   frequency?: MedicationFrequency;
+  day_of_week?: DayOfWeek; // For weekly medications: which day to take (0=Sun, 1=Mon, ..., 6=Sat)
   time_of_day?: string;
   notes?: string;
   is_active: boolean;
@@ -142,6 +145,7 @@ export interface CreateMedicationRequest {
   name: string;
   dosage?: string;
   frequency?: MedicationFrequency;
+  day_of_week?: DayOfWeek;
   time_of_day?: string;
   notes?: string;
 }
@@ -150,6 +154,7 @@ export interface UpdateMedicationRequest {
   name?: string;
   dosage?: string;
   frequency?: MedicationFrequency;
+  day_of_week?: DayOfWeek;
   time_of_day?: string;
   notes?: string;
   is_active?: boolean;

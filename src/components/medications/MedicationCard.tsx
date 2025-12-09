@@ -21,7 +21,7 @@ import {
 import { MedicationForm } from './MedicationForm';
 import { useLogMedication, useUnlogMedication, useDeleteMedication } from '@/hooks/useMedications';
 import { cn } from '@/lib/utils';
-import type { MedicationWithLogs, MedicationFrequency } from '@/types/domain';
+import type { MedicationWithLogs, MedicationFrequency, DayOfWeek } from '@/types/domain';
 
 interface MedicationCardProps {
   medication: MedicationWithLogs;
@@ -31,6 +31,16 @@ const frequencyLabels: Record<MedicationFrequency, string> = {
   daily: 'Daily',
   weekly: 'Weekly',
   as_needed: 'As needed',
+};
+
+const dayOfWeekLabels: Record<DayOfWeek, string> = {
+  0: 'Sun',
+  1: 'Mon',
+  2: 'Tue',
+  3: 'Wed',
+  4: 'Thu',
+  5: 'Fri',
+  6: 'Sat',
 };
 
 export function MedicationCard({ medication }: MedicationCardProps) {
@@ -108,7 +118,12 @@ export function MedicationCard({ medication }: MedicationCardProps) {
                   )}
                 </div>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span>{frequencyLabels[medication.frequency || 'daily']}</span>
+                  <span>
+                    {frequencyLabels[medication.frequency || 'daily']}
+                    {medication.frequency === 'weekly' && medication.day_of_week !== undefined && (
+                      <span className="ml-1">({dayOfWeekLabels[medication.day_of_week]})</span>
+                    )}
+                  </span>
                   {medication.time_of_day && (
                     <>
                       <span>•</span>

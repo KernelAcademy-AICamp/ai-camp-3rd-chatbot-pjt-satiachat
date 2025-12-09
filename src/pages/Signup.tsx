@@ -2,12 +2,13 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Link, useNavigate } from 'react-router-dom';
-import { Loader2, Sparkles } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { signupSchema, SignupFormData } from '@/lib/validations/onboarding';
+import { SatiaChatLogo } from '@/components/ui/satiachat-logo';
 
 export default function Signup() {
   const [isLoading, setIsLoading] = useState(false);
@@ -50,12 +51,10 @@ export default function Signup() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-background to-muted/30 px-4">
       <div className="w-full max-w-md space-y-8">
         {/* Logo */}
-        <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary-glow shadow-glow mb-4">
-            <Sparkles className="w-8 h-8 text-primary-foreground" />
-          </div>
-          <h1 className="text-2xl font-bold text-foreground">DietRx Coach</h1>
-          <p className="text-muted-foreground mt-2">새 계정 만들기</p>
+        <div className="text-center flex flex-col items-center">
+          <SatiaChatLogo size="lg" className="mb-2" />
+          <p className="text-sm text-muted-foreground mt-1">Feel Full, Live Light</p>
+          <p className="text-muted-foreground mt-4">새 계정 만들기</p>
         </div>
 
         {/* Form */}

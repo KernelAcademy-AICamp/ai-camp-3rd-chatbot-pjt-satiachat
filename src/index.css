@@ -2,124 +2,129 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
 
 @layer base {
   :root {
-    /* Health-focused teal palette */
-    --background: 160 20% 98%;
-    --foreground: 200 25% 15%;
+    /* SatiaChat Brand Palette */
+    /* Warm Ivory background: #F7F4ED */
+    --background: 40 33% 95%;
+    /* Minimal Ink foreground: #1D1D1F */
+    --foreground: 240 3% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 200 25% 15%;
+    --card-foreground: 240 3% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 200 25% 15%;
+    --popover-foreground: 240 3% 12%;
 
-    /* Teal primary - health, balance */
-    --primary: 168 70% 42%;
-    --primary-foreground: 0 0% 100%;
-    --primary-glow: 168 70% 52%;
+    /* Soft Mint primary: #7FE7C4 */
+    --primary: 156 68% 70%;
+    --primary-foreground: 240 3% 12%;
+    --primary-glow: 156 68% 75%;
 
-    /* Warm coral secondary - coaching warmth */
-    --secondary: 16 85% 65%;
+    /* Satia Blue secondary/accent: #577DFF */
+    --secondary: 227 100% 67%;
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 160 15% 93%;
-    --muted-foreground: 200 15% 45%;
+    --muted: 40 20% 92%;
+    --muted-foreground: 240 3% 45%;
 
-    --accent: 168 50% 92%;
-    --accent-foreground: 168 70% 35%;
+    --accent: 156 50% 92%;
+    --accent-foreground: 156 68% 40%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 160 20% 88%;
-    --input: 160 20% 88%;
-    --ring: 168 70% 42%;
+    --border: 40 20% 88%;
+    --input: 40 20% 88%;
+    --ring: 156 68% 70%;
 
     --radius: 0.75rem;
 
     /* Custom colors */
-    --success: 152 70% 45%;
+    --success: 156 68% 50%;
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 55%;
     --warning-foreground: 0 0% 100%;
-    --info: 205 85% 55%;
+    --info: 227 100% 67%;
     --info-foreground: 0 0% 100%;
 
-    /* Gradients */
-    --gradient-primary: linear-gradient(135deg, hsl(168 70% 42%), hsl(168 70% 52%));
-    --gradient-secondary: linear-gradient(135deg, hsl(16 85% 65%), hsl(24 90% 60%));
-    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(160 20% 98%));
-    --gradient-hero: linear-gradient(135deg, hsl(168 70% 42%) 0%, hsl(168 65% 48%) 50%, hsl(16 85% 65%) 100%);
+    /* SatiaChat Gradients */
+    --gradient-primary: linear-gradient(135deg, #7FE7C4 0%, #7FE7C4 40%, #6CB8E0 75%, #577DFF 100%);
+    --gradient-secondary: linear-gradient(135deg, #577DFF, #6CB8E0);
+    --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(40 33% 95%));
+    --gradient-hero: linear-gradient(135deg, #7FE7C4 0%, #6CB8E0 50%, #577DFF 100%);
 
-    /* Shadows */
-    --shadow-sm: 0 1px 3px hsl(200 25% 15% / 0.05);
-    --shadow-md: 0 4px 12px hsl(200 25% 15% / 0.08);
-    --shadow-lg: 0 8px 24px hsl(200 25% 15% / 0.12);
-    --shadow-glow: 0 0 20px hsl(168 70% 42% / 0.2);
+    /* Shadows - with mint glow */
+    --shadow-sm: 0 1px 3px hsl(240 3% 12% / 0.05);
+    --shadow-md: 0 4px 12px hsl(240 3% 12% / 0.08);
+    --shadow-lg: 0 8px 24px hsl(156 68% 70% / 0.12);
+    --shadow-glow: 0 8px 24px rgba(127, 231, 196, 0.3);
 
     /* Sidebar */
-    --sidebar-background: 160 25% 97%;
-    --sidebar-foreground: 200 25% 25%;
-    --sidebar-primary: 168 70% 42%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 168 50% 92%;
-    --sidebar-accent-foreground: 168 70% 35%;
-    --sidebar-border: 160 20% 90%;
-    --sidebar-ring: 168 70% 42%;
+    --sidebar-background: 40 30% 97%;
+    --sidebar-foreground: 240 3% 20%;
+    --sidebar-primary: 156 68% 70%;
+    --sidebar-primary-foreground: 240 3% 12%;
+    --sidebar-accent: 156 50% 92%;
+    --sidebar-accent-foreground: 156 68% 40%;
+    --sidebar-border: 40 20% 90%;
+    --sidebar-ring: 156 68% 70%;
 
     /* Chat */
-    --chat-user: 168 70% 42%;
-    --chat-assistant: 160 15% 93%;
+    --chat-user: 156 68% 70%;
+    --chat-assistant: 40 20% 93%;
   }
 
   .dark {
-    --background: 200 25% 8%;
-    --foreground: 160 20% 95%;
+    /* Dark mode with SatiaChat colors */
+    --background: 240 3% 8%;
+    --foreground: 40 20% 95%;
 
-    --card: 200 20% 12%;
-    --card-foreground: 160 20% 95%;
+    --card: 240 3% 12%;
+    --card-foreground: 40 20% 95%;
 
-    --popover: 200 20% 12%;
-    --popover-foreground: 160 20% 95%;
+    --popover: 240 3% 12%;
+    --popover-foreground: 40 20% 95%;
 
-    --primary: 168 65% 50%;
-    --primary-foreground: 200 25% 8%;
-    --primary-glow: 168 70% 60%;
+    /* Soft Mint primary - slightly brighter for dark mode */
+    --primary: 156 68% 65%;
+    --primary-foreground: 240 3% 8%;
+    --primary-glow: 156 68% 70%;
 
-    --secondary: 16 80% 60%;
-    --secondary-foreground: 200 25% 8%;
+    /* Satia Blue secondary */
+    --secondary: 227 100% 70%;
+    --secondary-foreground: 240 3% 8%;
 
-    --muted: 200 20% 18%;
-    --muted-foreground: 160 15% 60%;
+    --muted: 240 3% 18%;
+    --muted-foreground: 40 15% 60%;
 
-    --accent: 168 40% 20%;
-    --accent-foreground: 168 65% 70%;
+    --accent: 156 40% 20%;
+    --accent-foreground: 156 65% 70%;
 
     --destructive: 0 70% 45%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 200 20% 20%;
-    --input: 200 20% 20%;
-    --ring: 168 65% 50%;
+    --border: 240 3% 20%;
+    --input: 240 3% 20%;
+    --ring: 156 68% 65%;
 
-    --success: 152 60% 40%;
+    --success: 156 60% 45%;
     --warning: 38 85% 50%;
-    --info: 205 75% 50%;
+    --info: 227 90% 65%;
 
-    --sidebar-background: 200 22% 10%;
-    --sidebar-foreground: 160 15% 85%;
-    --sidebar-primary: 168 65% 50%;
-    --sidebar-primary-foreground: 200 25% 8%;
-    --sidebar-accent: 168 35% 18%;
-    --sidebar-accent-foreground: 168 65% 70%;
-    --sidebar-border: 200 20% 18%;
-    --sidebar-ring: 168 65% 50%;
+    --sidebar-background: 240 3% 10%;
+    --sidebar-foreground: 40 15% 85%;
+    --sidebar-primary: 156 68% 65%;
+    --sidebar-primary-foreground: 240 3% 8%;
+    --sidebar-accent: 156 35% 18%;
+    --sidebar-accent-foreground: 156 65% 70%;
+    --sidebar-border: 240 3% 18%;
+    --sidebar-ring: 156 68% 65%;
 
-    --chat-user: 168 65% 45%;
-    --chat-assistant: 200 20% 18%;
+    --chat-user: 156 65% 55%;
+    --chat-assistant: 240 3% 18%;
   }
 }
 
@@ -130,7 +135,12 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-family: 'DM Sans', system-ui, sans-serif;
+  }
+
+  /* Scale font size 1.5x for main content, excluding sidebar */
+  main {
+    font-size: 1.5em;
   }
 }
 
