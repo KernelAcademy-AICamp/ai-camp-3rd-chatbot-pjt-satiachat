@@ -1,19 +1,19 @@
 import { useState } from "react";
 import {
-  Pill, Plus, Calendar, Clock, History,
+  Pill, Plus, Calendar, History,
   Bell, Loader2, X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { MedicationCard } from "@/components/medications/MedicationCard";
 import { MedicationForm } from "@/components/medications/MedicationForm";
-import { MedicationSchedule } from "@/components/medications/MedicationSchedule";
+import { MedicationCalendar } from "@/components/medications/MedicationCalendar";
 import { HealthSummaryCard } from "@/components/medications/HealthSummaryCard";
 import { MedicationChatPanel } from "@/components/medications/MedicationChatPanel";
 import { FloatingChatButton } from "@/components/ui/FloatingChatButton";
 import { useTodayMedicationStats } from "@/hooks/useMedications";
 
-type ViewTab = "today" | "schedule" | "history";
+type ViewTab = "today" | "history";
 
 export default function Medications() {
   const [showAddForm, setShowAddForm] = useState(false);
@@ -57,7 +57,6 @@ export default function Medications() {
           <div className="flex gap-2 mb-6 p-1 bg-muted/50 rounded-2xl w-fit">
             {[
               { id: "today" as ViewTab, label: "오늘", icon: Calendar },
-              { id: "schedule" as ViewTab, label: "일정", icon: Clock },
               { id: "history" as ViewTab, label: "기록", icon: History },
             ].map((tab) => (
               <button
@@ -240,18 +239,9 @@ export default function Medications() {
             </>
           )}
 
-          {/* 일정 탭 */}
-          {activeView === "schedule" && (
-            <MedicationSchedule medications={medications} />
-          )}
-
-          {/* 기록 탭 */}
+          {/* 기록 탭 - 달력 뷰 */}
           {activeView === "history" && (
-            <div className="bg-card rounded-3xl border border-border/50 p-8 text-center">
-              <History className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">복용 기록</h3>
-              <p className="text-muted-foreground">곧 추가될 기능입니다</p>
-            </div>
+            <MedicationCalendar medications={medications} />
           )}
       </div>
 
