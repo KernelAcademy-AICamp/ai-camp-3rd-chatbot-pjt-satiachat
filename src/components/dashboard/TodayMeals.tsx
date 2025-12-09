@@ -57,7 +57,7 @@ export function TodayMeals() {
 
   return (
     <>
-      <div className="bg-card rounded-2xl border border-border p-5 shadow-sm animate-slide-up" style={{ animationDelay: "0.2s" }}>
+      <div className="bg-card rounded-2xl border border-border p-5 shadow-sm animate-slide-up" style={{ animationDelay: "0.2s", fontSize: "1.3em" }}>
         <h3 className="font-semibold text-foreground mb-4">Today's Meals</h3>
 
         <div className="space-y-3">
